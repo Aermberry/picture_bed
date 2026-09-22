@@ -30,3 +30,7 @@ out/
 .idea/
 *.swp
 *.swo
+
+# yigecli local state
+.yigecli/
+coverage/

@@ -1,0 +1,41 @@
+{
+  "name": "yigecli",
+  "version": "0.1.0",
+  "description": "Local CLI: extract images from markdown/html, upload to PicX-style GitHub image host, rewrite links",
+  "type": "module",
+  "bin": {
+    "yigecli": "./bin/yigecli.js"
+  },
+  "files": [
+    "bin",
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "yigecli": "node ./bin/yigecli.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "cli",
+    "image-host",
+    "picx",
+    "github",
+    "markdown",
+    "agent"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "commander": "^12.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}
