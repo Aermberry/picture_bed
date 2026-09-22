@@ -1,6 +1,6 @@
 # cliops 模块详细设计
 
-> 归属功能点：F1 项目初始化与配置、F2 环境与鉴权自检、F10 Agent 机器接口、F12 watch 监听、F14 VS Code/MCP 包装、F15 GitHub 点击登录。
+> 归属功能点：F1 项目初始化与配置、F2 环境与鉴权自检、F10 Agent 机器接口、F12 watch 监听、F14 VS Code/MCP 包装、F15 Token 鉴权。
 > 架构见 [`../architecture.md`](../architecture.md)；定义见 [`../features-index.md`](../features-index.md)；全局契约见 [`cross-cutting.md`](cross-cutting.md)。
 
 ## 目的
@@ -76,46 +76,25 @@ Doctor 检查项：
 - 幂等提示写入 data，供 Agent 断点续跑。  
 - `picbed commands --json` 列出命令与选项（可发现性）。
 
-## F15 GitHub 点击登录
+## F15 GitHub Token 鉴权
 
 ### 意图
 
-`picbed login` 用 OAuth 完成「浏览器点击授权」，避免手贴 PAT。默认 **Authorization Code + 127.0.0.1 回调**；远程/无浏览器环境用 `--device`（Device Flow）。
+**不提供 OAuth 登录**（自建 OAuth App 对最终用户过重）。鉴权只使用现成 token。
 
-### 依赖配置（用户自备 OAuth App）
+### Token 解析顺序
 
-- `github.client_id` / `PICBED_GITHUB_CLIENT_ID`
-- `github.client_secret` / `PICBED_GITHUB_CLIENT_SECRET`（仅本地用户配置/ENV，禁止入库）
-- 回调 URL：`http://127.0.0.1:<port>/callback`（默认端口可配，建议固定 53682 并写入 OAuth App）
-- scope：默认 `repo`（图床私有仓库）；可降为 `public_repo`
-
-### 本机回调流
-
-1. 生成 `state`（随机），监听 `127.0.0.1:port`
-2. 打开 `https://github.com/login/oauth/authorize?client_id&redirect_uri&scope&state`
-3. 回调校验 `state`，取 `code`
-4. `POST https://github.com/login/oauth/access_token` 换 token
-5. 写入用户级凭据；关闭临时服务器
-
-### Device Flow 回退
-
-1. `POST /login/device/code` → `user_code` / `verification_uri` / `device_code`
-2. 展示码并打开验证页
-3. 轮询 `/login/oauth/access_token`（`urn:ietf:params:oauth:grant-type:device_code`）
-4. 成功后与回调流相同落盘
-
-### 凭据优先级
-
-`PICBED_GITHUB_TOKEN` / `GITHUB_TOKEN` **>** 用户凭据文件中的 OAuth token。
+1. `PICBED_GITHUB_TOKEN`
+2. `GITHUB_TOKEN`
+3. `gh auth token`（复用 GitHub CLI 登录态；`gh` 不存在或失败则跳过）
 
 ### 失败语义
 
 | 情况 | 退出码 |
 |------|--------|
-| 缺 client_id/secret | 3 |
-| state 不匹配 / 用户拒绝 | 3 |
-| 轮询超时 | 3 |
-| 仅写凭据成功 | 0 |
+| 无任何 token | 3 |
+| token 无权限 / API 失败 | 5（或 doctor 汇总 3） |
+| `login` / `logout` | 2（已移除，给出 hint） |
 
 ## 功能点映射
 

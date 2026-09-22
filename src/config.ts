@@ -149,15 +149,7 @@ export function loadConfig(opts: {
 }
 
 export function getToken(): string | undefined {
-  // Lazy import avoided: resolveToken is pure relative to env + user store
   return resolveToken()?.token;
-}
-
-export function getOAuthEnv(): { clientId: string; clientSecret: string } {
-  return {
-    clientId: process.env.PICBED_GITHUB_CLIENT_ID || '',
-    clientSecret: process.env.PICBED_GITHUB_CLIENT_SECRET || '',
-  };
 }
 
 export function configTemplate(overrides?: Partial<{ owner: string; repo: string }>): string {

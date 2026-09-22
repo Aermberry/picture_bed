@@ -109,16 +109,8 @@ export async function run(argv: string[]): Promise<ExitCode> {
     .option('--yes', 'skip confirmation for writes')
     .option('--dry-run', 'do not write or upload');
 
-  program
-    .command('init')
-    .description('write picbed.toml template')
-    .option('--force', 'overwrite existing config')
-    .action(() => {
-      /* handled below via parse */
-    });
-
-  program.command('login').description('GitHub OAuth login (browser)');
-  program.command('logout').description('remove stored OAuth token');
+  program.command('init').description('write picbed.toml template')
+    .option('--force', 'overwrite existing config');
   program.command('doctor').description('check config and GitHub auth');
   program
     .command('scan <path>')
@@ -182,8 +174,6 @@ export async function run(argv: string[]): Promise<ExitCode> {
       const data = {
         commands: [
           'init',
-          'login',
-          'logout',
           'doctor',
           'scan',
           'plan',
@@ -222,100 +212,11 @@ export async function run(argv: string[]): Promise<ExitCode> {
     }
 
     if (command === 'login' || command === 'logout') {
-      const { loginWithCallback, loginWithDevice, requireOAuthClient, startDeviceLogin, DEFAULT_CALLBACK_PORT } =
-        await import('./login.js');
-      const { clearCredentials, loadCredentials, resolveToken } = await import('./store.js');
-
-      if (command === 'logout') {
-        const removed = clearCredentials();
-        emit(json, { schemaVersion: 1, ok: true, command, data: { removed } }, () => {
-          console.log(removed ? 'credentials cleared' : 'no stored credentials');
-        });
-        return EXIT.OK;
-      }
-
-      const useDevice = argv.includes('--device');
-      try {
-        const client = requireOAuthClient();
-        let result;
-        if (useDevice) {
-          const start = await startDeviceLogin(client.clientId, client.scope);
-          emit(
-            json,
-            {
-              schemaVersion: 1,
-              ok: true,
-              command: 'login',
-              data: {
-                mode: 'device',
-                user_code: start.user_code,
-                verification_uri: start.verification_uri,
-                phase: 'waiting',
-              },
-            },
-            () => {
-              console.log(`Open ${start.verification_uri} and enter code: ${start.user_code}`);
-            },
-          );
-          const { pollDeviceToken } = await import('./login.js');
-          const { saveCredentials } = await import('./store.js');
-          const token = await pollDeviceToken({
-            clientId: client.clientId,
-            clientSecret: client.clientSecret,
-            deviceCode: start.device_code,
-            interval: start.interval,
-          });
-          const path = saveCredentials({
-            token: token.access_token,
-            tokenType: token.token_type,
-            scope: token.scope,
-            source: 'oauth',
-            updatedAt: new Date().toISOString(),
-          });
-          result = { path, mode: 'device' as const, source: 'oauth' as const, updatedAt: new Date().toISOString() };
-        } else {
-          const port = DEFAULT_CALLBACK_PORT;
-          const { authorizeUrl, randomState } = await import('./login.js');
-          // print URL first via callback login helper
-          result = await loginWithCallback({
-            clientId: client.clientId,
-            clientSecret: client.clientSecret,
-            scope: client.scope,
-            port,
-            open: true,
-          });
-          void authorizeUrl;
-          void randomState;
-        }
-
-        const resolved = resolveToken();
-        emit(
-          json,
-          {
-            schemaVersion: 1,
-            ok: true,
-            command,
-            data: {
-              mode: result.mode,
-              path: result.path,
-              tokenSource: resolved?.source ?? 'oauth',
-            },
-          },
-          () => {
-            console.log(`logged in (${result.mode}) -> ${result.path}`);
-          },
-        );
-        return EXIT.OK;
-      } catch (err) {
-        const e = err as Error & { code?: string };
-        return fail(json, command, EXIT.CONFIG, {
-          code: e.code ?? 'E_AUTH',
-          message: e.message,
-          hint: useDevice
-            ? 'check PICBED_GITHUB_CLIENT_ID/SECRET and retry'
-            : 'try picbed login --device, or set PICBED_GITHUB_TOKEN',
-        });
-      }
+      return fail(json, command, EXIT.USAGE, {
+        code: 'E_AUTH',
+        message: `${command} was removed (no OAuth App flow)`,
+        hint: 'set PICBED_GITHUB_TOKEN (or GITHUB_TOKEN), or use `gh auth login` then picbed will call `gh auth token`',
+      });
     }
 
     const cfg = loadCfg(cwd, opts.config);
@@ -391,7 +292,7 @@ export async function run(argv: string[]): Promise<ExitCode> {
       checks.push({
         name: 'token',
         ok: Boolean(token),
-        detail: token ? `present (${maskToken(token)})` : 'missing PICBED_GITHUB_TOKEN',
+        detail: token ? `present (${maskToken(token)})` : 'missing PICBED_GITHUB_TOKEN / GITHUB_TOKEN / gh auth',
       });
 
       let apiOk = false;
@@ -597,7 +498,7 @@ export async function run(argv: string[]): Promise<ExitCode> {
       if (hostRequiresToken(cfg) && !token) {
         return fail(json, command, EXIT.CONFIG, {
           code: 'E_TOKEN',
-          message: 'missing PICBED_GITHUB_TOKEN',
+          message: 'missing PICBED_GITHUB_TOKEN (or GITHUB_TOKEN / gh auth token)',
         }, collected.warnings);
       }
       if (cfg.host.type === 'github' && (!cfg.github.owner || !cfg.github.repo)) {
@@ -741,7 +642,7 @@ export async function run(argv: string[]): Promise<ExitCode> {
       if (hostRequiresToken(cfg) && !token) {
         return fail(json, command, EXIT.CONFIG, {
           code: 'E_TOKEN',
-          message: 'missing PICBED_GITHUB_TOKEN',
+          message: 'missing PICBED_GITHUB_TOKEN (or GITHUB_TOKEN / gh auth token)',
         });
       }
       const bytes = fs.readFileSync(abs);

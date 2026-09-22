@@ -27,7 +27,7 @@
 
 ### 非目标（本期不做）
 - Web / Tauri GUI（picx-app 已覆盖）。
-- GitHub OAuth App 流程（v1 用 PAT / 环境变量）。
+- GitHub OAuth App 流程（已移除；用 PAT / `gh auth token`）。
 - 图片压缩、水印、裁剪工具箱。
 - 非图片二进制托管（PDF / 视频等）。
 - 多图床后端实现：已提供 `HostAdapter` 工厂（github | local）；更多后端可继续注册（F13）。

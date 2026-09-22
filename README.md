@@ -17,27 +17,24 @@ npm run build
 npm test
 ```
 
-## 登录（GitHub 点击授权）
+## 鉴权（无 OAuth App）
 
-在 GitHub 创建 **OAuth App**（Callback URL：`http://127.0.0.1:53682/callback`），然后：
+GitHub 图床需要 token，三选一（优先级从高到低）：
 
 ```bash
-export PICBED_GITHUB_CLIENT_ID=...
-export PICBED_GITHUB_CLIENT_SECRET=...
-
-node bin/picbed.js login          # 浏览器点击 Authorize（本机回调）
-node bin/picbed.js login --device # 远程/无浏览器：Device Flow（输一次性码）
-node bin/picbed.js logout
+export PICBED_GITHUB_TOKEN=ghp_xxx   # 推荐：自建 PAT（repo 或 Contents RW）
+export GITHUB_TOKEN=ghp_xxx          # 兼容通用变量
+gh auth login                        # 或直接复用 GitHub CLI 的 token
 ```
 
-Token 存用户级 `~/.config/picbed/credentials.json`（不入库）。也可继续用 `PICBED_GITHUB_TOKEN`（PAT，优先级更高）。
+不需要注册 OAuth App，也没有 `login`/`logout`。
 
 ## 快速开始
 
 ```bash
 node bin/picbed.js init
 # 编辑 picbed.toml：github.owner / github.repo / github.branch / github.dir
-# 登录后无需再导出 PAT；若用 PAT：export PICBED_GITHUB_TOKEN=ghp_xxx
+export PICBED_GITHUB_TOKEN=ghp_xxx   # 或已 gh auth login
 
 node bin/picbed.js doctor --json
 node bin/picbed.js plan ./docs --json
@@ -52,8 +49,6 @@ node bin/picbed.js revert ./docs --dry-run --json
 | 命令 | 说明 |
 |------|------|
 | `init` | 生成 `picbed.toml` |
-| `login` | GitHub OAuth 点击登录（`--device` 走 Device Flow） |
-| `logout` | 清除本地 OAuth 凭据 |
 | `doctor` | 配置 / token / API 自检 |
 | `scan <path>` | 扫描文档与图片引用 |
 | `plan <path>` | 生成上传计划（不写不传） |

@@ -45,12 +45,11 @@
 
 ## 3. 密钥纪律
 
-- 名称：`PICBED_GITHUB_TOKEN` / `GITHUB_TOKEN`；OAuth 另有 `PICBED_GITHUB_CLIENT_ID`、`PICBED_GITHUB_CLIENT_SECRET`。  
-- OAuth 用户 token 存用户级凭据文件（非仓库），权限 0600。  
+- 名称：`PICBED_GITHUB_TOKEN` / `GITHUB_TOKEN`；或复用 `gh auth token`（无 OAuth Client Secret）。  
 - 范围：仅图床仓库 Contents RW（scope `repo` 或 `public_repo`）。  
 - 禁止：写入 git 跟踪文件、manifest、backup、日志、JSON data。  
 - 展示：掩码 `ghp_****` 或 `****`。  
-- 优先级：ENV PAT > 用户凭据文件 OAuth token。
+- 优先级：`PICBED_GITHUB_TOKEN` > `GITHUB_TOKEN` > `gh auth token`。
 
 ## 4. 路径与 FS 安全
 

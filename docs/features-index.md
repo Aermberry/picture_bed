@@ -29,7 +29,7 @@
 | F9 | Manifest 与 revert | P1 | rewrite | 映射可审计；revert 还原本地路径；无 token |
 | F10 | Agent 机器接口 | P0 | cliops | `--json` schema 稳定；退出码契约；无 TTY 不阻塞 |
 | F11 | 单文件上传 | P1 | transfer | upload 子命令输出 URL；与 sync 共用适配器 |
-| F15 | GitHub 点击登录 | P0 | cliops | 本机回调 OAuth 优先；Device Flow 回退；token 本地安全存储；ENV PAT 仍可用 |
+| F15 | GitHub Token 鉴权 | P0→**done** | cliops | PAT/GITHUB_TOKEN/gh auth；无 OAuth App |
 | F12 | watch 监听 | P3→**done** | cliops | 目录变更触发增量 plan/sync；可退出；不引入常驻特权 |
 | F13 | 多图床适配器 | P3→**done** | transfer | HostAdapter 可替换为非 GitHub 后端且 AC7 语义保持 |
 | F14 | VS Code / MCP 包装 | P3→**done** | cliops | 包装层不复制业务规则，只调用 CLI 契约 |
@@ -102,11 +102,11 @@
 - 实现（域）：[module-transfer · F11](design/module-transfer.md#f11-单文件上传)
 - AC：`upload <file>` 成功输出 publicUrl（人类/JSON）；与 `sync` 共用 HostAdapter 与 URL 策略；失败映射到既有退出码。
 
-## F15 GitHub 点击登录
+## F15 GitHub Token 鉴权
 
-- 优先级：P0 · 模块：**cliops**
-- 实现（域）：[module-cliops · F15](design/module-cliops.md#f15-github-点击登录)
-- AC：`login` 默认启动 `127.0.0.1` 回调并打开浏览器完成 OAuth；`login --device` 走 Device Flow（显示 user_code）；授权成功后 token 写入用户级凭据文件（0600，不入库）；`PICBED_GITHUB_TOKEN` 优先于存储的 OAuth token；`logout` 可清除；client_id/secret 来自 ENV 或用户配置且输出掩码；state 校验防 CSRF。
+- 优先级：P0（已实现）· 模块：**cliops**
+- 实现（域）：[module-cliops · F15](design/module-cliops.md#f15-github-token-鉴权)
+- AC：**无 OAuth App / 无 login 命令**。token 解析顺序：`PICBED_GITHUB_TOKEN` → `GITHUB_TOKEN` → `gh auth token`；缺失时 `doctor`/`sync` 退出码 3；输出一律掩码。原 OAuth 点击登录已移除（分发成本过高）。
 
 ## F12 watch 监听
 
