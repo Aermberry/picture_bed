@@ -1,5 +1,9 @@
 # Review Findings
 
+## 2026-09-22 status after MVP (memory sync)
+
+Bootstrap gaps 1–4 below are **resolved** by later commits (`cc628a8`–`88e7c32`): TypeScript stack, vitest+tsc validation (15/15 pass), full README, and stack ignore rules. Residual: no CI; merge to develop/main still open. This section supersedes the bootstrap gap list for current state.
+
 ## 2026-09-22 bootstrap review (read-only)
 
 Scope: top-level structure, primary artifacts, config, docs, validation.
