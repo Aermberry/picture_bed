@@ -48,7 +48,9 @@ After each change, write or update related tests. Before delivering results to t
 
 Design documentation belongs on branch `docs/design`. **Must** land design-doc changes on `docs/design` first (or in the same change set as a design-only commit parented on `docs/design`); implementation stays on `feature/*` with Git Flow merges to `develop`/`main`.
 
-Under isolated worktree (no `checkout`): build a design-only commit with `GIT_INDEX_FILE` + `read-tree docs/design` + `update-index` design paths + `commit-tree -p docs/design`, then `git fetch . <sha>:docs/design`.
+**After every `docs/design` commit, merge `docs/design` → `develop`** (and keep `main` in sync via release/Git Flow). Do not leave `docs/design` unmerged: a design tip that is not an ancestor of `develop` is a process failure.
+
+Under isolated worktree (no `checkout`): build a design-only commit with `GIT_INDEX_FILE` + `read-tree docs/design` + `update-index` design paths + `commit-tree -p docs/design`, then `git fetch . <sha>:docs/design`. For the follow-up merge into `develop`: `commit-tree -p develop -p docs/design` + `git fetch . +<merge>:develop`.
 
 Evidence: user messages 2026-09-22/23; also recorded in project MEMORY.md.
 
