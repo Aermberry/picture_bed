@@ -148,7 +148,7 @@ export async function handleRpc(
       result: {
         protocolVersion: '2024-11-05',
         capabilities: { tools: {} },
-        serverInfo: { name: 'picbed-mcp', version: '0.1.0' },
+        serverInfo: { name: 'picbed-mcp', version: '0.2.0' },
       },
     };
   }
