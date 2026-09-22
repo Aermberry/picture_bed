@@ -11,4 +11,4 @@
 | 2026-09-22 | F12 watch / F13 multi-host / F14 VS Code-MCP | **closed** | Implemented on `feature/picbed-mvp`: F13 host factory+local, F12 watch, F14 picbed-mcp |
 | 2026-09-22 | Optional: CI workflow | **closed** | `.github/workflows/ci.yml`: lint+build+test on Node 20/22 |
 | 2026-09-22 | GitHub Release on tag `v*` | **closed** | `release.yml` + tag `v0.1.0` → Release with `picbed-*.tgz` |
-| 2026-09-22 | GitHub Packages (npm) publish | **open** | Not configured; Releases has tarball only |
+| 2026-09-22 | GitHub Packages (npm) publish | **closed** | User: not needed; Releases tarball only |
