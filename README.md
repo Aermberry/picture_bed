@@ -60,6 +60,7 @@ node bin/yigecli.js revert ./docs --dry-run --json
 | `sync <path>` | 上传并回写链接 |
 | `upload <file>` | 单文件上传 |
 | `revert <path>` | 按 manifest 还原本地链接 |
+| `watch <path>` | 监听变更并触发 sync（F12） |
 | `config get\|set\|list` | 配置读写（token 掩码） |
 | `commands` | 列出命令 |
 
@@ -81,7 +82,7 @@ yigecli sync ./docs --json --yes
 
 ## 功能点
 
-见 [`docs/features-index.md`](docs/features-index.md)：F1–F11、F13、F15 已实现；F12 watch / F14 VS Code·MCP 为 P3。
+见 [`docs/features-index.md`](docs/features-index.md)：F1–F13、F15 已实现；F14 VS Code·MCP 为 P3。
 
 ### 多图床（F13）
 

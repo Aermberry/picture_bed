@@ -30,9 +30,10 @@
 | F10 | Agent 机器接口 | P0 | cliops | `--json` schema 稳定；退出码契约；无 TTY 不阻塞 |
 | F11 | 单文件上传 | P1 | transfer | upload 子命令输出 URL；与 sync 共用适配器 |
 | F15 | GitHub 点击登录 | P0 | cliops | 本机回调 OAuth 优先；Device Flow 回退；token 本地安全存储；ENV PAT 仍可用 |
-| F12 | watch 监听 | P3 | 待定 | backlog |
+| F12 | watch 监听 | P3→**done** | cliops | 目录变更触发增量 plan/sync；可退出；不引入常驻特权 |
 | F13 | 多图床适配器 | P3→**done** | transfer | HostAdapter 可替换为非 GitHub 后端且 AC7 语义保持 |
 | F14 | VS Code / MCP 包装 | P3 | 待定 | backlog |
+| F15 | GitHub 点击登录 | P0 | cliops | 本机回调 OAuth 优先；Device Flow 回退；token 本地安全存储；ENV PAT 仍可用 |
 
 ---
 
@@ -110,8 +111,9 @@
 
 ## F12 watch 监听
 
-- 优先级：P3 · 模块：待定 · **backlog**
-- AC（占位）：目录变更触发增量 plan/sync；可退出；不引入常驻特权。
+- 优先级：P3（已实现）· 模块：**cliops**
+- 实现（域）：[module-cliops · F12](design/module-cliops.md#f12-watch-监听)
+- AC：目录变更触发增量 plan/sync；可退出；不引入常驻特权。实现：`watch <path> --debounce <ms>`；`fs.watch` 递归监听 + 防抖批处理；变更时 spawn 既有 `sync`（只调 CLI 契约）；SIGINT/SIGTERM 可退出；忽略 `node_modules`/`.git`/`.yigecli`。
 
 ## F13 多图床适配器
 

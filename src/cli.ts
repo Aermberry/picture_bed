@@ -136,6 +136,10 @@ export async function run(argv: string[]): Promise<ExitCode> {
     .command('revert <path>')
     .description('revert public URLs back to original local refs');
   program
+    .command('watch <path>')
+    .description('watch docs and run sync on change (F12)')
+    .option('--debounce <ms>', 'debounce window in ms', '300');
+  program
     .command('config')
     .description('get|set|list configuration')
     .argument('[action]', 'get|set|list')
@@ -186,6 +190,7 @@ export async function run(argv: string[]): Promise<ExitCode> {
           'sync',
           'upload',
           'revert',
+          'watch',
           'config',
           'commands',
         ],
@@ -420,6 +425,87 @@ export async function run(argv: string[]): Promise<ExitCode> {
         }
       });
       return ok ? EXIT.OK : EXIT.CONFIG;
+    }
+
+    if (command === 'watch') {
+      const target = p1;
+      if (!target) {
+        return fail(json, command, EXIT.USAGE, {
+          code: 'E_USAGE',
+          message: 'missing <path>',
+        });
+      }
+      const root = path.resolve(cwd, target);
+      const debounceArg = argv.find((a) => a.startsWith('--debounce='));
+      const debounceIdx = argv.indexOf('--debounce');
+      const debounceRaw =
+        debounceArg?.split('=')[1] ??
+        (debounceIdx >= 0 ? argv[debounceIdx + 1] : undefined) ??
+        '300';
+      const debounceMs = Number(debounceRaw);
+      if (!Number.isFinite(debounceMs) || debounceMs < 0) {
+        return fail(json, command, EXIT.USAGE, {
+          code: 'E_USAGE',
+          message: `invalid --debounce: ${debounceRaw}`,
+        });
+      }
+      if (!yes && !dryRun) {
+        return fail(json, command, EXIT.CONFIRM, {
+          code: 'E_CONFIRM',
+          message: 'watch may write documents and upload; pass --yes (or --dry-run)',
+        });
+      }
+      const { startWatch } = await import('./watch.js');
+      const { fileURLToPath } = await import('node:url');
+      const bin = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../bin/yigecli.js');
+      const { spawn } = await import('node:child_process');
+      let lastCode: ExitCode = EXIT.OK;
+      const runOnce = (changed: string[]) =>
+        new Promise<void>((resolve) => {
+          const childArgs = [bin, 'sync', target];
+          if (yes) childArgs.push('--yes');
+          if (dryRun) childArgs.push('--dry-run');
+          if (json) childArgs.push('--json');
+          if (opts.config) childArgs.push('--config', opts.config);
+          childArgs.push('--cwd', cwd);
+          const child = spawn(process.execPath, childArgs, { stdio: ['ignore', 'inherit', 'inherit'] });
+          if (!json && !opts.quiet) {
+            console.error(`watch: change -> sync (${changed.length} path(s))`);
+          }
+          child.on('exit', (code) => {
+            lastCode = (code ?? EXIT.GENERAL) as ExitCode;
+            resolve();
+          });
+        });
+
+      const w = startWatch({
+        root,
+        debounceMs,
+        onTrigger: (changed) => runOnce(changed),
+      });
+
+      const stop = () => {
+        w.close();
+      };
+      process.on('SIGINT', stop);
+      process.on('SIGTERM', stop);
+
+      emit(
+        json,
+        {
+          schemaVersion: 1,
+          ok: true,
+          command,
+          data: { root, debounceMs, dryRun, watching: true },
+        },
+        () => {
+          console.log(`watching ${root} (debounce ${debounceMs}ms, Ctrl+C to stop)`);
+        },
+      );
+      await w.closed;
+      process.off('SIGINT', stop);
+      process.off('SIGTERM', stop);
+      return lastCode;
     }
 
     if (command === 'scan' || command === 'plan' || command === 'sync' || command === 'revert') {

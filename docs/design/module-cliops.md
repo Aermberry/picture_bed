@@ -1,6 +1,6 @@
 # cliops 模块详细设计
 
-> 归属功能点：F1 项目初始化与配置、F2 环境与鉴权自检、F10 Agent 机器接口。
+> 归属功能点：F1 项目初始化与配置、F2 环境与鉴权自检、F10 Agent 机器接口、F12 watch 监听、F15 GitHub 点击登录。
 > 架构见 [`../architecture.md`](../architecture.md)；定义见 [`../features-index.md`](../features-index.md)；全局契约见 [`cross-cutting.md`](cross-cutting.md)。
 
 ## 目的
@@ -45,6 +45,12 @@ rewrite:{ backup: boolean }
 - `init`：写出 `yigecli.toml` 模板（无 secret）；已存在需 `--force`。  
 - `config get|set|list`：枚举校验（如 `url.style`）；`list` 对 secret 掩码 `****`。  
 - 非法配置：退出码 2（用法）或 3（缺鉴权类），消息含键名。
+
+## F12 watch 监听
+
+- `watch <path> --debounce <ms>`：`fs.watch` 递归监听文档目录；防抖合并变更批次。
+- 触发后调用既有 `sync` 子命令（spawn CLI，不复制业务规则）；支持 `--dry-run`。
+- 可退出：SIGINT / SIGTERM 关闭 watcher 后进程结束；**无**常驻服务/特权。
 
 ## F2 环境与鉴权自检
 
