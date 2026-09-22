@@ -4,6 +4,32 @@
 
 设计文档见 [`docs/`](docs/)（F/P/模块/AC），HTML 呈现见 [`index.html`](index.html)。
 
+## 安装
+
+**方式 1 · Release 包（推荐）**
+
+到 [Releases](https://github.com/Aermberry/picture_bed/releases) 下载 `picbed-x.y.z.tgz`，或：
+
+```powershell
+# 直接从 Release 装（版本号按实际发布调整）
+npm install -g https://github.com/Aermberry/picture_bed/releases/download/v0.2.0/picbed-0.2.0.tgz
+
+# 或先下载再装
+npm install -g .\picbed-0.2.0.tgz
+```
+
+装好后可用全局命令：`picbed`、`picbed-mcp`。
+
+**方式 2 · 从源码**
+
+```bash
+git clone https://github.com/Aermberry/picture_bed.git
+cd picture_bed
+npm install
+npm run build
+node bin/picbed.js --help     # 或 npm link 后直接用 picbed
+```
+
 ## 环境
 
 - Node.js ≥ 20
