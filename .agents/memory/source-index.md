@@ -32,6 +32,7 @@
 | 2026-09-22 | `index.html` + `styles.css` + `app.js` | design HTML presentation | no runtime product code |
 | 2026-09-22 | `scripts/validate-bootstrap.ps1` | bootstrap layout check | AgentGo layout |
 | 2026-09-22 | `scripts/validate-design.ps1` | design pack check | section/asset validation |
+| 2026-09-22 | `.github/workflows/ci.yml` | CI | Node 20/22: npm ci, lint, build, test |
 | 2026-09-22 | `vitest.config.ts` | test runner config | vitest |
 | 2026-09-22 | `tsconfig.json` | TS project | ESM build to `dist/` |
 | 2026-09-22 | `.gitignore` | ignore rules | OS/env/node/build/IDE + yigecli local secrets |
