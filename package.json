@@ -4,7 +4,8 @@
   "description": "Local CLI: extract images from markdown/html, upload to PicX-style GitHub image host, rewrite links",
   "type": "module",
   "bin": {
-    "yigecli": "./bin/yigecli.js"
+    "yigecli": "./bin/yigecli.js",
+    "yigecli-mcp": "./bin/yigecli-mcp.js"
   },
   "files": [
     "bin",

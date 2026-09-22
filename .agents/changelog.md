@@ -28,3 +28,4 @@
 2026-09-22T18:05:00Z | mimo | update | .agents/memory/gotchas.md + outcomes.md | Documented commit-tree GH007 rewrite; pushed feature/yigecli-mvp@8b2808a | User chose option 1 (push then local merge)
 2026-09-22T18:20:00Z | mimo | update | .agents/memory/open-items.md + gotchas.md | Local FF land feature→develop→main at e58cb42 via git fetch . ; remote push pending network | User follow-up (1)
 2026-09-22T18:30:00Z | mimo | update | .agents/memory/open-items.md | Closed push item; all three branches at e9a61ff on origin | User asked to retry push
+2026-09-22T19:20:00Z | mimo | create | F12/F13/F14 implementation | Host factory+local, watch, yigecli-mcp; 25/25 tests | User asked to implement backlog in order

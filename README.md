@@ -82,7 +82,7 @@ yigecli sync ./docs --json --yes
 
 ## 功能点
 
-见 [`docs/features-index.md`](docs/features-index.md)：F1–F13、F15 已实现；F14 VS Code·MCP 为 P3。
+见 [`docs/features-index.md`](docs/features-index.md)：F1–F15 全部已实现。
 
 ### 多图床（F13）
 
@@ -97,3 +97,12 @@ dir = "img"
 ```
 
 `host.type = "local"` 时上传写入本地目录，无需 GitHub token。
+
+## MCP 包装（F14）
+
+```bash
+node bin/yigecli-mcp.js
+# 或 npm link 后：yigecli-mcp
+```
+
+stdio JSON-RPC；tools 均转调 `yigecli … --json`。VS Code / Claude 等 MCP 客户端将 command 指到该入口即可。

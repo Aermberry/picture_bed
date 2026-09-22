@@ -31,7 +31,7 @@
 - 图片压缩、水印、裁剪工具箱。
 - 非图片二进制托管（PDF / 视频等）。
 - 多图床后端实现：已提供 `HostAdapter` 工厂（github | local）；更多后端可继续注册（F13）。
-- watch 监听、VS Code / MCP 包装（backlog）。
+- watch 监听、VS Code / MCP 包装：已实现（F12 / F14）。
 
 ---
 

@@ -21,8 +21,8 @@ Commands: `init` · `login`/`logout` · `doctor` · `scan` · `plan` · `sync` �
 
 ## Feature progress (authoritative: `docs/features-index.md`)
 
-- Done (P0/P1): F1–F11, F15
-- Backlog (P3): F12 watch, F13 multi-host, F14 VS Code/MCP wrapper
+- Done: F1–F15 (incl. F12 watch, F13 multi-host, F14 MCP)
+- Optional open: CI
 
 ## Source of truth
 

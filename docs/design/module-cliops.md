@@ -1,6 +1,6 @@
 # cliops 模块详细设计
 
-> 归属功能点：F1 项目初始化与配置、F2 环境与鉴权自检、F10 Agent 机器接口、F12 watch 监听、F15 GitHub 点击登录。
+> 归属功能点：F1 项目初始化与配置、F2 环境与鉴权自检、F10 Agent 机器接口、F12 watch 监听、F14 VS Code/MCP 包装、F15 GitHub 点击登录。
 > 架构见 [`../architecture.md`](../architecture.md)；定义见 [`../features-index.md`](../features-index.md)；全局契约见 [`cross-cutting.md`](cross-cutting.md)。
 
 ## 目的
@@ -45,6 +45,13 @@ rewrite:{ backup: boolean }
 - `init`：写出 `yigecli.toml` 模板（无 secret）；已存在需 `--force`。  
 - `config get|set|list`：枚举校验（如 `url.style`）；`list` 对 secret 掩码 `****`。  
 - 非法配置：退出码 2（用法）或 3（缺鉴权类），消息含键名。
+
+## F14 VS Code / MCP 包装
+
+- 入口：`yigecli-mcp`（stdio，newline-delimited JSON-RPC 2.0）。
+- Tools：`yigecli_doctor|scan|plan|sync|upload|revert`——每个 tool **只**拼 CLI argv 并 `spawn` `yigecli … --json`。
+- **禁止**在包装层重写抽取/上传/回写规则；输出原样透传 CLI JSON。
+- VS Code：把 `yigecli-mcp` 配进 MCP / 任务即可；扩展层不承载业务。
 
 ## F12 watch 监听
 
