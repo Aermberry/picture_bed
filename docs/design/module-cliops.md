@@ -8,7 +8,7 @@
 cliops 负责 **配置生命周期、健康检查、命令编排入口与机器可读契约**，使 picbed 对人可读、对 Agent 可编程。业务规则在 ingest/transfer/rewrite；本模块保证输入合法、输出稳定、失败可判定。
 
 边界原则：
-- Token **只**从 ENV / 用户级配置读取；输出一律掩码。  
+- Token **只**从 ENV / `gh`（GitHub CLI）读取；输出一律掩码。  
 - 非 TTY **禁止**交互阻塞；写文件类命令无 `--yes` 时退出码 7。  
 - `--json` 时 stdout 仅 JSON，诊断走 stderr。
 
@@ -105,4 +105,6 @@ Doctor 检查项：
 | [F1](../features-index.md#f1-项目初始化与配置) | §F1 |
 | [F2](../features-index.md#f2-环境与鉴权自检) | §F2 |
 | [F10](../features-index.md#f10-agent-机器接口) | §F10 |
-| [F15](../features-index.md#f15-github-点击登录) | §F15 |
+| [F12](../features-index.md#f12-watch-监听) | §F12 |
+| [F14](../features-index.md#f14-vs-code--mcp-包装) | §F14 |
+| [F15](../features-index.md#f15-github-token-鉴权) | §F15 |

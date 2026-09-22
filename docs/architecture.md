@@ -1,17 +1,17 @@
 # picbed 架构设计
 
-> 状态：设计稿 v0.1（待评审）· **未实现业务代码**（2026-09-22）
+> 状态：**已实现并发布 v0.2.0**（2026-09-22）· Node/TS CLI
 > 定位：**架构总纲**（分层 / 存储 / CLI 契约 / 数据模型 / 安全 / NFR / 技术选型）。
 > 功能点的完整规格（优先级、AC、实现归属、双向链接）以 [`features-index.md`](features-index.md) 为唯一来源；本文档不重复其逐条 AC。
 > **新人阅读指南**（F 编号、模块名、文档怎么串）：[`design-reading-guide.md`](design-reading-guide.md)。
 > 范围：本地 CLI **picbed**——扫描目录中 Markdown / HTML 等文档内嵌图片，经 PicX 同源 **GitHub 图床通道**上传，自动回写稳定公开链接；面向人与 **Agent** 双模式。
 > 约束输入（用户确认）：
-> - 形态：**CLI only**（v1 不做 Web UI / 桌面壳；picx-app 已覆盖 GUI）
+> - 形态：**CLI only**（不做 Web UI / 桌面壳；picx-app 已覆盖 GUI）
 > - 痛点：批量处理一篇文章/文件夹中的本地图片；流程须 **Agent 可稳定驱动**
-> - 图床：对齐 PicX 模型 = **GitHub Contents API + URL 风格约定**（非 picx 私有前端接口）
-> - 本期交付：**仅架构与功能详细设计**；实现待设计冻结后启动
+> - 图床：对齐 PicX 模型 = **GitHub Contents API + URL 风格约定**（非 picx 私有前端接口）；另支持 `local` 后端（F13）
+> - 交付：设计 + 实现已完成（F1–F15）；安装见 README（Release tarball / 源码）
 >
-> 本文档主体为**技术栈无关**设计。技术选型见 §7（推荐 Node/TS，可改 Go）。
+> 技术选型已采用 **Node/TS**（§7）。
 
 ---
 
@@ -25,13 +25,15 @@
 - G4 Agent 契约：无交互默认、稳定退出码、`--json` schema、幂等重跑。
 - G5 安全：token 不入库、不进日志/manifest；默认拒绝路径越界与绝对路径。
 
-### 非目标（本期不做）
+### 非目标
 - Web / Tauri GUI（picx-app 已覆盖）。
-- GitHub OAuth App 流程（已移除；用 PAT / `gh auth token`）。
+- GitHub OAuth 登录（已移除；用 PAT / `gh auth token`）。
 - 图片压缩、水印、裁剪工具箱。
 - 非图片二进制托管（PDF / 视频等）。
-- 多图床后端实现：已提供 `HostAdapter` 工厂（github | local）；更多后端可继续注册（F13）。
-- watch 监听、VS Code / MCP 包装：已实现（F12 / F14）。
+
+### 已超出原 v1 划界但已实现
+- 多图床：`HostAdapter` 工厂（**github | local**，F13）。
+- watch 监听、MCP 包装（F12 / F14）。
 
 ---
 
@@ -42,7 +44,7 @@
 ```
 ┌──────────────────────────────────────────────────────────┐
 │  CLI 层 picbed                                           │
-│   init · doctor · scan · plan · sync · upload · revert · config │
+│   init · doctor · scan · plan · sync · upload · revert · watch · config │
 │   退出码 / --json / --yes / --dry-run / --quiet             │
 └───────────────▲──────────────────────────────────────────┘
                 │  命令 DTO / 结果 DTO
@@ -70,7 +72,7 @@
 | 源文档 | md / html 等 | 用户指定目录（默认原地回写；`--out-dir` 写副本） | 用户 / `LinkRewriter` |
 | 源图片 | 本地图片文件 | 相对文档目录解析 | **只读**（picbed 不改图片字节） |
 | 配置 | owner/repo/branch/dir/url 风格 | `./picbed.toml` / ENV | `init` / `config set` |
-| Token | GitHub PAT | **仅** `PICBED_GITHUB_TOKEN` 或用户级配置 | 用户（禁止入库） |
+| Token | GitHub PAT / gh | **仅** `PICBED_GITHUB_TOKEN` / `GITHUB_TOKEN` / `gh auth token` | 用户（禁止入库） |
 | Manifest | localPath+sha → publicUrl | `./.picbed/manifest.json` | `ManifestStore` |
 | Backup | 回写前文档副本 | `./.picbed/backup/` | `LinkRewriter` |
 | Cache | sha → 已上传 URL | 并入 manifest 或 `./.picbed/cache.json` | `SyncOrchestrator` |
@@ -127,7 +129,7 @@ PicX 图床本质是 **GitHub 仓库文件托管 + URL 风格**。picbed 对齐�
 
 | PicX 概念 | picbed 配置 | 说明 |
 |-----------|--------------|------|
-| Token | `PICBED_GITHUB_TOKEN` | PAT；repo 或 fine-grained Contents RW |
+| Token | `PICBED_GITHUB_TOKEN` / `GITHUB_TOKEN` / `gh auth token` | PAT 或 GitHub CLI；repo 或 fine-grained Contents RW |
 | Owner / Repo / Branch / 目录 | `github.owner/repo/branch/dir` | 图床仓库 |
 | CDN 规则 | `url.style` | `raw` \| `jsdelivr` \| `custom` |
 
@@ -198,7 +200,7 @@ URL：
 |------|------|
 | `main` | 发布/稳定 |
 | `develop` | 功能集成 |
-| `feature/*` | 实现（如 `feature/picbed-mvp`） |
+| `feature/*` | 实现（如 `feature/yigecli-mvp`，历史分支名） |
 | `docs/design` | **文档设计专属分支**（`docs/`、HTML 呈现、标识体系变更优先落此分支） |
 | `release/*` / `hotfix/*` | 可选 |
 
@@ -206,25 +208,28 @@ URL：
 
 ## 10. 分期（与 F/P 对齐，引用不重定义 AC）
 
-| 阶段 | 内容 | 对应优先级 |
-|------|------|------------|
-| M0 设计冻结 | 本文档 + features-index + modules | — |
-| M1 骨架 | init/doctor/config | P0 子集 |
-| M2 抽取 | scan/plan | P0 |
-| M3 上传 | upload/sync 幂等 | P0 |
-| M4 回写 | rewrite/revert | P0 |
-| M5 打磨 | Agent schema 冻结 / 发布 | P1 |
+| 阶段 | 内容 | 对应优先级 | 状态 |
+|------|------|------------|------|
+| M0 设计冻结 | 本文档 + features-index + modules | — | done |
+| M1 骨架 | init/doctor/config | P0 子集 | done |
+| M2 抽取 | scan/plan | P0 | done |
+| M3 上传 | upload/sync 幂等 | P0 | done |
+| M4 回写 | rewrite/revert | P0 | done |
+| M5 打磨 | Agent schema / 发布 | P1 | done（v0.2.0） |
+| M6 扩展 | F12 watch / F13 multi-host / F14 MCP / F15 token auth | P0/P3 | done |
 
 具体功能点、AC 与模块归属：[`features-index.md`](features-index.md)。
 
 ---
 
-## 11. 开放问题
+## 11. 状态与开放问题
 
-1. URL 默认风格：jsdelivr / raw / 自定义域名？  
-2. ~~命令名/包名是否冻结为 `picbed`？~~ **已冻结为 `picbed`**（2026-09-22，由 `yigecli` 更名）。  
-3. ~~v1 是否纳入 watch、VS Code 集成（当前 P3）？~~ **已实现 F12/F14**。  
-4. ~~实现语言最终确认 Node/TS 或 Go？~~ **已采用 Node/TS**。
+1. URL 默认风格：jsdelivr / raw / 自定义域名？（当前模板默认 jsdelivr）  
+2. ~~命令名/包名是否冻结为 `picbed`？~~ **已冻结**（2026-09-22，由 `yigecli` 更名）。  
+3. ~~v1 是否纳入 watch、VS Code 集成？~~ **已实现 F12/F14**。  
+4. ~~实现语言最终确认 Node/TS 或 Go？~~ **已采用 Node/TS**。  
+5. 是否增加更多 HostAdapter（对象存储等）？  
+6. 是否发布到 npm 官方源？（当前仅 GitHub Release tarball）
 
 ---
 

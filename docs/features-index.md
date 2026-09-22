@@ -133,6 +133,6 @@
 - **P0**：最小可用闭环（配置→抽取→计划→上传→回写→Agent JSON）。
 - **P1**：revert/manifest 完备、单文件上传。
 - **P2**：（预留）增强，如更丰富 report。
-- **P3**：明确 backlog（watch、多图床、IDE 集成）。
+- **P3**：原 backlog（watch、多图床、IDE 集成）——**均已实现**，保留编号仅作交付史。
 
 *定义以本表为准；实现细节以 module-* / cross-cutting 为准；冲突须显式修文档。*
