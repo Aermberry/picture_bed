@@ -21,6 +21,7 @@
       </div>
       <nav>
         <a href="#guide">1. 标识体系</a>
+        <a href="#install">0. 安装</a>
         <a href="#overview">2. 背景与目标</a>
         <a href="#features">3. 功能点总表</a>
         <a href="#architecture">4. 总体架构</a>
@@ -36,19 +37,32 @@
 
     <main class="content">
       <header class="hero">
-        <p class="eyebrow">picture_bed · 设计评审稿 · 不含业务实现</p>
+        <p class="eyebrow">picture_bed · 设计总览 + 实现状态 · v0.2.0</p>
         <h1>picbed 工程架构与功能详细设计</h1>
         <p class="lede">
           写法对齐 <code>my_gallery/docs</code>：<strong>先用 F/P/模块/AC 标识体系</strong>写 Markdown 设计族谱，
           本页仅作 <strong>HTML 呈现层</strong>，便于浏览器浏览与评审。权威定义在 <code>docs/features-index.md</code>。
+          <strong>F1–F15 已实现</strong>（Node/TS CLI）。
         </p>
         <div class="meta-row">
           <span class="pill">CLI only</span>
           <span class="pill">GitHub Contents API（PicX 同源）</span>
-          <span class="pill">P0–P3</span>
+          <span class="pill">F1–F15 done</span>
+          <span class="pill">v0.2.0</span>
           <span class="pill">2026-09-22</span>
         </div>
       </header>
+
+      <section id="install">
+        <h2>0. 安装（复制即用）</h2>
+        <p>Release 固定资产名 <code>picbed.tgz</code>，下面命令<strong>永远装最新版</strong>：</p>
+        <pre><code>npm install -g https://github.com/Aermberry/picture_bed/releases/latest/download/picbed.tgz</code></pre>
+        <p>鉴权<strong>两种方式</strong>（无 OAuth App）：</p>
+        <ul class="check">
+          <li>PAT：<code>$env:PICBED_GITHUB_TOKEN = "ghp_…"</code>（或别名 <code>GITHUB_TOKEN</code>）</li>
+          <li>或 GitHub CLI：<code>gh</code> ≠ <code>git</code>；安装后 <code>gh auth login</code>，picbed 自动 <code>gh auth token</code></li>
+        </ul>
+      </section>
 
       <section id="guide">
         <h2>1. 标识体系（先抽象）</h2>
@@ -92,7 +106,7 @@
           <li>G4 Agent 契约：<code>--json</code>、退出码、无 TTY、幂等</li>
           <li>G5 安全：token 不入库；默认拒路径越界</li>
         </ul>
-        <p><strong>非目标（v1）：</strong>Web/Tauri、OAuth 流（已移除）、图片工具箱、多图床实现、watch/MCP（P3）。</p>
+        <p><strong>非目标：</strong>Web/Tauri、OAuth 登录（已移除）、图片工具箱。watch / 多图床 / MCP 已实现（原 P3）。</p>
       </section>
 
       <section id="features">
@@ -115,9 +129,10 @@
               <tr><td>F9</td><td>Manifest 与 revert</td><td>P1</td><td>rewrite</td><td>映射无 token；revert 还原 raw 路径</td></tr>
               <tr><td>F10</td><td>Agent 机器接口</td><td>P0</td><td>cliops</td><td>JSON schema；退出码；无 TTY 不阻塞</td></tr>
               <tr><td>F11</td><td>单文件上传</td><td>P1</td><td>transfer</td><td>upload 输出 URL；与 sync 共用适配器</td></tr>
-              <tr><td>F12</td><td>watch 监听</td><td>P3</td><td>待定</td><td>backlog</td></tr>
-              <tr><td>F13</td><td>多图床适配器</td><td>P3</td><td>待定</td><td>backlog（HostAdapter 预留）</td></tr>
-              <tr><td>F14</td><td>VS Code / MCP 包装</td><td>P3</td><td>待定</td><td>backlog</td></tr>
+              <tr><td>F12</td><td>watch 监听</td><td>P3→done</td><td>cliops</td><td>防抖增量 sync；可退出；无特权</td></tr>
+              <tr><td>F13</td><td>多图床适配器</td><td>P3→done</td><td>transfer</td><td>HostAdapter：github | local</td></tr>
+              <tr><td>F14</td><td>VS Code / MCP 包装</td><td>P3→done</td><td>cliops</td><td>picbed-mcp 只转调 CLI --json</td></tr>
+              <tr><td>F15</td><td>GitHub Token 鉴权</td><td>P0→done</td><td>cliops</td><td>PAT / GITHUB_TOKEN / gh auth；无 OAuth</td></tr>
             </tbody>
           </table>
         </div>
@@ -134,7 +149,7 @@
               </marker>
             </defs>
             <rect x="40" y="28" width="600" height="52" rx="8" fill="#E8EEF7" stroke="#94A3B8" stroke-width="0.5"/>
-            <text x="340" y="58" text-anchor="middle" dominant-baseline="central" font-size="14" fill="#0F172A">CLI 层 · init/doctor/scan/plan/sync/upload/revert/config</text>
+            <text x="340" y="58" text-anchor="middle" dominant-baseline="central" font-size="14" fill="#0F172A">CLI 层 · init/doctor/scan/plan/sync/upload/revert/watch/config</text>
 
             <rect x="40" y="110" width="600" height="48" rx="8" fill="#F8FAFC" stroke="#94A3B8" stroke-width="0.5"/>
             <text x="340" y="138" text-anchor="middle" dominant-baseline="central" font-size="13" fill="#0F172A">应用编排 · SyncOrchestrator / PlanBuilder / DoctorService</text>
@@ -145,7 +160,7 @@
 
             <rect x="40" y="284" width="280" height="64" rx="8" fill="#F8FAFC" stroke="#94A3B8" stroke-width="0.5"/>
             <text x="180" y="310" text-anchor="middle" font-size="12" fill="#0F172A">HostAdapter</text>
-            <text x="180" y="330" text-anchor="middle" font-size="11" fill="#475569">GitHub Contents API + URL 风格</text>
+            <text x="180" y="330" text-anchor="middle" font-size="11" fill="#475569">github | local · URL 风格</text>
 
             <rect x="360" y="284" width="280" height="64" rx="8" fill="#F8FAFC" stroke="#94A3B8" stroke-width="0.5"/>
             <text x="500" y="310" text-anchor="middle" font-size="12" fill="#0F172A">LocalStore</text>
@@ -174,8 +189,8 @@
               </tr>
               <tr>
                 <td><code>transfer</code></td>
-                <td>plan、上传、URL</td>
-                <td>F6–F7, F11</td>
+                <td>plan、上传、URL、Host 工厂</td>
+                <td>F6–F7, F11, F13</td>
                 <td><code>docs/design/module-transfer.md</code></td>
               </tr>
               <tr>
@@ -186,8 +201,8 @@
               </tr>
               <tr>
                 <td><code>cliops</code></td>
-                <td>配置、doctor、Agent 契约</td>
-                <td>F1–F2, F10</td>
+                <td>配置、doctor、Agent 契约、watch、MCP、token 鉴权</td>
+                <td>F1–F2, F10, F12, F14, F15</td>
                 <td><code>docs/design/module-cliops.md</code></td>
               </tr>
             </tbody>
@@ -225,7 +240,7 @@
 
       <section id="upload">
         <h2>7. 图床通道（PicX / GitHub）</h2>
-        <p>PicX = GitHub 仓库托管 + URL 风格。picbed 配置对齐：<code>token / owner / repo / branch / dir / url.style</code>。</p>
+        <p>PicX = GitHub 仓库托管 + URL 风格。配置：<code>host.type</code>（github|local）、<code>token / owner / repo / branch / dir / url.style</code>。</p>
         <pre><code># raw
 https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{path}
 
@@ -263,12 +278,15 @@ https://cdn.jsdelivr.net/gh/{owner}/{repo}@{branch}/{path}
       </section>
 
       <section id="open">
-        <h2>10. 开放问题</h2>
+        <h2>10. 状态与开放问题</h2>
+        <ul class="check">
+          <li><strong>已冻结：</strong>命令/包名 <code>picbed</code>；栈 Node/TS；F1–F15 已实现；OAuth 登录已移除</li>
+          <li><strong>已发布：</strong>GitHub Release <code>v0.2.0</code>（<code>picbed.tgz</code> 跟随 latest）</li>
+        </ul>
         <ul>
-          <li>URL 默认风格：jsdelivr / raw / 自定义域名？</li>
-          <li>命令名是否冻结为 <code>picbed</code>？</li>
-          <li>实现语言：Node/TS（推荐）或 Go？</li>
-          <li>watch / VS Code 是否升入非 P3？</li>
+          <li>URL 默认风格是否在文档示例中再收紧？</li>
+          <li>是否增加更多 HostAdapter 后端（对象存储等）？</li>
+          <li>npm 官方源发布？（当前仅 GitHub Release tarball）</li>
         </ul>
       </section>
 
