@@ -10,3 +10,4 @@ Ledger schema: `date`, `capability` (when applicable), `result` (`helped | hurt 
 | 2026-09-22 | global skill `project-design` v0.1.0 | helped | Distilled design workflow + retrospective write-back; validate_skill PASS |
 | 2026-09-22 | `.agents/` memory sync to current artifacts | corrected | overview/source-index/open-items were pre-code stale; rewrote against src/docs/README/git |
 | 2026-09-22 | Cross-branch Git Flow merge from isolated worktree | no_effect | checkout/merge blocked by ref-store guard; tests still pass on feature; merge deferred |
+| 2026-09-22 | GH007 fix via commit-tree + update-ref (no amend/config) | helped | Pushed `feature/yigecli-mvp` as `8b2808a` after rewriting 2 commits to noreply |
