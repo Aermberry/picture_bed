@@ -11,11 +11,11 @@ import {
 } from './config.js';
 import { extractRefs } from './extract.js';
 import {
-  GitHubHostAdapter,
-  composeUrls,
+  createHostAdapter,
+  hostRequiresToken,
   remotePath,
   uploadAsset,
-} from './host/github.js';
+} from './host/index.js';
 import {
   findCachedUrl,
   loadManifest,
@@ -190,6 +190,7 @@ export async function run(argv: string[]): Promise<ExitCode> {
           'commands',
         ],
         flags: ['--json', '--quiet', '--verbose', '--config', '--cwd', '--yes', '--dry-run'],
+        hosts: ['github', 'local'],
       };
       emit(json, { schemaVersion: 1, ok: true, command, data }, () => {
         console.log(data.commands.join('\n'));
@@ -507,20 +508,20 @@ export async function run(argv: string[]): Promise<ExitCode> {
       }
 
       const token = getToken();
-      if (!token) {
+      if (hostRequiresToken(cfg) && !token) {
         return fail(json, command, EXIT.CONFIG, {
           code: 'E_TOKEN',
           message: 'missing YIGE_GITHUB_TOKEN',
         }, collected.warnings);
       }
-      if (!cfg.github.owner || !cfg.github.repo) {
+      if (cfg.host.type === 'github' && (!cfg.github.owner || !cfg.github.repo)) {
         return fail(json, command, EXIT.CONFIG, {
           code: 'E_CONFIG',
           message: 'github.owner/repo required',
         }, collected.warnings);
       }
 
-      const host = new GitHubHostAdapter(cfg.github, token);
+      const host = createHostAdapter(cfg, token);
       const errors: string[] = [];
       const warnings = [...collected.warnings];
       let uploaded = 0;
@@ -651,7 +652,7 @@ export async function run(argv: string[]): Promise<ExitCode> {
         });
       }
       const token = getToken();
-      if (!token) {
+      if (hostRequiresToken(cfg) && !token) {
         return fail(json, command, EXIT.CONFIG, {
           code: 'E_TOKEN',
           message: 'missing YIGE_GITHUB_TOKEN',
@@ -660,14 +661,14 @@ export async function run(argv: string[]): Promise<ExitCode> {
       const bytes = fs.readFileSync(abs);
       const crypto = await import('node:crypto');
       const sha256 = crypto.createHash('sha256').update(bytes).digest('hex');
-      const host = new GitHubHostAdapter(cfg.github, token);
+      const host = createHostAdapter(cfg, token);
       const remote = await uploadAsset(host, {
         asset: { localPath: abs, sha256 },
         bytes,
         cfg,
       });
-      const urls = composeUrls(cfg, remote.repoPath);
-      emit(json, { schemaVersion: 1, ok: true, command, data: { ...remote, ...urls, remotePath: remotePath(cfg.github.dir, sha256, abs) } }, () => {
+      const urls = host.composeUrls(remote.repoPath);
+      emit(json, { schemaVersion: 1, ok: true, command, data: { ...remote, ...urls, remotePath: remote.repoPath, hostType: host.type } }, () => {
         console.log(remote.publicUrl);
       });
       return EXIT.OK;

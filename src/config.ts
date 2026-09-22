@@ -6,10 +6,16 @@ import type { ResolvedConfig, UrlConfig } from './types.js';
 export const CONFIG_NAME = 'yigecli.toml';
 
 const DEFAULTS: Omit<ResolvedConfig, 'rootDir' | 'configPath'> = {
+  host: { type: 'github' },
   github: {
     owner: '',
     repo: '',
     branch: 'main',
+    dir: 'img',
+  },
+  local: {
+    root: '.yigecli/host-root',
+    publicBase: 'https://cdn.example.com',
     dir: 'img',
   },
   url: { style: 'jsdelivr' },
@@ -93,12 +99,25 @@ export function loadConfig(opts: {
   const style: UrlConfig['style'] =
     styleRaw === 'raw' || styleRaw === 'custom' ? styleRaw : 'jsdelivr';
 
+  const hostTypeRaw =
+    process.env.YIGE_HOST_TYPE ?? fileData.host?.type ?? DEFAULTS.host.type;
+  const hostType = hostTypeRaw === 'local' ? ('local' as const) : ('github' as const);
+
   const cfg: ResolvedConfig = {
+    host: { type: hostType },
     github: {
       owner: envOwner ?? fileData.github?.owner ?? DEFAULTS.github.owner,
       repo: envRepo ?? fileData.github?.repo ?? DEFAULTS.github.repo,
       branch: envBranch ?? fileData.github?.branch ?? DEFAULTS.github.branch,
       dir: envDir ?? fileData.github?.dir ?? DEFAULTS.github.dir,
+    },
+    local: {
+      root: process.env.YIGE_LOCAL_ROOT ?? fileData.local?.root ?? DEFAULTS.local.root,
+      publicBase:
+        process.env.YIGE_LOCAL_PUBLIC_BASE ??
+        fileData.local?.public_base ??
+        DEFAULTS.local.publicBase,
+      dir: fileData.local?.dir ?? DEFAULTS.local.dir,
     },
     url: {
       style,
@@ -147,10 +166,18 @@ export function configTemplate(overrides?: Partial<{ owner: string; repo: string
   return `# yigecli configuration — do not put tokens here
 # Use env: YIGE_GITHUB_TOKEN
 
+[host]
+type = "github"   # github | local
+
 [github]
 owner = "${owner}"
 repo = "${repo}"
 branch = "main"
+dir = "img"
+
+[local]
+root = ".yigecli/host-root"
+public_base = "https://cdn.example.com"
 dir = "img"
 
 [url]
@@ -178,4 +205,8 @@ export function maskToken(token: string | undefined): string {
 
 export function validateStyle(style: string): style is UrlConfig['style'] {
   return style === 'raw' || style === 'jsdelivr' || style === 'custom';
+}
+
+export function validateHostType(type: string): type is 'github' | 'local' {
+  return type === 'github' || type === 'local';
 }

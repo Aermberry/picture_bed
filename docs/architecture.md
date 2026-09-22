@@ -30,7 +30,7 @@
 - GitHub OAuth App 流程（v1 用 PAT / 环境变量）。
 - 图片压缩、水印、裁剪工具箱。
 - 非图片二进制托管（PDF / 视频等）。
-- 多图床后端实现（接口预留 `HostAdapter`，v1 只做 GitHub）。
+- 多图床后端实现：已提供 `HostAdapter` 工厂（github | local）；更多后端可继续注册（F13）。
 - watch 监听、VS Code / MCP 包装（backlog）。
 
 ---
@@ -89,7 +89,7 @@
 - **AssetResolver**：相对文档目录解析路径；校验存在性/MIME/扩展名；拒绝越界与默认拒绝绝对路径。
 - **Deduper**：按 `sha256` 合并多引用为单 `Asset`。
 - **PlanBuilder**：产出 `upload | skip-cache | skip-remote | rewrite-only | blocked` 计划。
-- **GitHubHostAdapter**：`GET/PUT /repos/{owner}/{repo}/contents/{path}`；生成 public URL。
+- **HostAdapter**：`GitHubHostAdapter` / `LocalHostAdapter`；`createHostAdapter` 按 `host.type` 注入；生成 public URL。
 - **LinkRewriter**：按偏移切片替换 URL，保留 alt/title/srcset 其它候选；原子写。
 - **ManifestStore**：读写映射，支撑幂等、revert、审计。
 - **DoctorService**：配置完整性、token 探测、API 连通与权限。

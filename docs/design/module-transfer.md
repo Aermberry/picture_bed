@@ -2,7 +2,7 @@
 
 > 归属功能点：F6 上传计划 plan、F7 GitHub 图床上传、F11 单文件上传。
 > 架构见 [`../architecture.md`](../architecture.md)；定义见 [`../features-index.md`](../features-index.md)；ingest 见 [`module-ingest.md`](module-ingest.md)；横切见 [`cross-cutting.md`](cross-cutting.md)。
-> 栈无关；Host 细节可替换（F13 backlog）。
+> 栈无关；Host 细节经 `HostAdapter` 端口注入（F13：github | local）。
 
 ## 目的
 
@@ -31,10 +31,15 @@ transfer/
 
 ```
 HostAdapter
-  exists(repoPath): boolean|sha
-  putFile(repoPath, bytes, message, branch): RemoteRef
-  # 实现负责 base64、sha 更新语义、HTTP 重试策略上层可配
+  type / requiresToken
+  exists(repoPath): boolean
+  putFile(repoPath, bytes, message, branch): void
+  composeUrls(repoPath): { publicUrl, rawUrl, cdnUrl? }
+  remotePath(sha256, localPath, now?): string
+  # 实现负责传输语义；uploadAsset 只依赖本端口（AC7 稳定）
 ```
+
+工厂：`createHostAdapter(cfg, token?)` 按 `host.type` 选择后端。
 
 ## 数据
 
@@ -73,6 +78,13 @@ RemoteImage  { publicUrl, rawUrl, cdnUrl?, repoPath, sha256 }
 - `upload <file>`：resolve 单文件 → 与 F7 同一适配器与 UrlComposer → 输出 `publicUrl`。
 - 可选写入 manifest 以便后续 sync 复用。
 
+## F13 多图床适配器
+
+- `host.type = "github"`：Contents API（默认，需 token）。
+- `host.type = "local"`：本地目录图床（`local.root` + `local.public_base`），**无需 token**。
+- 新增后端：实现 `HostAdapter` 并在工厂注册即可；plan/rewrite/manifest 无需改动。
+- AC7（F7）语义保持：同 sha 幂等、URL 风格可配、失败映射退出码 5/6。
+
 ## 功能点映射
 
 | F | 本模块章节 |
@@ -80,5 +92,6 @@ RemoteImage  { publicUrl, rawUrl, cdnUrl?, repoPath, sha256 }
 | [F6](../features-index.md#f6-上传计划-plan) | §F6 |
 | [F7](../features-index.md#f7-github-图床上传) | §F7 |
 | [F11](../features-index.md#f11-单文件上传) | §F11 |
+| [F13](../features-index.md#f13-多图床适配器) | §F13 |
 
 *AC 以 features-index 为准；HTTP 形状以本模块 + cross-cutting 为准。*

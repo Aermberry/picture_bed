@@ -31,7 +31,7 @@
 | F11 | 单文件上传 | P1 | transfer | upload 子命令输出 URL；与 sync 共用适配器 |
 | F15 | GitHub 点击登录 | P0 | cliops | 本机回调 OAuth 优先；Device Flow 回退；token 本地安全存储；ENV PAT 仍可用 |
 | F12 | watch 监听 | P3 | 待定 | backlog |
-| F13 | 多图床适配器 | P3 | 待定 | backlog；仅保留 HostAdapter 口 |
+| F13 | 多图床适配器 | P3→**done** | transfer | HostAdapter 可替换为非 GitHub 后端且 AC7 语义保持 |
 | F14 | VS Code / MCP 包装 | P3 | 待定 | backlog |
 
 ---
@@ -115,8 +115,9 @@
 
 ## F13 多图床适配器
 
-- 优先级：P3 · 模块：待定 · **backlog**
-- AC（占位）：`HostAdapter` 可替换为非 GitHub 后端且 AC7 语义保持。
+- 优先级：P3（已实现）· 模块：**transfer**
+- 实现（域）：[module-transfer · F13](design/module-transfer.md#f13-多图床适配器)
+- AC：`HostAdapter` 可替换为非 GitHub 后端且 AC7 语义保持。实现：`host.type = github | local`；`local` 为文件系统图床（无需 token）；工厂 `createHostAdapter` 注入 sync/upload；URL/远端路径由适配器 `composeUrls`/`remotePath` 提供。
 
 ## F14 VS Code / MCP 包装
 

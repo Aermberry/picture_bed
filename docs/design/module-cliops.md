@@ -28,7 +28,9 @@ cliops/
 ## 配置模型（ResolvedConfig）
 
 ```
+host:   { type: github|local }
 github: { owner, repo, branch, dir }
+local:  { root, publicBase, dir }
 url:    { style: raw|jsdelivr|custom, customTemplate? }
 scan:   { extensions[], ignore[] }
 upload: { concurrency, commitMessage }

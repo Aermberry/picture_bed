@@ -81,6 +81,18 @@ export interface GithubConfig {
   dir: string;
 }
 
+export type HostType = 'github' | 'local';
+
+export interface HostConfig {
+  type: HostType;
+}
+
+export interface LocalHostConfig {
+  root: string;
+  publicBase: string;
+  dir: string;
+}
+
 export interface UrlConfig {
   style: 'raw' | 'jsdelivr' | 'custom';
   customTemplate?: string;
@@ -101,7 +113,9 @@ export interface RewriteConfig {
 }
 
 export interface ResolvedConfig {
+  host: HostConfig;
   github: GithubConfig;
+  local: LocalHostConfig;
   url: UrlConfig;
   scan: ScanConfig;
   upload: UploadConfig;

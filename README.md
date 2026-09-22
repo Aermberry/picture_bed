@@ -81,4 +81,18 @@ yigecli sync ./docs --json --yes
 
 ## 功能点
 
-见 [`docs/features-index.md`](docs/features-index.md)：F1–F11 已实现（P0/P1），F12–F14 为 P3 backlog。
+见 [`docs/features-index.md`](docs/features-index.md)：F1–F11、F13、F15 已实现；F12 watch / F14 VS Code·MCP 为 P3。
+
+### 多图床（F13）
+
+```toml
+[host]
+type = "github"   # github | local
+
+[local]
+root = ".yigecli/host-root"
+public_base = "https://cdn.example.com"
+dir = "img"
+```
+
+`host.type = "local"` 时上传写入本地目录，无需 GitHub token。
