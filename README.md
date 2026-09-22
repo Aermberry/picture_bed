@@ -6,15 +6,17 @@
 
 ## 安装
 
-**方式 1 · Release 包（推荐）**
-
-到 [Releases](https://github.com/Aermberry/picture_bed/releases) 下载 `picbed-x.y.z.tgz`，或：
+**方式 1 · Release 包（推荐，永远装最新）**
 
 ```powershell
-# 直接从 Release 装（版本号按实际发布调整）
-npm install -g https://github.com/Aermberry/picture_bed/releases/download/v0.2.0/picbed-0.2.0.tgz
+npm install -g https://github.com/Aermberry/picture_bed/releases/latest/download/picbed.tgz
+```
 
-# 或先下载再装
+说明：`/releases/latest/download/picbed.tgz` 会**自动指向最新 Release** 的同名安装包，版本升级后无需改 README 命令，复制粘贴即可。
+
+也可到 [Releases](https://github.com/Aermberry/picture_bed/releases) 下载带版本号的 `picbed-x.y.z.tgz` 后：
+
+```powershell
 npm install -g .\picbed-0.2.0.tgz
 ```
 

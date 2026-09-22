@@ -21,10 +21,12 @@ jobs:
       - run: npm run build
       - run: npm test
       - run: npm pack
+      - name: Copy stable asset name
+        run: cp picbed-*.tgz picbed.tgz
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create "$GITHUB_REF_NAME" picbed-*.tgz \
+          gh release create "$GITHUB_REF_NAME" picbed-*.tgz picbed.tgz \
             --title "$GITHUB_REF_NAME" \
             --generate-notes
