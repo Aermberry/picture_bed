@@ -19,12 +19,15 @@ npm test
 
 ## 鉴权（无 OAuth App）
 
-GitHub 图床需要 **访问令牌（token）**，三选一（优先级从高到低）：
+GitHub 图床需要 **访问令牌（token）**，**两种方式**（优先级从高到低）：
 
 ```bash
-export PICBED_GITHUB_TOKEN=ghp_xxx   # 1) 自建 PAT（推荐）
-export GITHUB_TOKEN=ghp_xxx          # 2) 通用变量，同上
-gh auth login                        # 3) 或复用 GitHub CLI
+# 方式 1：PAT（和「方式 2」二选一）
+export PICBED_GITHUB_TOKEN=ghp_xxx   # 推荐变量名
+export GITHUB_TOKEN=ghp_xxx          # 或用这个变量名（同一把 PAT，只是别名）
+
+# 方式 2：复用 GitHub CLI
+gh auth login
 ```
 
 ### 不知道 `gh` 是什么？

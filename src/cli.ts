@@ -71,16 +71,16 @@ function loadCfg(cwd: string, config?: string): ResolvedConfig {
 
 /** Explain auth options for users who do not know what `gh` is. */
 const AUTH_HINT = [
-  'How to authenticate GitHub uploads (pick one):',
-  '  1) Personal Access Token (PAT) — easiest if you do not have GitHub CLI:',
+  'How to authenticate GitHub uploads (pick one of 2 ways):',
+  '  1) Use a Personal Access Token (PAT) — easiest if you do not have GitHub CLI:',
   '     - Create at https://github.com/settings/tokens (classic) or fine-grained tokens',
   '     - Need repo (or Contents read/write) on the image-bed repository',
   '     - PowerShell:  $env:PICBED_GITHUB_TOKEN = "<your token>"',
   '     - bash:        export PICBED_GITHUB_TOKEN=<your token>',
+  '     - Same PAT may also be put in GITHUB_TOKEN instead (alternate env name).',
   '  2) Reuse GitHub CLI (the `gh` command — official GitHub CLI, not git itself):',
   '     - Install: https://cli.github.com/  then run:  gh auth login',
   '     - picbed will call `gh auth token` automatically',
-  '  3) Or set GITHUB_TOKEN (same as PICBED_GITHUB_TOKEN)',
 ].join('\n');
 
 
