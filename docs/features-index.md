@@ -3,7 +3,7 @@
 > **新人阅读入口**：先读 [`design-reading-guide.md`](design-reading-guide.md)——文中 **F/P/模块/AC** 等标识的含义与用途，再回本表查具体功能点。
 >
 > 本文件为功能点**索引与归属枢纽**：每节给出优先级、**所属模块**、实现归属（域/CLI）、AC 摘要。
-> **产品定位**：本地 CLI **yigecli**——扫描文档内嵌图片 → GitHub 图床上传 → 链接回写；Agent 可驱动。
+> **产品定位**：本地 CLI **picbed**——扫描文档内嵌图片 → GitHub 图床上传 → 链接回写；Agent 可驱动。
 > 详细实现设计按 DDD 模块拆分：
 > - **ingest** 模块（F3/F4 扫描抽取、F5 解析去重）→ [`design/module-ingest.md`](design/module-ingest.md)
 > - **transfer** 模块（F6/F7 上传与 URL）→ [`design/module-transfer.md`](design/module-transfer.md)
@@ -29,9 +29,10 @@
 | F9 | Manifest 与 revert | P1 | rewrite | 映射可审计；revert 还原本地路径；无 token |
 | F10 | Agent 机器接口 | P0 | cliops | `--json` schema 稳定；退出码契约；无 TTY 不阻塞 |
 | F11 | 单文件上传 | P1 | transfer | upload 子命令输出 URL；与 sync 共用适配器 |
-| F12 | watch 监听 | P3 | 待定 | backlog |
-| F13 | 多图床适配器 | P3 | 待定 | backlog；仅保留 HostAdapter 口 |
-| F14 | VS Code / MCP 包装 | P3 | 待定 | backlog |
+| F15 | GitHub Token 鉴权 | P0→**done** | cliops | PAT/GITHUB_TOKEN/gh auth；无 OAuth App |
+| F12 | watch 监听 | P3→**done** | cliops | 目录变更触发增量 plan/sync；可退出；不引入常驻特权 |
+| F13 | 多图床适配器 | P3→**done** | transfer | HostAdapter 可替换为非 GitHub 后端且 AC7 语义保持 |
+| F14 | VS Code / MCP 包装 | P3→**done** | cliops | 包装层不复制业务规则，只调用 CLI 契约 |
 
 ---
 
@@ -39,7 +40,7 @@
 
 - 优先级：P0 · 模块：**cliops**
 - 实现（域）：[module-cliops · F1](design/module-cliops.md#f1-项目初始化与配置)
-- AC：`init` 在空目录生成 `yigecli.toml` 合法模板（无 secret）；`--force` 可覆盖；`config list` 对 token 掩码；`config set` 校验键名与枚举（如 `url.style`）；优先级 CLI>ENV>项目文件生效。
+- AC：`init` 在空目录生成 `picbed.toml` 合法模板（无 secret）；`--force` 可覆盖；`config list` 对 token 掩码；`config set` 校验键名与枚举（如 `url.style`）；优先级 CLI>ENV>项目文件生效。
 
 ## F2 环境与鉴权自检
 
@@ -101,20 +102,29 @@
 - 实现（域）：[module-transfer · F11](design/module-transfer.md#f11-单文件上传)
 - AC：`upload <file>` 成功输出 publicUrl（人类/JSON）；与 `sync` 共用 HostAdapter 与 URL 策略；失败映射到既有退出码。
 
+## F15 GitHub Token 鉴权
+
+- 优先级：P0（已实现）· 模块：**cliops**
+- 实现（域）：[module-cliops · F15](design/module-cliops.md#f15-github-token-鉴权)
+- AC：**无 OAuth App / 无 login 命令**。token 解析顺序：`PICBED_GITHUB_TOKEN` → `GITHUB_TOKEN` → `gh auth token`；缺失时 `doctor`/`sync` 退出码 3；输出一律掩码。原 OAuth 点击登录已移除（分发成本过高）。
+
 ## F12 watch 监听
 
-- 优先级：P3 · 模块：待定 · **backlog**
-- AC（占位）：目录变更触发增量 plan/sync；可退出；不引入常驻特权。
+- 优先级：P3（已实现）· 模块：**cliops**
+- 实现（域）：[module-cliops · F12](design/module-cliops.md#f12-watch-监听)
+- AC：目录变更触发增量 plan/sync；可退出；不引入常驻特权。实现：`watch <path> --debounce <ms>`；`fs.watch` 递归监听 + 防抖批处理；变更时 spawn 既有 `sync`（只调 CLI 契约）；SIGINT/SIGTERM 可退出；忽略 `node_modules`/`.git`/`.picbed`。
 
 ## F13 多图床适配器
 
-- 优先级：P3 · 模块：待定 · **backlog**
-- AC（占位）：`HostAdapter` 可替换为非 GitHub 后端且 AC7 语义保持。
+- 优先级：P3（已实现）· 模块：**transfer**
+- 实现（域）：[module-transfer · F13](design/module-transfer.md#f13-多图床适配器)
+- AC：`HostAdapter` 可替换为非 GitHub 后端且 AC7 语义保持。实现：`host.type = github | local`；`local` 为文件系统图床（无需 token）；工厂 `createHostAdapter` 注入 sync/upload；URL/远端路径由适配器 `composeUrls`/`remotePath` 提供。
 
 ## F14 VS Code / MCP 包装
 
-- 优先级：P3 · 模块：待定 · **backlog**
-- AC（占位）：包装层不复制业务规则，只调用 CLI 契约。
+- 优先级：P3（已实现）· 模块：**cliops**
+- 实现（域）：[module-cliops · F14](design/module-cliops.md#f14-vs-code--mcp-包装)
+- AC：包装层不复制业务规则，只调用 CLI 契约。实现：`picbed-mcp` stdio JSON-RPC 服务；tools = doctor/scan/plan/sync/upload/revert；全部 `spawn` 既有 CLI + `--json`。
 
 ---
 
@@ -123,6 +133,6 @@
 - **P0**：最小可用闭环（配置→抽取→计划→上传→回写→Agent JSON）。
 - **P1**：revert/manifest 完备、单文件上传。
 - **P2**：（预留）增强，如更丰富 report。
-- **P3**：明确 backlog（watch、多图床、IDE 集成）。
+- **P3**：原 backlog（watch、多图床、IDE 集成）——**均已实现**，保留编号仅作交付史。
 
 *定义以本表为准；实现细节以 module-* / cross-cutting 为准；冲突须显式修文档。*

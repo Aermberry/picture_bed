@@ -50,7 +50,7 @@ IngestFacade
 ## F3 目录扫描与文档发现
 
 - 输入：`root`、`extensions`（默认 `md,html,htm`）、`ignore` glob。
-- 规则：跳过 `node_modules`、`.git`、`.yigecli`；不跟随 symlink 出根；输出按规范化路径排序。
+- 规则：跳过 `node_modules`、`.git`、`.picbed`；不跟随 symlink 出根；输出按规范化路径排序。
 - 失败：不可读目录 → 计入 warnings，不 abort 整次扫描。
 
 ## F4 图片引用抽取

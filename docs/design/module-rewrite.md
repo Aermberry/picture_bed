@@ -45,7 +45,7 @@ ManifestEntry {
 2. 仅替换 URL 子串；alt/title/srcset 其它候选保留。  
 3. 代码块内 ref 本不应存在（ingest F4）；rewrite 二次断言不越界。  
 4. 原子写：`*.tmp` + rename；失败不破坏原文件。  
-5. 默认写 `.yigecli/backup/<doc>.<ts>.bak`；`--no-backup` 关闭。  
+5. 默认写 `.picbed/backup/<doc>.<ts>.bak`；`--no-backup` 关闭。  
 6. `--out-dir`：保持相对目录结构写入副本，源文档不动。
 
 ## F9 Manifest 与 revert

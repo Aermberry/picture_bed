@@ -45,10 +45,11 @@
 
 ## 3. 密钥纪律
 
-- 名称：`YIGE_GITHUB_TOKEN`（或用户级配置键 `github.token`）。  
-- 范围：仅图床仓库 Contents RW。  
+- 名称：`PICBED_GITHUB_TOKEN` / `GITHUB_TOKEN`；或复用 `gh auth token`（无 OAuth Client Secret）。  
+- 范围：仅图床仓库 Contents RW（scope `repo` 或 `public_repo`）。  
 - 禁止：写入 git 跟踪文件、manifest、backup、日志、JSON data。  
-- 展示：掩码 `ghp_****` 或 `****`。
+- 展示：掩码 `ghp_****` 或 `****`。  
+- 优先级：`PICBED_GITHUB_TOKEN` > `GITHUB_TOKEN` > `gh auth token`。
 
 ## 4. 路径与 FS 安全
 
