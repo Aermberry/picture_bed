@@ -11,7 +11,7 @@ export { LocalHostAdapter } from './local.js';
 export function createHostAdapter(cfg: ResolvedConfig, token?: string): HostAdapter {
   const type = cfg.host.type;
   if (type === 'local') {
-    return new LocalHostAdapter(cfg.local, cfg.url);
+    return new LocalHostAdapter(cfg.local, cfg.url, cfg.rootDir);
   }
   if (type === 'github') {
     if (!token) {

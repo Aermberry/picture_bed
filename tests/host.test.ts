@@ -22,6 +22,7 @@ describe('F13 HostAdapter factory', () => {
       dir: 'img',
     };
     cfg.url = { style: 'raw' };
+    cfg.rootDir = root;
 
     expect(hostRequiresToken(cfg)).toBe(false);
     const host = createHostAdapter(cfg);
@@ -43,6 +44,23 @@ describe('F13 HostAdapter factory', () => {
     expect(await host.exists(remote.repoPath)).toBe(true);
     const written = fs.readFileSync(path.join(hostRoot, remote.repoPath));
     expect(written.equals(bytes)).toBe(true);
+  });
+
+  it('resolves local.root relative to rootDir not process.cwd', async () => {
+    const root = tmp();
+    const cfg = loadConfig({ cwd: root });
+    cfg.host = { type: 'local' };
+    cfg.local = { root: 'bed', publicBase: 'https://img.example.com', dir: 'img' };
+    cfg.url = { style: 'raw' };
+    cfg.rootDir = root;
+    const host = createHostAdapter(cfg);
+    const remote = await uploadAsset(host, {
+      asset: { localPath: path.join(root, 'x.png'), sha256: 'b'.repeat(64) },
+      bytes: Buffer.from('x'),
+      cfg,
+      now: new Date('2026-09-22T00:00:00Z'),
+    });
+    expect(fs.existsSync(path.join(root, 'bed', remote.repoPath))).toBe(true);
   });
 
   it('requires token for github host and rejects unknown type', () => {

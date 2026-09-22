@@ -26,10 +26,11 @@ export class LocalHostAdapter implements HostAdapter {
   constructor(
     private readonly cfg: LocalHostConfig,
     private readonly url: UrlConfig,
+    private readonly baseDir: string = process.cwd(),
   ) {}
 
   private abs(repoPath: string): string {
-    const root = path.resolve(this.cfg.root);
+    const root = path.resolve(this.baseDir, this.cfg.root);
     const abs = path.resolve(root, repoPath);
     const rel = path.relative(root, abs);
     if (rel.startsWith('..') || path.isAbsolute(rel)) {
