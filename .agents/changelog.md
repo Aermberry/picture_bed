@@ -24,3 +24,4 @@
 2026-09-22T17:25:00Z | mimo | update | .agents/memory/gotchas.md | Added NVM4306 npm block + MIMO_NODE workaround | Observed this session
 2026-09-22T17:25:00Z | mimo | update | .agents/memory/review-findings.md | Marked bootstrap gaps resolved post-MVP | Sync memory to current artifacts
 2026-09-22T17:25:00Z | mimo | update | .agents/memory/outcomes.md | Ledger: memory sync result=corrected | Outcomes protocol
+2026-09-22T17:55:00Z | mimo | update | .agents/memory/open-items.md + gotchas.md | Merge to develop/main blocked by isolated worktree; tests 15/15 on feature | User asked to follow up (Git Flow merge)
