@@ -3,7 +3,7 @@
 > **新人阅读入口**：先读 [`design-reading-guide.md`](design-reading-guide.md)——文中 **F/P/模块/AC** 等标识的含义与用途，再回本表查具体功能点。
 >
 > 本文件为功能点**索引与归属枢纽**：每节给出优先级、**所属模块**、实现归属（域/CLI）、AC 摘要。
-> **产品定位**：本地 CLI **yigecli**——扫描文档内嵌图片 → GitHub 图床上传 → 链接回写；Agent 可驱动。
+> **产品定位**：本地 CLI **picbed**——扫描文档内嵌图片 → GitHub 图床上传 → 链接回写；Agent 可驱动。
 > 详细实现设计按 DDD 模块拆分：
 > - **ingest** 模块（F3/F4 扫描抽取、F5 解析去重）→ [`design/module-ingest.md`](design/module-ingest.md)
 > - **transfer** 模块（F6/F7 上传与 URL）→ [`design/module-transfer.md`](design/module-transfer.md)
@@ -41,7 +41,7 @@
 
 - 优先级：P0 · 模块：**cliops**
 - 实现（域）：[module-cliops · F1](design/module-cliops.md#f1-项目初始化与配置)
-- AC：`init` 在空目录生成 `yigecli.toml` 合法模板（无 secret）；`--force` 可覆盖；`config list` 对 token 掩码；`config set` 校验键名与枚举（如 `url.style`）；优先级 CLI>ENV>项目文件生效。
+- AC：`init` 在空目录生成 `picbed.toml` 合法模板（无 secret）；`--force` 可覆盖；`config list` 对 token 掩码；`config set` 校验键名与枚举（如 `url.style`）；优先级 CLI>ENV>项目文件生效。
 
 ## F2 环境与鉴权自检
 
@@ -107,13 +107,13 @@
 
 - 优先级：P0 · 模块：**cliops**
 - 实现（域）：[module-cliops · F15](design/module-cliops.md#f15-github-点击登录)
-- AC：`login` 默认启动 `127.0.0.1` 回调并打开浏览器完成 OAuth；`login --device` 走 Device Flow（显示 user_code）；授权成功后 token 写入用户级凭据文件（0600，不入库）；`YIGE_GITHUB_TOKEN` 优先于存储的 OAuth token；`logout` 可清除；client_id/secret 来自 ENV 或用户配置且输出掩码；state 校验防 CSRF。
+- AC：`login` 默认启动 `127.0.0.1` 回调并打开浏览器完成 OAuth；`login --device` 走 Device Flow（显示 user_code）；授权成功后 token 写入用户级凭据文件（0600，不入库）；`PICBED_GITHUB_TOKEN` 优先于存储的 OAuth token；`logout` 可清除；client_id/secret 来自 ENV 或用户配置且输出掩码；state 校验防 CSRF。
 
 ## F12 watch 监听
 
 - 优先级：P3（已实现）· 模块：**cliops**
 - 实现（域）：[module-cliops · F12](design/module-cliops.md#f12-watch-监听)
-- AC：目录变更触发增量 plan/sync；可退出；不引入常驻特权。实现：`watch <path> --debounce <ms>`；`fs.watch` 递归监听 + 防抖批处理；变更时 spawn 既有 `sync`（只调 CLI 契约）；SIGINT/SIGTERM 可退出；忽略 `node_modules`/`.git`/`.yigecli`。
+- AC：目录变更触发增量 plan/sync；可退出；不引入常驻特权。实现：`watch <path> --debounce <ms>`；`fs.watch` 递归监听 + 防抖批处理；变更时 spawn 既有 `sync`（只调 CLI 契约）；SIGINT/SIGTERM 可退出；忽略 `node_modules`/`.git`/`.picbed`。
 
 ## F13 多图床适配器
 
@@ -125,7 +125,7 @@
 
 - 优先级：P3（已实现）· 模块：**cliops**
 - 实现（域）：[module-cliops · F14](design/module-cliops.md#f14-vs-code--mcp-包装)
-- AC：包装层不复制业务规则，只调用 CLI 契约。实现：`yigecli-mcp` stdio JSON-RPC 服务；tools = doctor/scan/plan/sync/upload/revert；全部 `spawn` 既有 CLI + `--json`。
+- AC：包装层不复制业务规则，只调用 CLI 契约。实现：`picbed-mcp` stdio JSON-RPC 服务；tools = doctor/scan/plan/sync/upload/revert；全部 `spawn` 既有 CLI + `--json`。
 
 ---
 

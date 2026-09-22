@@ -11,7 +11,7 @@ function ignored(relPosix: string, patterns: string[]): boolean {
     if (pat.includes('.git') && (p === '.git' || p.startsWith('.git/') || p.includes('/.git/'))) {
       return true;
     }
-    if (pat.includes('.yigecli') && p.includes('.yigecli')) return true;
+    if (pat.includes('.picbed') && p.includes('.picbed')) return true;
     const cleaned = pat.replace(/^\*\*\//, '').replace(/\/\*\*$/, '').replace(/\*\*/g, '');
     if (cleaned && p === cleaned) return true;
     if (cleaned && p.startsWith(cleaned + '/')) return true;
@@ -32,7 +32,7 @@ export function scanDocs(root: string, scan: ScanConfig): DocFile[] {
   );
   const ignore = scan.ignore?.length
     ? scan.ignore
-    : ['**/node_modules/**', '**/.git/**', '**/.yigecli/**'];
+    : ['**/node_modules/**', '**/.git/**', '**/.picbed/**'];
 
   const out: DocFile[] = [];
   const rootAbs = path.resolve(root);

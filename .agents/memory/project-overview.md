@@ -3,19 +3,19 @@
 | Field | Value |
 |-------|-------|
 | date | 2026-09-22 |
-| name | picture_bed · yigecli |
+| name | picture_bed · picbed |
 | type | greenfield software (local CLI image-host tool) |
-| status | P0/P1 MVP implemented on `feature/yigecli-mvp`; design freeze on `docs/design`/`develop`/`main` |
+| status | P0/P1 MVP implemented on `feature/picbed-mvp`; design freeze on `docs/design`/`develop`/`main` |
 | language/stack | TypeScript ESM, Node.js ≥ 20, commander, vitest, tsc |
-| entry points | `bin/yigecli.js` → `src/cli.ts` (dist/) |
+| entry points | `bin/picbed.js` → `src/cli.ts` (dist/) |
 | validation | `npm test` (vitest), `npm run lint` (`tsc --noEmit`), `npm run build` |
 | git | local `main` → `origin` `https://github.com/Aermberry/picture_bed` (PUBLIC) |
-| branches | `feature/yigecli-mvp` (impl HEAD `88e7c32`), `develop`/`docs/design`/`main` at design freeze `efa3fb7` |
-| primary artifacts | `src/**`, `tests/**`, `docs/**` (F/P/module/AC), `README.md`, `bin/yigecli.js`, `package.json` |
+| branches | `feature/picbed-mvp` (impl HEAD `88e7c32`), `develop`/`docs/design`/`main` at design freeze `efa3fb7` |
+| primary artifacts | `src/**`, `tests/**`, `docs/**` (F/P/module/AC), `README.md`, `bin/picbed.js`, `package.json` |
 
 ## Product
 
-Local CLI **yigecli**: scan Markdown/HTML embedded images → upload to PicX-style **GitHub image host** → rewrite stable links. Agent-facing (`--json`, schemaVersion 1, exit-code contract).
+Local CLI **picbed**: scan Markdown/HTML embedded images → upload to PicX-style **GitHub image host** → rewrite stable links. Agent-facing (`--json`, schemaVersion 1, exit-code contract).
 
 Commands: `init` · `login`/`logout` · `doctor` · `scan` · `plan` · `sync` · `upload` · `revert` · `config` · `commands`.
 

@@ -3,7 +3,7 @@ import path from 'node:path';
 import { resolveToken } from './store.js';
 import type { ResolvedConfig, UrlConfig } from './types.js';
 
-export const CONFIG_NAME = 'yigecli.toml';
+export const CONFIG_NAME = 'picbed.toml';
 
 const DEFAULTS: Omit<ResolvedConfig, 'rootDir' | 'configPath'> = {
   host: { type: 'github' },
@@ -14,18 +14,18 @@ const DEFAULTS: Omit<ResolvedConfig, 'rootDir' | 'configPath'> = {
     dir: 'img',
   },
   local: {
-    root: '.yigecli/host-root',
+    root: '.picbed/host-root',
     publicBase: 'https://cdn.example.com',
     dir: 'img',
   },
   url: { style: 'jsdelivr' },
   scan: {
     extensions: ['md', 'html', 'htm'],
-    ignore: ['**/node_modules/**', '**/.git/**', '**/.yigecli/**'],
+    ignore: ['**/node_modules/**', '**/.git/**', '**/.picbed/**'],
   },
   upload: {
     concurrency: 3,
-    commitMessage: 'chore(yigecli): upload images',
+    commitMessage: 'chore(picbed): upload images',
   },
   rewrite: { backup: true },
 };
@@ -66,7 +66,7 @@ export function findConfigPath(startDir: string): string | undefined {
   for (;;) {
     const candidate = path.join(dir, CONFIG_NAME);
     if (fs.existsSync(candidate)) return candidate;
-    const nested = path.join(dir, '.yigecli', 'config.toml');
+    const nested = path.join(dir, '.picbed', 'config.toml');
     if (fs.existsSync(nested)) return nested;
     const parent = path.dirname(dir);
     if (parent === dir) return undefined;
@@ -89,18 +89,18 @@ export function loadConfig(opts: {
     fileData = parseSimpleToml(fs.readFileSync(cfgPath, 'utf8'));
   }
 
-  const envOwner = process.env.YIGE_GITHUB_OWNER;
-  const envRepo = process.env.YIGE_GITHUB_REPO;
-  const envBranch = process.env.YIGE_GITHUB_BRANCH;
-  const envDir = process.env.YIGE_GITHUB_DIR;
-  const envStyle = process.env.YIGE_URL_STYLE as UrlConfig['style'] | undefined;
+  const envOwner = process.env.PICBED_GITHUB_OWNER;
+  const envRepo = process.env.PICBED_GITHUB_REPO;
+  const envBranch = process.env.PICBED_GITHUB_BRANCH;
+  const envDir = process.env.PICBED_GITHUB_DIR;
+  const envStyle = process.env.PICBED_URL_STYLE as UrlConfig['style'] | undefined;
 
   const styleRaw = envStyle ?? fileData.url?.style ?? DEFAULTS.url.style;
   const style: UrlConfig['style'] =
     styleRaw === 'raw' || styleRaw === 'custom' ? styleRaw : 'jsdelivr';
 
   const hostTypeRaw =
-    process.env.YIGE_HOST_TYPE ?? fileData.host?.type ?? DEFAULTS.host.type;
+    process.env.PICBED_HOST_TYPE ?? fileData.host?.type ?? DEFAULTS.host.type;
   const hostType = hostTypeRaw === 'local' ? ('local' as const) : ('github' as const);
 
   const cfg: ResolvedConfig = {
@@ -112,9 +112,9 @@ export function loadConfig(opts: {
       dir: envDir ?? fileData.github?.dir ?? DEFAULTS.github.dir,
     },
     local: {
-      root: process.env.YIGE_LOCAL_ROOT ?? fileData.local?.root ?? DEFAULTS.local.root,
+      root: process.env.PICBED_LOCAL_ROOT ?? fileData.local?.root ?? DEFAULTS.local.root,
       publicBase:
-        process.env.YIGE_LOCAL_PUBLIC_BASE ??
+        process.env.PICBED_LOCAL_PUBLIC_BASE ??
         fileData.local?.public_base ??
         DEFAULTS.local.publicBase,
       dir: fileData.local?.dir ?? DEFAULTS.local.dir,
@@ -155,16 +155,16 @@ export function getToken(): string | undefined {
 
 export function getOAuthEnv(): { clientId: string; clientSecret: string } {
   return {
-    clientId: process.env.YIGE_GITHUB_CLIENT_ID || '',
-    clientSecret: process.env.YIGE_GITHUB_CLIENT_SECRET || '',
+    clientId: process.env.PICBED_GITHUB_CLIENT_ID || '',
+    clientSecret: process.env.PICBED_GITHUB_CLIENT_SECRET || '',
   };
 }
 
 export function configTemplate(overrides?: Partial<{ owner: string; repo: string }>): string {
   const owner = overrides?.owner ?? 'your-github-user';
   const repo = overrides?.repo ?? 'pic-bed';
-  return `# yigecli configuration — do not put tokens here
-# Use env: YIGE_GITHUB_TOKEN
+  return `# picbed configuration — do not put tokens here
+# Use env: PICBED_GITHUB_TOKEN
 
 [host]
 type = "github"   # github | local
@@ -176,7 +176,7 @@ branch = "main"
 dir = "img"
 
 [local]
-root = ".yigecli/host-root"
+root = ".picbed/host-root"
 public_base = "https://cdn.example.com"
 dir = "img"
 
@@ -186,11 +186,11 @@ style = "jsdelivr"   # raw | jsdelivr | custom
 
 [scan]
 extensions = "md,html,htm"
-ignore = "**/node_modules/**,**/.git/**,**/.yigecli/**"
+ignore = "**/node_modules/**,**/.git/**,**/.picbed/**"
 
 [upload]
 concurrency = 3
-commit_message = "chore(yigecli): upload images"
+commit_message = "chore(picbed): upload images"
 
 [rewrite]
 backup = true

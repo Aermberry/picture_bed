@@ -23,17 +23,17 @@ export function requireOAuthClient(env: NodeJS.ProcessEnv = process.env): {
   clientSecret: string;
   scope: string;
 } {
-  const clientId = env.YIGE_GITHUB_CLIENT_ID || '';
-  const clientSecret = env.YIGE_GITHUB_CLIENT_SECRET || '';
+  const clientId = env.PICBED_GITHUB_CLIENT_ID || '';
+  const clientSecret = env.PICBED_GITHUB_CLIENT_SECRET || '';
   if (!clientId || !clientSecret) {
     throw Object.assign(
       new Error(
-        'missing YIGE_GITHUB_CLIENT_ID / YIGE_GITHUB_CLIENT_SECRET (create a GitHub OAuth App, callback http://127.0.0.1:53682/callback)',
+        'missing PICBED_GITHUB_CLIENT_ID / PICBED_GITHUB_CLIENT_SECRET (create a GitHub OAuth App, callback http://127.0.0.1:53682/callback)',
       ),
       { code: 'E_CONFIG' },
     );
   }
-  const scope = env.YIGE_GITHUB_SCOPE || 'repo';
+  const scope = env.PICBED_GITHUB_SCOPE || 'repo';
   return { clientId, clientSecret, scope };
 }
 
@@ -81,7 +81,7 @@ export async function exchangeCode(args: {
     headers: {
       Accept: 'application/json',
       'Content-Type': 'application/json',
-      'User-Agent': 'yigecli',
+      'User-Agent': 'picbed',
     },
     body: JSON.stringify({
       client_id: args.clientId,
@@ -142,7 +142,7 @@ export async function loginWithCallback(opts: {
         }
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
         res.end(
-          '<!doctype html><meta charset="utf-8"><title>yigecli</title><p>登录成功，可关闭此页并回到终端。</p>',
+          '<!doctype html><meta charset="utf-8"><title>picbed</title><p>登录成功，可关闭此页并回到终端。</p>',
         );
         server.close();
         resolve(code);
@@ -214,7 +214,7 @@ export async function startDeviceLogin(clientId: string, scope = 'repo'): Promis
     headers: {
       Accept: 'application/json',
       'Content-Type': 'application/json',
-      'User-Agent': 'yigecli',
+      'User-Agent': 'picbed',
     },
     body: JSON.stringify({ client_id: clientId, scope }),
   });
@@ -246,7 +246,7 @@ export async function pollDeviceToken(args: {
       headers: {
         Accept: 'application/json',
         'Content-Type': 'application/json',
-        'User-Agent': 'yigecli',
+        'User-Agent': 'picbed',
       },
       body: JSON.stringify({
         client_id: args.clientId,

@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>yigecli 设计总览 · F/P/模块/AC</title>
+  <title>picbed 设计总览 · F/P/模块/AC</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -13,9 +13,9 @@
   <div class="shell">
     <aside class="toc" id="toc">
       <div class="brand">
-        <div class="logo">yige</div>
+        <div class="logo">pic</div>
         <div>
-          <strong>yigecli</strong>
+          <strong>picbed</strong>
           <div class="muted">Design Spec · HTML 呈现</div>
         </div>
       </div>
@@ -37,7 +37,7 @@
     <main class="content">
       <header class="hero">
         <p class="eyebrow">picture_bed · 设计评审稿 · 不含业务实现</p>
-        <h1>yigecli 工程架构与功能详细设计</h1>
+        <h1>picbed 工程架构与功能详细设计</h1>
         <p class="lede">
           写法对齐 <code>my_gallery/docs</code>：<strong>先用 F/P/模块/AC 标识体系</strong>写 Markdown 设计族谱，
           本页仅作 <strong>HTML 呈现层</strong>，便于浏览器浏览与评审。权威定义在 <code>docs/features-index.md</code>。
@@ -82,7 +82,7 @@
         <p>
           日常用 <a href="https://github.com/picx-apps/picx-app" target="_blank" rel="noreferrer">picx-app</a> 做图床，
           但<strong>难以批量处理一篇/一夹文档中的本地图片</strong>，且<strong>Agent 难以稳定驱动</strong>。
-          yigecli 目标：扫描 Markdown/HTML 内嵌图片 → PicX 同源 GitHub 通道上传 → 自动回写链接。
+          picbed 目标：扫描 Markdown/HTML 内嵌图片 → PicX 同源 GitHub 通道上传 → 自动回写链接。
         </p>
         <ul class="check">
           <li>G0 抽取文档中的图片引用（代码块不误伤）</li>
@@ -225,7 +225,7 @@
 
       <section id="upload">
         <h2>7. 图床通道（PicX / GitHub）</h2>
-        <p>PicX = GitHub 仓库托管 + URL 风格。yigecli 配置对齐：<code>token / owner / repo / branch / dir / url.style</code>。</p>
+        <p>PicX = GitHub 仓库托管 + URL 风格。picbed 配置对齐：<code>token / owner / repo / branch / dir / url.style</code>。</p>
         <pre><code># raw
 https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{path}
 
@@ -266,14 +266,14 @@ https://cdn.jsdelivr.net/gh/{owner}/{repo}@{branch}/{path}
         <h2>10. 开放问题</h2>
         <ul>
           <li>URL 默认风格：jsdelivr / raw / 自定义域名？</li>
-          <li>命令名是否冻结为 <code>yigecli</code>？</li>
+          <li>命令名是否冻结为 <code>picbed</code>？</li>
           <li>实现语言：Node/TS（推荐）或 Go？</li>
           <li>watch / VS Code 是否升入非 P3？</li>
         </ul>
       </section>
 
       <footer class="foot">
-        <p class="muted">picture_bed · yigecli · 标识是索引不是实现 · 权威定义在 docs/features-index.md</p>
+        <p class="muted">picture_bed · picbed · 标识是索引不是实现 · 权威定义在 docs/features-index.md</p>
       </footer>
     </main>
   </div>

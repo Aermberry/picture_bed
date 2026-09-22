@@ -15,20 +15,20 @@ export interface McpToolSpec {
   name: string;
   description: string;
   inputSchema: Record<string, unknown>;
-  /** CLI argv after `yigecli` (placeholders filled from arguments). */
+  /** CLI argv after `picbed` (placeholders filled from arguments). */
   buildArgs: (args: Record<string, unknown>) => string[];
 }
 
-/** F14 tools: thin wrappers over the yigecli CLI contract — no business rules. */
+/** F14 tools: thin wrappers over the picbed CLI contract — no business rules. */
 export const MCP_TOOLS: McpToolSpec[] = [
   {
-    name: 'yigecli_doctor',
-    description: 'Run yigecli doctor (config / token / API self-check) with --json',
+    name: 'picbed_doctor',
+    description: 'Run picbed doctor (config / token / API self-check) with --json',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
     buildArgs: () => ['doctor', '--json'],
   },
   {
-    name: 'yigecli_scan',
+    name: 'picbed_scan',
     description: 'Scan docs and extract image refs under a path',
     inputSchema: {
       type: 'object',
@@ -39,7 +39,7 @@ export const MCP_TOOLS: McpToolSpec[] = [
     buildArgs: (a) => ['scan', String(a.path), '--json'],
   },
   {
-    name: 'yigecli_plan',
+    name: 'picbed_plan',
     description: 'Build upload plan without writing or uploading',
     inputSchema: {
       type: 'object',
@@ -50,7 +50,7 @@ export const MCP_TOOLS: McpToolSpec[] = [
     buildArgs: (a) => ['plan', String(a.path), '--json'],
   },
   {
-    name: 'yigecli_sync',
+    name: 'picbed_sync',
     description: 'Upload images and rewrite links (requires yes=true unless dryRun)',
     inputSchema: {
       type: 'object',
@@ -70,7 +70,7 @@ export const MCP_TOOLS: McpToolSpec[] = [
     },
   },
   {
-    name: 'yigecli_upload',
+    name: 'picbed_upload',
     description: 'Upload a single image file and return publicUrl',
     inputSchema: {
       type: 'object',
@@ -81,7 +81,7 @@ export const MCP_TOOLS: McpToolSpec[] = [
     buildArgs: (a) => ['upload', String(a.file), '--json'],
   },
   {
-    name: 'yigecli_revert',
+    name: 'picbed_revert',
     description: 'Revert public URLs back to original local refs (requires yes=true unless dryRun)',
     inputSchema: {
       type: 'object',
@@ -104,7 +104,7 @@ export const MCP_TOOLS: McpToolSpec[] = [
 
 export function defaultCliPath(): string {
   const here = path.dirname(fileURLToPath(import.meta.url));
-  return path.resolve(here, '../../bin/yigecli.js');
+  return path.resolve(here, '../../bin/picbed.js');
 }
 
 export async function runCliJson(
@@ -148,7 +148,7 @@ export async function handleRpc(
       result: {
         protocolVersion: '2024-11-05',
         capabilities: { tools: {} },
-        serverInfo: { name: 'yigecli-mcp', version: '0.1.0' },
+        serverInfo: { name: 'picbed-mcp', version: '0.1.0' },
       },
     };
   }

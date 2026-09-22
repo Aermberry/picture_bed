@@ -5,7 +5,7 @@
 
 ## 目的
 
-cliops 负责 **配置生命周期、健康检查、命令编排入口与机器可读契约**，使 yigecli 对人可读、对 Agent 可编程。业务规则在 ingest/transfer/rewrite；本模块保证输入合法、输出稳定、失败可判定。
+cliops 负责 **配置生命周期、健康检查、命令编排入口与机器可读契约**，使 picbed 对人可读、对 Agent 可编程。业务规则在 ingest/transfer/rewrite；本模块保证输入合法、输出稳定、失败可判定。
 
 边界原则：
 - Token **只**从 ENV / 用户级配置读取；输出一律掩码。  
@@ -38,20 +38,20 @@ rewrite:{ backup: boolean }
 # token 不在 ResolvedConfig 的可序列化输出中；仅内存注入 HostAdapter
 ```
 
-优先级：**CLI flags > ENV > ./yigecli.toml > ./.yigecli/config.toml > 用户级**。
+优先级：**CLI flags > ENV > ./picbed.toml > ./.picbed/config.toml > 用户级**。
 
 ## F1 项目初始化与配置
 
-- `init`：写出 `yigecli.toml` 模板（无 secret）；已存在需 `--force`。  
+- `init`：写出 `picbed.toml` 模板（无 secret）；已存在需 `--force`。  
 - `config get|set|list`：枚举校验（如 `url.style`）；`list` 对 secret 掩码 `****`。  
 - 非法配置：退出码 2（用法）或 3（缺鉴权类），消息含键名。
 
 ## F14 VS Code / MCP 包装
 
-- 入口：`yigecli-mcp`（stdio，newline-delimited JSON-RPC 2.0）。
-- Tools：`yigecli_doctor|scan|plan|sync|upload|revert`——每个 tool **只**拼 CLI argv 并 `spawn` `yigecli … --json`。
+- 入口：`picbed-mcp`（stdio，newline-delimited JSON-RPC 2.0）。
+- Tools：`picbed_doctor|scan|plan|sync|upload|revert`——每个 tool **只**拼 CLI argv 并 `spawn` `picbed … --json`。
 - **禁止**在包装层重写抽取/上传/回写规则；输出原样透传 CLI JSON。
-- VS Code：把 `yigecli-mcp` 配进 MCP / 任务即可；扩展层不承载业务。
+- VS Code：把 `picbed-mcp` 配进 MCP / 任务即可；扩展层不承载业务。
 
 ## F12 watch 监听
 
@@ -74,18 +74,18 @@ Doctor 检查项：
 - 每个子命令支持 `--json`，信封：`{ schemaVersion, ok, command, data?, error?, warnings? }`。  
 - 退出码表见 [`cross-cutting.md`](cross-cutting.md)。  
 - 幂等提示写入 data，供 Agent 断点续跑。  
-- `yigecli commands --json` 列出命令与选项（可发现性）。
+- `picbed commands --json` 列出命令与选项（可发现性）。
 
 ## F15 GitHub 点击登录
 
 ### 意图
 
-`yigecli login` 用 OAuth 完成「浏览器点击授权」，避免手贴 PAT。默认 **Authorization Code + 127.0.0.1 回调**；远程/无浏览器环境用 `--device`（Device Flow）。
+`picbed login` 用 OAuth 完成「浏览器点击授权」，避免手贴 PAT。默认 **Authorization Code + 127.0.0.1 回调**；远程/无浏览器环境用 `--device`（Device Flow）。
 
 ### 依赖配置（用户自备 OAuth App）
 
-- `github.client_id` / `YIGE_GITHUB_CLIENT_ID`
-- `github.client_secret` / `YIGE_GITHUB_CLIENT_SECRET`（仅本地用户配置/ENV，禁止入库）
+- `github.client_id` / `PICBED_GITHUB_CLIENT_ID`
+- `github.client_secret` / `PICBED_GITHUB_CLIENT_SECRET`（仅本地用户配置/ENV，禁止入库）
 - 回调 URL：`http://127.0.0.1:<port>/callback`（默认端口可配，建议固定 53682 并写入 OAuth App）
 - scope：默认 `repo`（图床私有仓库）；可降为 `public_repo`
 
@@ -106,7 +106,7 @@ Doctor 检查项：
 
 ### 凭据优先级
 
-`YIGE_GITHUB_TOKEN` / `GITHUB_TOKEN` **>** 用户凭据文件中的 OAuth token。
+`PICBED_GITHUB_TOKEN` / `GITHUB_TOKEN` **>** 用户凭据文件中的 OAuth token。
 
 ### 失败语义
 

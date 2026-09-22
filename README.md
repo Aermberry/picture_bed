@@ -1,4 +1,4 @@
-# picture_bed · yigecli
+# picture_bed · picbed
 
 本地 CLI：读取 Markdown / HTML 中的内嵌图片，上传到 PicX 同源 **GitHub 图床**，自动回写稳定链接。面向人与 Agent。
 
@@ -7,7 +7,7 @@
 ## 环境
 
 - Node.js ≥ 20
-- GitHub PAT（`repo` 或 fine-grained Contents 读写），写入环境变量 `YIGE_GITHUB_TOKEN`
+- GitHub PAT（`repo` 或 fine-grained Contents 读写），写入环境变量 `PICBED_GITHUB_TOKEN`
 
 ## 构建与测试
 
@@ -22,36 +22,36 @@ npm test
 在 GitHub 创建 **OAuth App**（Callback URL：`http://127.0.0.1:53682/callback`），然后：
 
 ```bash
-export YIGE_GITHUB_CLIENT_ID=...
-export YIGE_GITHUB_CLIENT_SECRET=...
+export PICBED_GITHUB_CLIENT_ID=...
+export PICBED_GITHUB_CLIENT_SECRET=...
 
-node bin/yigecli.js login          # 浏览器点击 Authorize（本机回调）
-node bin/yigecli.js login --device # 远程/无浏览器：Device Flow（输一次性码）
-node bin/yigecli.js logout
+node bin/picbed.js login          # 浏览器点击 Authorize（本机回调）
+node bin/picbed.js login --device # 远程/无浏览器：Device Flow（输一次性码）
+node bin/picbed.js logout
 ```
 
-Token 存用户级 `~/.config/yigecli/credentials.json`（不入库）。也可继续用 `YIGE_GITHUB_TOKEN`（PAT，优先级更高）。
+Token 存用户级 `~/.config/picbed/credentials.json`（不入库）。也可继续用 `PICBED_GITHUB_TOKEN`（PAT，优先级更高）。
 
 ## 快速开始
 
 ```bash
-node bin/yigecli.js init
-# 编辑 yigecli.toml：github.owner / github.repo / github.branch / github.dir
-# 登录后无需再导出 PAT；若用 PAT：export YIGE_GITHUB_TOKEN=ghp_xxx
+node bin/picbed.js init
+# 编辑 picbed.toml：github.owner / github.repo / github.branch / github.dir
+# 登录后无需再导出 PAT；若用 PAT：export PICBED_GITHUB_TOKEN=ghp_xxx
 
-node bin/yigecli.js doctor --json
-node bin/yigecli.js plan ./docs --json
-node bin/yigecli.js sync ./docs --json --yes
-node bin/yigecli.js revert ./docs --dry-run --json
+node bin/picbed.js doctor --json
+node bin/picbed.js plan ./docs --json
+node bin/picbed.js sync ./docs --json --yes
+node bin/picbed.js revert ./docs --dry-run --json
 ```
 
-也可使用 npm bin 名：`yigecli`（`npm link` 后）。
+也可使用 npm bin 名：`picbed`（`npm link` 后）。
 
 ## 命令
 
 | 命令 | 说明 |
 |------|------|
-| `init` | 生成 `yigecli.toml` |
+| `init` | 生成 `picbed.toml` |
 | `login` | GitHub OAuth 点击登录（`--device` 走 Device Flow） |
 | `logout` | 清除本地 OAuth 凭据 |
 | `doctor` | 配置 / token / API 自检 |
@@ -73,9 +73,9 @@ node bin/yigecli.js revert ./docs --dry-run --json
 ## Agent 调用示例
 
 ```bash
-yigecli doctor --json
-yigecli plan ./docs --json
-yigecli sync ./docs --json --yes
+picbed doctor --json
+picbed plan ./docs --json
+picbed sync ./docs --json --yes
 ```
 
 `--json` 时 stdout 为单一 JSON（`schemaVersion: 1`）；诊断走 stderr。
@@ -91,7 +91,7 @@ yigecli sync ./docs --json --yes
 type = "github"   # github | local
 
 [local]
-root = ".yigecli/host-root"
+root = ".picbed/host-root"
 public_base = "https://cdn.example.com"
 dir = "img"
 ```
@@ -101,8 +101,8 @@ dir = "img"
 ## MCP 包装（F14）
 
 ```bash
-node bin/yigecli-mcp.js
-# 或 npm link 后：yigecli-mcp
+node bin/picbed-mcp.js
+# 或 npm link 后：picbed-mcp
 ```
 
-stdio JSON-RPC；tools 均转调 `yigecli … --json`。VS Code / Claude 等 MCP 客户端将 command 指到该入口即可。
+stdio JSON-RPC；tools 均转调 `picbed … --json`。VS Code / Claude 等 MCP 客户端将 command 指到该入口即可。

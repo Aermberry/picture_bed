@@ -31,6 +31,6 @@ out/
 *.swp
 *.swo
 
-# yigecli local state
-.yigecli/
+# picbed local state
+.picbed/
 coverage/

@@ -99,7 +99,7 @@ async function collect(root: string, cfg: ResolvedConfig) {
 export async function run(argv: string[]): Promise<ExitCode> {
   const program = new Command();
   program
-    .name('yigecli')
+    .name('picbed')
     .description('Extract document images, upload to GitHub image host, rewrite links')
     .option('--json', 'machine-readable output')
     .option('--quiet', 'suppress human logs')
@@ -111,7 +111,7 @@ export async function run(argv: string[]): Promise<ExitCode> {
 
   program
     .command('init')
-    .description('write yigecli.toml template')
+    .description('write picbed.toml template')
     .option('--force', 'overwrite existing config')
     .action(() => {
       /* handled below via parse */
@@ -312,8 +312,8 @@ export async function run(argv: string[]): Promise<ExitCode> {
           code: e.code ?? 'E_AUTH',
           message: e.message,
           hint: useDevice
-            ? 'check YIGE_GITHUB_CLIENT_ID/SECRET and retry'
-            : 'try yigecli login --device, or set YIGE_GITHUB_TOKEN',
+            ? 'check PICBED_GITHUB_CLIENT_ID/SECRET and retry'
+            : 'try picbed login --device, or set PICBED_GITHUB_TOKEN',
         });
       }
     }
@@ -391,7 +391,7 @@ export async function run(argv: string[]): Promise<ExitCode> {
       checks.push({
         name: 'token',
         ok: Boolean(token),
-        detail: token ? `present (${maskToken(token)})` : 'missing YIGE_GITHUB_TOKEN',
+        detail: token ? `present (${maskToken(token)})` : 'missing PICBED_GITHUB_TOKEN',
       });
 
       let apiOk = false;
@@ -404,7 +404,7 @@ export async function run(argv: string[]): Promise<ExitCode> {
               headers: {
                 Authorization: `Bearer ${token}`,
                 Accept: 'application/vnd.github+json',
-                'User-Agent': 'yigecli',
+                'User-Agent': 'picbed',
               },
             },
           );
@@ -457,7 +457,7 @@ export async function run(argv: string[]): Promise<ExitCode> {
       }
       const { startWatch } = await import('./watch.js');
       const { fileURLToPath } = await import('node:url');
-      const bin = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../bin/yigecli.js');
+      const bin = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../bin/picbed.js');
       const { spawn } = await import('node:child_process');
       let lastCode: ExitCode = EXIT.OK;
       const runOnce = (changed: string[]) =>
@@ -597,7 +597,7 @@ export async function run(argv: string[]): Promise<ExitCode> {
       if (hostRequiresToken(cfg) && !token) {
         return fail(json, command, EXIT.CONFIG, {
           code: 'E_TOKEN',
-          message: 'missing YIGE_GITHUB_TOKEN',
+          message: 'missing PICBED_GITHUB_TOKEN',
         }, collected.warnings);
       }
       if (cfg.host.type === 'github' && (!cfg.github.owner || !cfg.github.repo)) {
@@ -741,7 +741,7 @@ export async function run(argv: string[]): Promise<ExitCode> {
       if (hostRequiresToken(cfg) && !token) {
         return fail(json, command, EXIT.CONFIG, {
           code: 'E_TOKEN',
-          message: 'missing YIGE_GITHUB_TOKEN',
+          message: 'missing PICBED_GITHUB_TOKEN',
         });
       }
       const bytes = fs.readFileSync(abs);
@@ -763,7 +763,7 @@ export async function run(argv: string[]): Promise<ExitCode> {
     return fail(json, command, EXIT.USAGE, {
       code: 'E_USAGE',
       message: `unknown command: ${command}`,
-      hint: 'yigecli commands',
+      hint: 'picbed commands',
     });
   } catch (err) {
     const e = err as Error & { code?: string };

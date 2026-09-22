@@ -12,11 +12,11 @@ import { loadCredentials, resolveToken, saveCredentials, clearCredentials } from
 const prev = { ...process.env };
 
 afterEach(() => {
-  process.env.YIGE_GITHUB_TOKEN = prev.YIGE_GITHUB_TOKEN;
+  process.env.PICBED_GITHUB_TOKEN = prev.PICBED_GITHUB_TOKEN;
   process.env.GITHUB_TOKEN = prev.GITHUB_TOKEN;
-  process.env.YIGE_CONFIG_HOME = prev.YIGE_CONFIG_HOME;
-  delete process.env.YIGE_GITHUB_CLIENT_ID;
-  delete process.env.YIGE_GITHUB_CLIENT_SECRET;
+  process.env.PICBED_CONFIG_HOME = prev.PICBED_CONFIG_HOME;
+  delete process.env.PICBED_GITHUB_CLIENT_ID;
+  delete process.env.PICBED_GITHUB_CLIENT_SECRET;
 });
 
 describe('oauth helpers', () => {
@@ -42,9 +42,9 @@ describe('oauth helpers', () => {
 
   it('requireOAuthClient reads env', () => {
     const c = requireOAuthClient({
-      YIGE_GITHUB_CLIENT_ID: 'id',
-      YIGE_GITHUB_CLIENT_SECRET: 'sec',
-      YIGE_GITHUB_SCOPE: 'public_repo',
+      PICBED_GITHUB_CLIENT_ID: 'id',
+      PICBED_GITHUB_CLIENT_SECRET: 'sec',
+      PICBED_GITHUB_SCOPE: 'public_repo',
     } as NodeJS.ProcessEnv);
     expect(c.clientId).toBe('id');
     expect(c.scope).toBe('public_repo');
@@ -53,16 +53,16 @@ describe('oauth helpers', () => {
 
 describe('credential store', () => {
   it('env token wins over stored oauth', () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'yige-cred-'));
-    process.env.YIGE_CONFIG_HOME = dir;
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'picbed-cred-'));
+    process.env.PICBED_CONFIG_HOME = dir;
     saveCredentials({
       token: 'oauth-token',
       source: 'oauth',
       updatedAt: new Date().toISOString(),
     });
-    process.env.YIGE_GITHUB_TOKEN = 'pat-token';
+    process.env.PICBED_GITHUB_TOKEN = 'pat-token';
     expect(resolveToken()?.source).toBe('env');
-    delete process.env.YIGE_GITHUB_TOKEN;
+    delete process.env.PICBED_GITHUB_TOKEN;
     delete process.env.GITHUB_TOKEN;
     expect(resolveToken()?.source).toBe('oauth');
     expect(loadCredentials()?.token).toBe('oauth-token');

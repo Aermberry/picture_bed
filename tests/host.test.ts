@@ -7,7 +7,7 @@ import { createHostAdapter, hostRequiresToken, LocalHostAdapter } from '../src/h
 import { uploadAsset } from '../src/host/github.js';
 
 function tmp(): string {
-  return fs.mkdtempSync(path.join(os.tmpdir(), 'yigecli-host-'));
+  return fs.mkdtempSync(path.join(os.tmpdir(), 'picbed-host-'));
 }
 
 describe('F13 HostAdapter factory', () => {

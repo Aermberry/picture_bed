@@ -12,8 +12,8 @@ export interface StoredCredentials {
 
 export function credentialsPath(): string {
   const dir =
-    process.env.YIGE_CONFIG_HOME ||
-    path.join(os.homedir(), '.config', 'yigecli');
+    process.env.PICBED_CONFIG_HOME ||
+    path.join(os.homedir(), '.config', 'picbed');
   return path.join(dir, 'credentials.json');
 }
 
@@ -55,7 +55,7 @@ export function clearCredentials(): boolean {
 export function resolveToken(
   env: NodeJS.ProcessEnv = process.env,
 ): { token: string; source: 'env' | 'oauth' } | undefined {
-  const envToken = env.YIGE_GITHUB_TOKEN || env.GITHUB_TOKEN;
+  const envToken = env.PICBED_GITHUB_TOKEN || env.GITHUB_TOKEN;
   if (envToken) return { token: envToken, source: 'env' };
   const stored = loadCredentials();
   if (stored?.token) return { token: stored.token, source: 'oauth' };

@@ -3,7 +3,7 @@ import path from 'node:path';
 import type { Manifest, ManifestEntry } from './types.js';
 
 export function manifestPath(rootDir: string): string {
-  return path.join(rootDir, '.yigecli', 'manifest.json');
+  return path.join(rootDir, '.picbed', 'manifest.json');
 }
 
 export function loadManifest(rootDir: string): Manifest {

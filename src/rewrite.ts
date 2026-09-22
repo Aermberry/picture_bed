@@ -38,12 +38,12 @@ export function rewriteDoc(
 function backupPath(rootDir: string, docPath: string): string {
   const ts = new Date().toISOString().replace(/[:.]/g, '-');
   const rel = path.basename(docPath);
-  return path.join(rootDir, '.yigecli', 'backup', `${rel}.${ts}.bak`);
+  return path.join(rootDir, '.picbed', 'backup', `${rel}.${ts}.bak`);
 }
 
 export function writeDocAtomic(target: string, content: string): void {
   fs.mkdirSync(path.dirname(target), { recursive: true });
-  const tmp = target + '.yigecli-tmp';
+  const tmp = target + '.picbed-tmp';
   fs.writeFileSync(tmp, content, 'utf8');
   fs.renameSync(tmp, target);
 }

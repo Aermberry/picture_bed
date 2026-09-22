@@ -1,10 +1,10 @@
-# yigecli 架构设计
+# picbed 架构设计
 
 > 状态：设计稿 v0.1（待评审）· **未实现业务代码**（2026-09-22）
 > 定位：**架构总纲**（分层 / 存储 / CLI 契约 / 数据模型 / 安全 / NFR / 技术选型）。
 > 功能点的完整规格（优先级、AC、实现归属、双向链接）以 [`features-index.md`](features-index.md) 为唯一来源；本文档不重复其逐条 AC。
 > **新人阅读指南**（F 编号、模块名、文档怎么串）：[`design-reading-guide.md`](design-reading-guide.md)。
-> 范围：本地 CLI **yigecli**——扫描目录中 Markdown / HTML 等文档内嵌图片，经 PicX 同源 **GitHub 图床通道**上传，自动回写稳定公开链接；面向人与 **Agent** 双模式。
+> 范围：本地 CLI **picbed**——扫描目录中 Markdown / HTML 等文档内嵌图片，经 PicX 同源 **GitHub 图床通道**上传，自动回写稳定公开链接；面向人与 **Agent** 双模式。
 > 约束输入（用户确认）：
 > - 形态：**CLI only**（v1 不做 Web UI / 桌面壳；picx-app 已覆盖 GUI）
 > - 痛点：批量处理一篇文章/文件夹中的本地图片；流程须 **Agent 可稳定驱动**
@@ -41,7 +41,7 @@
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│  CLI 层 yigecli                                           │
+│  CLI 层 picbed                                           │
 │   init · doctor · scan · plan · sync · upload · revert · config │
 │   退出码 / --json / --yes / --dry-run / --quiet             │
 └───────────────▲──────────────────────────────────────────┘
@@ -68,12 +68,12 @@
 | 存储 | 内容 | 位置 | 写者 |
 |------|------|------|------|
 | 源文档 | md / html 等 | 用户指定目录（默认原地回写；`--out-dir` 写副本） | 用户 / `LinkRewriter` |
-| 源图片 | 本地图片文件 | 相对文档目录解析 | **只读**（yigecli 不改图片字节） |
-| 配置 | owner/repo/branch/dir/url 风格 | `./yigecli.toml` / ENV | `init` / `config set` |
-| Token | GitHub PAT | **仅** `YIGE_GITHUB_TOKEN` 或用户级配置 | 用户（禁止入库） |
-| Manifest | localPath+sha → publicUrl | `./.yigecli/manifest.json` | `ManifestStore` |
-| Backup | 回写前文档副本 | `./.yigecli/backup/` | `LinkRewriter` |
-| Cache | sha → 已上传 URL | 并入 manifest 或 `./.yigecli/cache.json` | `SyncOrchestrator` |
+| 源图片 | 本地图片文件 | 相对文档目录解析 | **只读**（picbed 不改图片字节） |
+| 配置 | owner/repo/branch/dir/url 风格 | `./picbed.toml` / ENV | `init` / `config set` |
+| Token | GitHub PAT | **仅** `PICBED_GITHUB_TOKEN` 或用户级配置 | 用户（禁止入库） |
+| Manifest | localPath+sha → publicUrl | `./.picbed/manifest.json` | `ManifestStore` |
+| Backup | 回写前文档副本 | `./.picbed/backup/` | `LinkRewriter` |
+| Cache | sha → 已上传 URL | 并入 manifest 或 `./.picbed/cache.json` | `SyncOrchestrator` |
 | 远端图床 | 图片 blob | GitHub 图床仓库 `{dir}/…` | `GitHubHostAdapter` |
 
 设计要点：
@@ -123,11 +123,11 @@ SyncResult:    ok, uploaded, rewrittenDocs[], mapping, warnings[], errors[]
 
 ## 4. 图床通道（PicX / GitHub）
 
-PicX 图床本质是 **GitHub 仓库文件托管 + URL 风格**。yigecli 对齐概念：
+PicX 图床本质是 **GitHub 仓库文件托管 + URL 风格**。picbed 对齐概念：
 
-| PicX 概念 | yigecli 配置 | 说明 |
+| PicX 概念 | picbed 配置 | 说明 |
 |-----------|--------------|------|
-| Token | `YIGE_GITHUB_TOKEN` | PAT；repo 或 fine-grained Contents RW |
+| Token | `PICBED_GITHUB_TOKEN` | PAT；repo 或 fine-grained Contents RW |
 | Owner / Repo / Branch / 目录 | `github.owner/repo/branch/dir` | 图床仓库 |
 | CDN 规则 | `url.style` | `raw` \| `jsdelivr` \| `custom` |
 
@@ -165,7 +165,7 @@ URL：
 - Token 最小权限：仅目标图床仓库 Contents 读写。
 - 拒绝：路径穿越（`..` 出根）、默认拒绝绝对路径与 `file://`。
 - 日志/JSON 错误禁止回显 secret；`config list` 掩码。
-- `.yigecli/backup`、`manifest` 建议 gitignore（manifest 无 secret 仍建议本地）。
+- `.picbed/backup`、`manifest` 建议 gitignore（manifest 无 secret 仍建议本地）。
 
 ---
 
@@ -198,7 +198,7 @@ URL：
 |------|------|
 | `main` | 发布/稳定 |
 | `develop` | 功能集成 |
-| `feature/*` | 实现（如 `feature/yigecli-mvp`） |
+| `feature/*` | 实现（如 `feature/picbed-mvp`） |
 | `docs/design` | **文档设计专属分支**（`docs/`、HTML 呈现、标识体系变更优先落此分支） |
 | `release/*` / `hotfix/*` | 可选 |
 
@@ -222,9 +222,9 @@ URL：
 ## 11. 开放问题
 
 1. URL 默认风格：jsdelivr / raw / 自定义域名？  
-2. 命令名/包名是否冻结为 `yigecli`？  
-3. v1 是否纳入 watch、VS Code 集成（当前 P3）？  
-4. 实现语言最终确认 Node/TS 或 Go？
+2. ~~命令名/包名是否冻结为 `picbed`？~~ **已冻结为 `picbed`**（2026-09-22，由 `yigecli` 更名）。  
+3. ~~v1 是否纳入 watch、VS Code 集成（当前 P3）？~~ **已实现 F12/F14**。  
+4. ~~实现语言最终确认 Node/TS 或 Go？~~ **已采用 Node/TS**。
 
 ---
 

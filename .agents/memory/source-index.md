@@ -3,12 +3,12 @@
 | date | artifact | role | notes |
 |------|----------|------|-------|
 | 2026-09-22 | `AGENTS.md` | agent protocol (AgentGo v1.15.1) | authoritative for agent workflow |
-| 2026-09-22 | `README.md` | product + usage | yigecli env, login, commands, exit codes, Agent examples |
-| 2026-09-22 | `package.json` | package manifest | name `yigecli` 0.1.0; scripts build/test/lint; deps commander |
-| 2026-09-22 | `bin/yigecli.js` | CLI entry | thin launcher to dist |
+| 2026-09-22 | `README.md` | product + usage | picbed env, login, commands, exit codes, Agent examples |
+| 2026-09-22 | `package.json` | package manifest | name `picbed` 0.1.0; scripts build/test/lint; deps commander |
+| 2026-09-22 | `bin/picbed.js` | CLI entry | thin launcher to dist |
 | 2026-09-22 | `src/cli.ts` | command surface | commander wiring, global flags |
 | 2026-09-22 | `src/types.ts` | shared types | JSON schemas / domain types |
-| 2026-09-22 | `src/config.ts` | F1 config | yigecli.toml + CLI>ENV>file priority |
+| 2026-09-22 | `src/config.ts` | F1 config | picbed.toml + CLI>ENV>file priority |
 | 2026-09-22 | `src/login.ts` | F15 OAuth | local callback + Device Flow; user-level credentials |
 | 2026-09-22 | `src/scan.ts` | F3 scan | document discovery |
 | 2026-09-22 | `src/extract.ts` | F4 extract | MD/HTML image refs with offsets |
@@ -35,6 +35,6 @@
 | 2026-09-22 | `.github/workflows/ci.yml` | CI | Node 20/22: npm ci, lint, build, test |
 | 2026-09-22 | `vitest.config.ts` | test runner config | vitest |
 | 2026-09-22 | `tsconfig.json` | TS project | ESM build to `dist/` |
-| 2026-09-22 | `.gitignore` | ignore rules | OS/env/node/build/IDE + yigecli local secrets |
+| 2026-09-22 | `.gitignore` | ignore rules | OS/env/node/build/IDE + picbed local secrets |
 
 No CI config found. Contribution/style guides not present beyond README and design pack.

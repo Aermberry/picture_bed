@@ -18,7 +18,7 @@ export interface Watcher {
 
 function defaultIgnore(rel: string): boolean {
   const parts = rel.split(/[\\/]/);
-  return parts.some((p) => p === 'node_modules' || p === '.git' || p === '.yigecli');
+  return parts.some((p) => p === 'node_modules' || p === '.git' || p === '.picbed');
 }
 
 /**

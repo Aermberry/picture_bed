@@ -45,7 +45,7 @@
 
 ## 3. 密钥纪律
 
-- 名称：`YIGE_GITHUB_TOKEN` / `GITHUB_TOKEN`；OAuth 另有 `YIGE_GITHUB_CLIENT_ID`、`YIGE_GITHUB_CLIENT_SECRET`。  
+- 名称：`PICBED_GITHUB_TOKEN` / `GITHUB_TOKEN`；OAuth 另有 `PICBED_GITHUB_CLIENT_ID`、`PICBED_GITHUB_CLIENT_SECRET`。  
 - OAuth 用户 token 存用户级凭据文件（非仓库），权限 0600。  
 - 范围：仅图床仓库 Contents RW（scope `repo` 或 `public_repo`）。  
 - 禁止：写入 git 跟踪文件、manifest、backup、日志、JSON data。  

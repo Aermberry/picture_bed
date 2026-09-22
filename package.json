@@ -1,11 +1,11 @@
 {
-  "name": "yigecli",
+  "name": "picbed",
   "version": "0.1.0",
   "description": "Local CLI: extract images from markdown/html, upload to PicX-style GitHub image host, rewrite links",
   "type": "module",
   "bin": {
-    "yigecli": "./bin/yigecli.js",
-    "yigecli-mcp": "./bin/yigecli-mcp.js"
+    "picbed": "./bin/picbed.js",
+    "picbed-mcp": "./bin/picbed-mcp.js"
   },
   "files": [
     "bin",
@@ -17,7 +17,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "tsc -p tsconfig.json --noEmit",
-    "yigecli": "node ./bin/yigecli.js"
+    "picbed": "node ./bin/picbed.js"
   },
   "engines": {
     "node": ">=20"

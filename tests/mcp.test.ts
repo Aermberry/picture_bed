@@ -5,10 +5,10 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { handleRpc, MCP_TOOLS, runCliJson } from '../src/mcp/server.js';
 
-const cliPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../bin/yigecli.js');
+const cliPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../bin/picbed.js');
 
 function tmp(): string {
-  return fs.mkdtempSync(path.join(os.tmpdir(), 'yigecli-mcp-'));
+  return fs.mkdtempSync(path.join(os.tmpdir(), 'picbed-mcp-'));
 }
 
 describe('F14 MCP wrapper', () => {
@@ -30,10 +30,10 @@ describe('F14 MCP wrapper', () => {
     expect(res.result.capabilities.tools).toBeTruthy();
   });
 
-  it('tools/call delegates to yigecli --json (local host, no token)', async () => {
+  it('tools/call delegates to picbed --json (local host, no token)', async () => {
     const root = tmp();
     fs.writeFileSync(
-      path.join(root, 'yigecli.toml'),
+      path.join(root, 'picbed.toml'),
       `[host]
 type = "local"
 
@@ -54,7 +54,7 @@ style = "raw"
         jsonrpc: '2.0',
         id: 3,
         method: 'tools/call',
-        params: { name: 'yigecli_plan', arguments: { path: '.' } },
+        params: { name: 'picbed_plan', arguments: { path: '.' } },
       },
       { cliPath, cwd: root },
     )) as { result: { content: { text: string }[]; isError: boolean } };

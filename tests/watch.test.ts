@@ -5,7 +5,7 @@ import path from 'node:path';
 import { startWatch } from '../src/watch.js';
 
 function tmp(): string {
-  return fs.mkdtempSync(path.join(os.tmpdir(), 'yigecli-watch-'));
+  return fs.mkdtempSync(path.join(os.tmpdir(), 'picbed-watch-'));
 }
 
 describe('F12 watch scheduler', () => {
@@ -22,13 +22,13 @@ describe('F12 watch scheduler', () => {
     w.close();
   });
 
-  it('ignores node_modules/.git/.yigecli', async () => {
+  it('ignores node_modules/.git/.picbed', async () => {
     const root = tmp();
     const onTrigger = vi.fn();
     const w = startWatch({ root, debounceMs: 10, onTrigger });
     w.notify('node_modules/x.png');
     w.notify('.git/config');
-    w.notify('.yigecli/manifest.json');
+    w.notify('.picbed/manifest.json');
     w.notify('docs/ok.md');
     await new Promise((r) => setTimeout(r, 40));
     expect(onTrigger).toHaveBeenCalledTimes(1);

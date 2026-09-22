@@ -8,7 +8,7 @@ import { resolveAssets } from '../src/resolve.js';
 import { applyRewrites, revertDoc } from '../src/rewrite.js';
 
 function tmp(): string {
-  return fs.mkdtempSync(path.join(os.tmpdir(), 'yigecli-'));
+  return fs.mkdtempSync(path.join(os.tmpdir(), 'picbed-'));
 }
 
 describe('resolveAssets', () => {
