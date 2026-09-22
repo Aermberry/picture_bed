@@ -30,3 +30,4 @@
 2026-09-22T18:30:00Z | mimo | update | .agents/memory/open-items.md | Closed push item; all three branches at e9a61ff on origin | User asked to retry push
 2026-09-22T19:20:00Z | mimo | create | F12/F13/F14 implementation | Host factory+local, watch, yigecli-mcp; 25/25 tests | User asked to implement backlog in order
 2026-09-22T19:35:00Z | mimo | create | .github/workflows/ci.yml | lint+build+test Node 20/22 | User confirmed CI request
+2026-09-22T19:55:00Z | mimo | update | .agents/memory/outcomes.md | CI push ok after gh workflow scope; f391add on origin | User completed auth setup
