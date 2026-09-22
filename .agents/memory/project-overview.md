@@ -17,12 +17,12 @@
 
 Local CLI **picbed**: scan Markdown/HTML embedded images → upload to PicX-style **GitHub image host** → rewrite stable links. Agent-facing (`--json`, schemaVersion 1, exit-code contract).
 
-Commands: `init` · `login`/`logout` · `doctor` · `scan` · `plan` · `sync` · `upload` · `revert` · `config` · `commands`.
+Commands: `init` · `doctor` · `scan` · `plan` · `sync` · `upload` · `revert` · `watch` · `config` · `commands`（`login`/`logout` 已移除）。
 
 ## Feature progress (authoritative: `docs/features-index.md`)
 
-- Done: F1–F15 (incl. F12 watch, F13 multi-host, F14 MCP)
-- Optional open: CI
+- Done: F1–F15（含 F12 watch、F13 multi-host、F14 MCP、F15 Token 鉴权）
+- Released: GitHub Release `v0.2.0`（资产 `picbed.tgz` 跟随 `/releases/latest`）
 
 ## Source of truth
 
@@ -30,7 +30,7 @@ Current project artifacts win over this memory. `AGENTS.md` (AgentGo v1.15.1) is
 
 ## Standing corrections
 
-- (none yet)
+- **Design before implementation**：任何代码行为变更必须**先改设计文档**（features-index / module-* / architecture / 必要时 index.html），**再**写实现与测试。用户 2026-09-22 明确要求；详见 `.agents/rules/delivery.md`。
 
 ## Notes
 

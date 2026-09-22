@@ -34,3 +34,4 @@
 2026-09-22T20:30:00Z | mimo | rename | yigecli → picbed | CLI/package/config `picbed.toml`/state `.picbed/`/env `PICBED_*`/docs/MCP/bins | User chose product name picbed
 2026-09-22T21:50:00Z | mimo | create | .github/workflows/release.yml + tag v0.1.0 | npm pack → GitHub Release with picbed-0.1.0.tgz | User requested Releases/Packages publishing
 2026-09-22T22:10:00Z | mimo | delete | OAuth login/logout + src/login.ts | F15 becomes PAT/GITHUB_TOKEN/gh auth token only | User: OAuth too hard to distribute
+2026-09-22T23:45:00Z | mimo | update | .agents/rules/delivery.md + Standing corrections | MANDATORY: update design docs before code implementation | User standing instruction
