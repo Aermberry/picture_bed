@@ -126,6 +126,18 @@ export async function run(argv: string[]): Promise<ExitCode> {
 
   program.command('init').description('write picbed.toml template')
     .option('--force', 'overwrite existing config');
+  program
+    .command('login')
+    .description('removed — use PAT or GitHub CLI (`gh`)')
+    .action(() => {
+      /* handled below */
+    });
+  program
+    .command('logout')
+    .description('removed — use PAT or GitHub CLI (`gh`)')
+    .action(() => {
+      /* handled below */
+    });
   program.command('doctor').description('check config and GitHub auth');
   program
     .command('scan <path>')
