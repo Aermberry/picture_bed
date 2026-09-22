@@ -37,3 +37,4 @@
 2026-09-22T23:45:00Z | mimo | update | .agents/rules/delivery.md + Standing corrections | MANDATORY: update design docs before code implementation | User standing instruction
 2026-09-23T00:05:00Z | mimo | update | refs/heads/docs/design @ 4300de0 | Design pack snapshot (design-only commit-tree); repair missed docs/design landings | User: design edits must use docs/design
 2026-09-23T00:20:00Z | mimo | update | .agents/rules/delivery.md Git Flow | MANDATORY one feature/* per F/topic; record violation of piling F12–F14 | User: follow Git Flow feature branches
+2026-09-23T00:35:00Z | mimo | merge | docs/design → develop @ b513fb7 | Join design history; FF main; rule: merge docs/design into develop after each design commit | User: was docs/design merged to develop?
