@@ -7,7 +7,7 @@
 ## 环境
 
 - Node.js ≥ 20
-- GitHub PAT（`repo` 或 fine-grained Contents 读写），写入环境变量 `PICBED_GITHUB_TOKEN`
+- GitHub 访问令牌（PAT）或已登录的 GitHub CLI（`gh`）
 
 ## 构建与测试
 
@@ -19,15 +19,34 @@ npm test
 
 ## 鉴权（无 OAuth App）
 
-GitHub 图床需要 token，三选一（优先级从高到低）：
+GitHub 图床需要 **访问令牌（token）**，三选一（优先级从高到低）：
 
 ```bash
-export PICBED_GITHUB_TOKEN=ghp_xxx   # 推荐：自建 PAT（repo 或 Contents RW）
-export GITHUB_TOKEN=ghp_xxx          # 兼容通用变量
-gh auth login                        # 或直接复用 GitHub CLI 的 token
+export PICBED_GITHUB_TOKEN=ghp_xxx   # 1) 自建 PAT（推荐）
+export GITHUB_TOKEN=ghp_xxx          # 2) 通用变量，同上
+gh auth login                        # 3) 或复用 GitHub CLI
 ```
 
-不需要注册 OAuth App，也没有 `login`/`logout`。
+### 不知道 `gh` 是什么？
+
+**`gh` = GitHub CLI（GitHub 官方命令行）**，和 `git` 不是一回事：
+
+| | `git` | `gh` |
+|--|-------|------|
+| 是什么 | 版本控制本体 | GitHub 网站功能的命令行（PR/Issue/登录等） |
+| 装过 git 就有吗 | — | **不一定**，要单独安装 |
+
+- 安装：https://cli.github.com/  
+- 登录：`gh auth login`（浏览器点一次）  
+- 登录后无需再设 `PICBED_GITHUB_TOKEN`，picbed 会自动调用 `gh auth token`
+
+### 只想用 PAT（不装 gh）
+
+1. 打开 [Personal access tokens](https://github.com/settings/tokens)  
+2. 勾选 **`repo`**（或 fine-grained 对图床仓库 Contents 读写）  
+3. 复制 `ghp_…` 后写入环境变量 `PICBED_GITHUB_TOKEN`（**不要**写进 `picbed.toml`）
+
+不需要注册 OAuth App，也没有 `login`/`logout` 命令。
 
 ## 快速开始
 

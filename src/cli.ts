@@ -69,6 +69,21 @@ function loadCfg(cwd: string, config?: string): ResolvedConfig {
   return loadConfig({ cwd, configPath: config });
 }
 
+/** Explain auth options for users who do not know what `gh` is. */
+const AUTH_HINT = [
+  'How to authenticate GitHub uploads (pick one):',
+  '  1) Personal Access Token (PAT) — easiest if you do not have GitHub CLI:',
+  '     - Create at https://github.com/settings/tokens (classic) or fine-grained tokens',
+  '     - Need repo (or Contents read/write) on the image-bed repository',
+  '     - PowerShell:  $env:PICBED_GITHUB_TOKEN = "<your token>"',
+  '     - bash:        export PICBED_GITHUB_TOKEN=<your token>',
+  '  2) Reuse GitHub CLI (the `gh` command — official GitHub CLI, not git itself):',
+  '     - Install: https://cli.github.com/  then run:  gh auth login',
+  '     - picbed will call `gh auth token` automatically',
+  '  3) Or set GITHUB_TOKEN (same as PICBED_GITHUB_TOKEN)',
+].join('\n');
+
+
 async function collect(root: string, cfg: ResolvedConfig) {
   const docs = scanDocs(root, cfg.scan);
   const warnings: string[] = [];
@@ -215,7 +230,7 @@ export async function run(argv: string[]): Promise<ExitCode> {
       return fail(json, command, EXIT.USAGE, {
         code: 'E_AUTH',
         message: `${command} was removed (no OAuth App flow)`,
-        hint: 'set PICBED_GITHUB_TOKEN (or GITHUB_TOKEN), or use `gh auth login` then picbed will call `gh auth token`',
+        hint: AUTH_HINT,
       });
     }
 
@@ -292,7 +307,9 @@ export async function run(argv: string[]): Promise<ExitCode> {
       checks.push({
         name: 'token',
         ok: Boolean(token),
-        detail: token ? `present (${maskToken(token)})` : 'missing PICBED_GITHUB_TOKEN / GITHUB_TOKEN / gh auth',
+        detail: token
+          ? `present (${maskToken(token)})`
+          : 'missing — set PICBED_GITHUB_TOKEN (PAT) or install GitHub CLI `gh` and run `gh auth login`',
       });
 
       let apiOk = false;
@@ -498,7 +515,8 @@ export async function run(argv: string[]): Promise<ExitCode> {
       if (hostRequiresToken(cfg) && !token) {
         return fail(json, command, EXIT.CONFIG, {
           code: 'E_TOKEN',
-          message: 'missing PICBED_GITHUB_TOKEN (or GITHUB_TOKEN / gh auth token)',
+          message: 'missing GitHub token (PICBED_GITHUB_TOKEN / GITHUB_TOKEN / GitHub CLI `gh`)',
+          hint: AUTH_HINT,
         }, collected.warnings);
       }
       if (cfg.host.type === 'github' && (!cfg.github.owner || !cfg.github.repo)) {
@@ -642,7 +660,8 @@ export async function run(argv: string[]): Promise<ExitCode> {
       if (hostRequiresToken(cfg) && !token) {
         return fail(json, command, EXIT.CONFIG, {
           code: 'E_TOKEN',
-          message: 'missing PICBED_GITHUB_TOKEN (or GITHUB_TOKEN / gh auth token)',
+          message: 'missing GitHub token (PICBED_GITHUB_TOKEN / GITHUB_TOKEN / GitHub CLI `gh`)',
+          hint: AUTH_HINT,
         });
       }
       const bytes = fs.readFileSync(abs);

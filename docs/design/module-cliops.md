@@ -86,7 +86,9 @@ Doctor 检查项：
 
 1. `PICBED_GITHUB_TOKEN`
 2. `GITHUB_TOKEN`
-3. `gh auth token`（复用 GitHub CLI 登录态；`gh` 不存在或失败则跳过）
+3. `gh auth token`（`gh` = **GitHub CLI** 官方命令行，不是 `git`；需已 `gh auth login`。`gh` 不存在则跳过）
+
+缺 token 时错误 **hint 必须展开说明** PAT 与 GitHub CLI 的获取方式，避免用户不知道 `gh` 是什么。
 
 ### 失败语义
 

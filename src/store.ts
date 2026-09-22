@@ -4,7 +4,7 @@ import { execFileSync } from 'node:child_process';
  * Token sources (no OAuth App):
  * 1. PICBED_GITHUB_TOKEN
  * 2. GITHUB_TOKEN
- * 3. `gh auth token` (reuse GitHub CLI login)
+ * 3. GitHub CLI (`gh`) — official "GitHub CLI" app; `gh auth token` reuses its login
  */
 export function resolveToken(
   env: NodeJS.ProcessEnv = process.env,
