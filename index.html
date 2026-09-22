@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>yigecli · 工程架构与功能详细设计</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="shell">
+    <aside class="toc" id="toc">
+      <div class="brand">
+        <div class="logo">yige</div>
+        <div>
+          <strong>yigecli</strong>
+          <div class="muted">Design Spec v0.1</div>
+        </div>
+      </div>
+      <nav>
+        <a href="#overview">1. 背景与目标</a>
+        <a href="#scope">2. 范围与非目标</a>
+        <a href="#personas">3. 用户与 Agent 场景</a>
+        <a href="#architecture">4. 总体架构</a>
+        <a href="#modules">5. 模块详细设计</a>
+        <a href="#cli">6. CLI 命令面</a>
+        <a href="#extract">7. 文档解析与图片抽取</a>
+        <a href="#upload">8. 上传与 PicX/GitHub API</a>
+        <a href="#rewrite">9. 链接回写</a>
+        <a href="#config">10. 配置与密钥</a>
+        <a href="#agent">11. Agent 友好接口</a>
+        <a href="#errors">12. 错误模型与退出码</a>
+        <a href="#testing">13. 测试与验证策略</a>
+        <a href="#delivery">14. 里程碑与交付</a>
+        <a href="#risks">15. 风险与开放问题</a>
+      </nav>
+      <div class="toc-foot muted">picx-apps/picx-app · GitHub API 图床</div>
+    </aside>
+
+    <main class="content">
+      <header class="hero">
+        <p class="eyebrow">picture_bed · 本地 CLI 图床流水线</p>
+        <h1>yigecli 工程架构与功能详细设计</h1>
+        <p class="lede">
+          面向日常写作与 Agent 协作：扫描文件夹中的 Markdown / HTML 等文档，抽取内嵌图片，
+          经 PicX 同款 GitHub 图床通道上传，再自动回写稳定链接。本阶段<strong>只做设计</strong>，不实现业务功能。
+        </p>
+        <div class="meta-row">
+          <span class="pill">状态：设计评审稿</span>
+          <span class="pill">形态：CLI only</span>
+          <span class="pill">图床：GitHub Contents API（PicX 兼容）</span>
+          <span class="pill">日期：2026-09-22</span>
+        </div>
+      </header>
+
+      <section id="overview">
+        <h2>1. 背景与目标</h2>
+        <p>
+          日常开发中常用 <a href="https://github.com/picx-apps/picx-app" target="_blank" rel="noreferrer">picx-app</a>
+          的 Web/桌面端作为图床。其能力核心是<strong>基于 GitHub API</strong> 的图片上传托管与链接生成。
+          现有不足：
+        </p>
+        <ul>
+          <li>难以对<strong>一整篇/一整夹文档</strong>里内嵌的本地图片做批量处理；</li>
+          <li>流程偏 GUI，<strong>Agent / 脚本难以稳定驱动</strong>（缺少可脚本化的 CLI 契约）。</li>
+        </ul>
+        <p>因此本仓库（<code>picture_bed</code>）规划本地工具 <strong>yigecli</strong>（「一个 CLI」）：</p>
+        <ol>
+          <li>读取目录下 Markdown、HTML 等文档中的内嵌图片引用；</li>
+          <li>将本地图片自动上传至图床（PicX 同源 GitHub 通道）；</li>
+          <li>自动把文档中的链接替换为可公开访问的稳定 URL。</li>
+        </ol>
+        <div class="callout">
+          <strong>设计原则：</strong>可组合、可预览（dry-run）、可回滚（manifest）、可被 Agent 无歧义调用（JSON / 退出码 / 无交互默认）。
+        </div>
+      </section>
+
+      <section id="scope">
+        <h2>2. 范围与非目标</h2>
+        <h3>2.1 v1 范围（Must）</h3>
+        <ul class="check">
+          <li>CLI 可执行文件 <code>yigecli</code>（Windows / macOS / Linux）</li>
+          <li>目录扫描 + 文档解析：Markdown、HTML（含常见图片语法）</li>
+          <li>本地图片解析（相对/绝对路径）、内容哈希去重</li>
+          <li>GitHub Contents API 上传（与 PicX 图床模型对齐）</li>
+          <li>链接回写（原地替换或输出到 out-dir），支持 dry-run</li>
+          <li>人机双模式：默认人类可读输出 + <code>--json</code> 机器可读</li>
+          <li>本地配置与 token 从环境变量/配置文件读取（不入库）</li>
+          <li>manifest 记录映射，支持幂等重跑与 <code>revert</code></li>
+        </ul>
+        <h3>2.2 明确非目标（v1 Must Not）</h3>
+        <ul>
+          <li>不做 Web UI / Tauri 桌面壳（picx-app 已覆盖 GUI）</li>
+          <li>不实现 GitHub OAuth App 流程（沿用 PAT / 环境变量；OAuth 留给后续）</li>
+          <li>不做图片压缩/水印/智能裁剪工具箱</li>
+          <li>不托管非图片二进制（PDF、视频等）作为 v1 目标</li>
+          <li>不替代 Git LFS 或对象存储；仅走 GitHub 图床通道</li>
+        </ul>
+        <h3>2.3 后续候选（Backlog）</h3>
+        <ul>
+          <li>VS Code / Agent MCP 包装、监听 watch 模式</li>
+          <li>多图床适配器（S3、又拍、自定义 HTTP）</li>
+          <li>自动 PR / 删除远端冗余对象的清理策略</li>
+        </ul>
+      </section>
+
+      <section id="personas">
+        <h2>3. 用户与 Agent 场景</h2>
+        <div class="cards">
+          <article class="card">
+            <h3>开发者（人）</h3>
+            <p>在写作目录执行 <code>yigecli sync ./docs</code>，预览将上传的图片与替换表，确认后写入文档。</p>
+          </article>
+          <article class="card">
+            <h3>Agent / CI</h3>
+            <p>调用 <code>yigecli sync --json --yes</code>，解析 stdout JSON，依据退出码决定重试或失败；无 TTY 交互。</p>
+          </article>
+          <article class="card">
+            <h3>维护者</h3>
+            <p>用 <code>yigecli doctor</code> / <code>yigecli config</code> 检查 token、仓库与 CDN 规则是否可用。</p>
+          </article>
+        </div>
+        <h3>3.1 典型端到端流</h3>
+        <pre class="flow">docs/
+  post.md      ──┐
+  notes.html   ──┼─► extract refs ─► resolve local files ─► hash dedupe
+  assets/a.png ──┘                              │
+                                                ▼
+                                        upload (GitHub API)
+                                                │
+                                                ▼
+                                   rewrite links + write manifest</pre>
+      </section>
+
+      <section id="architecture">
+        <h2>4. 总体架构</h2>
+        <p>采用「管道 + 适配器」分层，核心域与 I/O 严格分离，便于单测与 Agent 契约测试。</p>
+        <figure class="diagram" aria-label="架构图">
+          <svg viewBox="0 0 680 420" xmlns="http://www.w3.org/2000/svg" role="img">
+            <defs>
+              <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+                <path d="M0,0 L6,3 L0,6" fill="none" stroke="#334155" stroke-width="1"/>
+              </marker>
+            </defs>
+            <rect x="40" y="36" width="600" height="48" rx="8" fill="#E8EEF7" stroke="#94A3B8" stroke-width="0.5"/>
+            <text x="340" y="65" text-anchor="middle" dominant-baseline="central" font-size="14" fill="#0F172A">CLI 层 yigecli（命令解析 / 退出码 / --json）</text>
+
+            <rect x="40" y="120" width="280" height="100" rx="8" fill="#F8FAFC" stroke="#94A3B8" stroke-width="0.5"/>
+            <text x="180" y="150" text-anchor="middle" font-size="13" fill="#0F172A">文档流水线 Document Pipeline</text>
+            <text x="180" y="178" text-anchor="middle" font-size="11" fill="#475569">Scan · Parse MD/HTML · Extract</text>
+            <text x="180" y="198" text-anchor="middle" font-size="11" fill="#475569">Rewrite · Manifest</text>
+
+            <rect x="360" y="120" width="280" height="100" rx="8" fill="#F8FAFC" stroke="#94A3B8" stroke-width="0.5"/>
+            <text x="500" y="150" text-anchor="middle" font-size="13" fill="#0F172A">图床适配器 Host Adapter</text>
+            <text x="500" y="178" text-anchor="middle" font-size="11" fill="#475569">GitHub Contents API</text>
+            <text x="500" y="198" text-anchor="middle" font-size="11" fill="#475569">CDN URL 策略（PicX 兼容）</text>
+
+            <rect x="40" y="260" width="180" height="72" rx="8" fill="#EEF2FF" stroke="#818CF8" stroke-width="0.5"/>
+            <text x="130" y="290" text-anchor="middle" font-size="12" fill="#0F172A">Config &amp; Secrets</text>
+            <text x="130" y="312" text-anchor="middle" font-size="11" fill="#475569">yigecli.toml / ENV</text>
+
+            <rect x="250" y="260" width="180" height="72" rx="8" fill="#EEF2FF" stroke="#818CF8" stroke-width="0.5"/>
+            <text x="340" y="290" text-anchor="middle" font-size="12" fill="#0F172A">Local FS Store</text>
+            <text x="340" y="312" text-anchor="middle" font-size="11" fill="#475569">hash · cache · backup</text>
+
+            <rect x="460" y="260" width="180" height="72" rx="8" fill="#EEF2FF" stroke="#818CF8" stroke-width="0.5"/>
+            <text x="550" y="290" text-anchor="middle" font-size="12" fill="#0F172A">Observability</text>
+            <text x="550" y="312" text-anchor="middle" font-size="11" fill="#475569">logs · report · dry-run</text>
+
+            <line x1="180" y1="220" x2="180" y2="260" stroke="#334155" stroke-width="1" marker-end="url(#arrow)"/>
+            <line x1="340" y1="220" x2="340" y2="260" stroke="#334155" stroke-width="1" marker-end="url(#arrow)"/>
+            <line x1="500" y1="220" x2="550" y2="260" stroke="#334155" stroke-width="1" marker-end="url(#arrow)"/>
+            <line x1="320" y1="170" x2="360" y2="170" stroke="#334155" stroke-width="1" marker-end="url(#arrow)"/>
+            <line x1="340" y1="84" x2="180" y2="120" stroke="#334155" stroke-width="1" marker-end="url(#arrow)"/>
+            <line x1="340" y1="84" x2="500" y2="120" stroke="#334155" stroke-width="1" marker-end="url(#arrow)"/>
+            <text x="340" y="390" text-anchor="middle" font-size="11" fill="#64748B">核心域无网络 I/O；上传细节封装在 Host Adapter</text>
+          </svg>
+        </figure>
+        <h3>4.1 建议技术栈</h3>
+        <ul>
+          <li><strong>语言：TypeScript + Node.js ≥ 20</strong> — 与 PicX 前端生态同源，解析 MD/HTML 库成熟，便于 Agent 安装（npm/npx）。</li>
+          <li><strong>CLI：commander / citty</strong>；<strong>校验：zod</strong>；<strong>HTTP：undici</strong>；<strong>MD：自研轻量扫描 + unified/remark（可选）</strong>。</li>
+          <li><strong>测试：vitest + fixture 目录</strong>；<strong>打包：可选 nexe/pkg 或直接 npm bin</strong>。</li>
+        </ul>
+        <p class="muted">备选：Go（单二进制分发更强）；若强调无 Node 依赖的 Agent 环境可切换。v1 默认 Node/TS。</p>
+      </section>
+
+      <section id="modules">
+        <h2>5. 模块详细设计</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>模块</th><th>职责</th><th>关键接口（示意）</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>cli/</code></td>
+                <td>参数解析、子命令编排、输出格式化、退出码</td>
+                <td><code>run(argv): Promise&lt;ExitCode&gt;</code></td>
+              </tr>
+              <tr>
+                <td><code>core/scan</code></td>
+                <td>目录遍历、扩展名过滤、忽略规则</td>
+                <td><code>scanDocs(root, opts): DocFile[]</code></td>
+              </tr>
+              <tr>
+                <td><code>core/parse</code></td>
+                <td>MD/HTML 图片引用抽取（含 srcset、&lt;img&gt;、![]()、&lt;image&gt;）</td>
+                <td><code>extractRefs(doc): ImageRef[]</code></td>
+              </tr>
+              <tr>
+                <td><code>core/resolve</code></td>
+                <td>路径解析、存在性/类型校验、哈希、去重图</td>
+                <td><code>resolveAssets(refs): AssetGraph</code></td>
+              </tr>
+              <tr>
+                <td><code>core/plan</code></td>
+                <td>生成上传计划：skip/upload/relink</td>
+                <td><code>buildPlan(graph, cache): SyncPlan</code></td>
+              </tr>
+              <tr>
+                <td><code>core/rewrite</code></td>
+                <td>按语法安全替换链接，保留周边空白/转义</td>
+                <td><code>rewriteDoc(doc, map): string</code></td>
+              </tr>
+              <tr>
+                <td><code>core/manifest</code></td>
+                <td>本地映射持久化、幂等、revert</td>
+                <td><code>ManifestStore.load/save</code></td>
+              </tr>
+              <tr>
+                <td><code>host/github</code></td>
+                <td>Contents API 上传/存在查询；CDN URL 生成</td>
+                <td><code>upload(asset): RemoteImage</code></td>
+              </tr>
+              <tr>
+                <td><code>host/types</code></td>
+                <td>图床适配器接口（为多后端预留）</td>
+                <td><code>interface HostAdapter</code></td>
+              </tr>
+              <tr>
+                <td><code>config/</code></td>
+                <td>配置加载合并：CLI &gt; ENV &gt; 项目文件 &gt; 用户文件</td>
+                <td><code>loadConfig(): ResolvedConfig</code></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <h3>5.1 核心数据模型</h3>
+        <pre><code>type DocKind = 'markdown' | 'html';
+
+interface ImageRef {
+  docPath: string;
+  raw: string;
+  start: number;
+  end: number;
+  kind: DocKind;
+  syntax: 'md-image' | 'md-link' | 'html-img' | 'html-srcset' | 'html-source' | 'other';
+  alt?: string;
+}
+
+interface Asset {
+  localPath: string;
+  sha256: string;
+  bytes: number;
+  mime: string;
+  refs: ImageRef[];
+}
+
+interface RemoteImage {
+  publicUrl: string;
+  rawUrl: string;
+  cdnUrl?: string;
+  repoPath: string;
+  sha256: string;
+}
+
+interface SyncPlanItem {
+  action: 'upload' | 'skip-cache' | 'skip-remote' | 'rewrite-only' | 'blocked';
+  asset?: Asset;
+  remote?: RemoteImage;
+  reason?: string;
+}
+
+interface SyncResult {
+  ok: boolean;
+  uploaded: number;
+  rewrittenDocs: string[];
+  mapping: Record&lt;string, string&gt;;
+  warnings: string[];
+  errors: string[];
+}</code></pre>
+      </section>
+
+      <section id="cli">
+        <h2>6. CLI 命令面</h2>
+        <p>命名：可执行名 <code>yigecli</code>；全局选项在所有子命令前可用。</p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>命令</th><th>作用</th><th>关键选项</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>yigecli init</code></td>
+                <td>生成 <code>yigecli.toml</code> 模板与 <code>.gitignore</code> 条目提示</td>
+                <td><code>--force</code></td>
+              </tr>
+              <tr>
+                <td><code>yigecli doctor</code></td>
+                <td>检查 token、仓库权限、API 连通、配置完整性</td>
+                <td><code>--json</code></td>
+              </tr>
+              <tr>
+                <td><code>yigecli scan &lt;path&gt;</code></td>
+                <td>只扫描解析，列出文档与图片引用（不上传）</td>
+                <td><code>--ext md,html</code> <code>--json</code></td>
+              </tr>
+              <tr>
+                <td><code>yigecli plan &lt;path&gt;</code></td>
+                <td>生成同步计划（upload/skip），等价 dry-run 的 plan 报告</td>
+                <td><code>--json</code></td>
+              </tr>
+              <tr>
+                <td><code>yigecli sync &lt;path&gt;</code></td>
+                <td>上传图片并回写文档</td>
+                <td><code>--dry-run</code> <code>--yes</code> <code>--out-dir</code> <code>--json</code></td>
+              </tr>
+              <tr>
+                <td><code>yigecli upload &lt;file&gt;</code></td>
+                <td>单文件上传，仅输出 URL</td>
+                <td><code>--json</code></td>
+              </tr>
+              <tr>
+                <td><code>yigecli revert &lt;path&gt;</code></td>
+                <td>按 manifest 将文档链接恢复为本地路径</td>
+                <td><code>--dry-run</code></td>
+              </tr>
+              <tr>
+                <td><code>yigecli config get|set|list</code></td>
+                <td>查看/修改项目配置（token 只显示掩码）</td>
+                <td><code>--json</code></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <h3>6.1 示例</h3>
+        <pre><code># 人类可读预览
+yigecli plan ./docs
+
+# Agent / 脚本
+yigecli sync ./docs --json --yes</code></pre>
+        <p>全局选项：<code>--json</code>、<code>--quiet</code>、<code>--verbose</code>、<code>--config &lt;file&gt;</code>、<code>--cwd &lt;dir&gt;</code>、<code>--yes</code>（跳过确认，Agent 默认建议显式传入）。</p>
+      </section>
+
+      <section id="extract">
+        <h2>7. 文档解析与图片抽取</h2>
+        <h3>7.1 支持格式（v1）</h3>
+        <ul>
+          <li><strong>Markdown</strong>：<code>![alt](path)</code>、指向图片扩展名的链接、内嵌 <code>&lt;img&gt;</code></li>
+          <li><strong>HTML</strong>：<code>&lt;img src|srcset&gt;</code>、<code>&lt;source src|srcset&gt;</code>、<code>&lt;image href&gt;</code>（SVG）</li>
+          <li>扩展名白名单：<code>png,jpg,jpeg,gif,webp,avif,svg,bmp,ico</code>（可配置）</li>
+        </ul>
+        <h3>7.2 路径解析规则</h3>
+        <ol>
+          <li>相对路径相对于<strong>文档所在目录</strong>解析；</li>
+          <li><code>file://</code> 与绝对路径：默认<strong>拒绝</strong>（可 <code>--allow-absolute</code>）；</li>
+          <li>已是 <code>http(s)://</code> 的远程链接：默认 skip（<code>--reupload-remote</code> 可选）；</li>
+          <li>锚点、数据 URI：skip；data URI v1 可 <code>--inline-data-uri</code> 落盘后再传。</li>
+        </ol>
+        <h3>7.3 抽取策略</h3>
+        <ul>
+          <li>两阶段：轻量扫描定位候选 → 语法上下文校验，避免代码块内 <code>![]()</code> 误伤；</li>
+          <li>记录精确 <code>start/end</code> 偏移，回写用切片替换而非全文正则；</li>
+          <li>同一文件多引用同一资源：一次上传，多处替换。</li>
+        </ul>
+      </section>
+
+      <section id="upload">
+        <h2>8. 上传与 PicX / GitHub API</h2>
+        <p>
+          PicX 图床本质是 <strong>GitHub 仓库文件托管</strong>。yigecli 的 <code>host/github</code> 对齐该模型，而不是调用 picx-app 的私有前端逻辑。
+        </p>
+        <h3>8.1 配置对齐 PicX 概念</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>PicX 概念</th><th>yigecli 配置键</th><th>说明</th></tr></thead>
+            <tbody>
+              <tr><td>Token</td><td><code>github.token</code> / <code>YIGE_GITHUB_TOKEN</code></td><td>PAT，<code>repo</code> 或 fine-grained Contents RW</td></tr>
+              <tr><td>Owner</td><td><code>github.owner</code></td><td>用户或组织</td></tr>
+              <tr><td>Repo</td><td><code>github.repo</code></td><td>图床仓库名</td></tr>
+              <tr><td>Branch</td><td><code>github.branch</code></td><td>默认 <code>main</code></td></tr>
+              <tr><td>目录</td><td><code>github.dir</code></td><td>如 <code>img</code> 或 <code>assets/blog</code></td></tr>
+              <tr><td>CDN 规则</td><td><code>url.style</code></td><td><code>raw</code> | <code>jsdelivr</code> | <code>custom</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <h3>8.2 上传流程</h3>
+        <ol>
+          <li>计算 <code>sha256</code>，查本地 manifest/cache：命中且 URL 仍可用 → <code>skip-cache</code>；</li>
+          <li>确定远端路径：<code>{dir}/{yyyy}/{mm}/{sha12}-{safeName}</code>（可配置模板，保证幂等）；</li>
+          <li>调用 GitHub REST：
+            <code>GET /repos/{owner}/{repo}/contents/{path}</code> 探测；
+            <code>PUT /repos/{owner}/{repo}/contents/{path}</code> 提交
+            <code>{message, content: base64, branch}</code>；</li>
+          <li>按 <code>url.style</code> 生成公开 URL 并写回。</li>
+        </ol>
+        <h3>8.3 URL 样式</h3>
+        <pre><code># raw
+https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{path}
+
+# jsdelivr（PicX 常用）
+https://cdn.jsdelivr.net/gh/{owner}/{repo}@{branch}/{path}
+
+# custom
+https://cdn.example.com/{path}</code></pre>
+        <h3>8.4 约束与限流</h3>
+        <ul>
+          <li>并发默认 <code>2–3</code>，对 403/429 指数退避；</li>
+          <li>单文件建议 ≤ 50MB（GitHub 常用上限）；</li>
+          <li>commit message 可配置，默认 <code>chore(yigecli): upload N images</code>。</li>
+        </ul>
+      </section>
+
+      <section id="rewrite">
+        <h2>9. 链接回写</h2>
+        <ul>
+          <li>默认<strong>原地替换</strong>；<code>--out-dir</code> 时写副本，原文件不动；</li>
+          <li>替换仅覆盖引用的 URL 部分，保留 alt、title、srcset 其它候选；</li>
+          <li>写入前生成 <code>.yigecli/backup/</code> 备份（可用 <code>--no-backup</code> 关闭）；</li>
+          <li>原子写：临时文件 + rename；</li>
+          <li>编码保持 UTF-8，检测 BOM 差异并警告。</li>
+        </ul>
+        <h3>9.1 Manifest（<code>.yigecli/manifest.json</code>）</h3>
+        <pre><code>{
+  "version": 1,
+  "entries": [{
+    "doc": "docs/post.md",
+    "localPath": "docs/assets/a.png",
+    "sha256": "…",
+    "publicUrl": "https://cdn.jsdelivr.net/gh/…",
+    "raw": "./assets/a.png",
+    "updatedAt": "2026-09-22T00:00:00Z"
+  }]
+}</code></pre>
+        <p>用途：幂等跳过、<code>revert</code>、审计、Agent 断点续跑。manifest <strong>不包含 token</strong>。</p>
+      </section>
+
+      <section id="config">
+        <h2>10. 配置与密钥</h2>
+        <h3>10.1 优先级</h3>
+        <p><code>CLI flags</code> &gt; <code>ENV</code> &gt; <code>./yigecli.toml</code> &gt; <code>./.yigecli/config.toml</code> &gt; 用户级配置</p>
+        <h3>10.2 示例 <code>yigecli.toml</code></h3>
+        <pre><code>[github]
+owner = "Aermberry"
+repo = "pic-bed"
+branch = "main"
+dir = "img"
+# token 请用环境变量 YIGE_GITHUB_TOKEN
+
+[url]
+style = "jsdelivr"   # raw | jsdelivr | custom
+
+[scan]
+extensions = ["png", "jpg", "jpeg", "gif", "webp", "svg"]
+ignore = ["**/node_modules/**", "**/.git/**"]
+
+[upload]
+concurrency = 3
+commit_message = "chore(yigecli): upload images"
+
+[rewrite]
+backup = true</code></pre>
+        <h3>10.3 密钥纪律</h3>
+        <ul>
+          <li>Token 只来自 ENV 或本地用户配置；<strong>禁止</strong>写入仓库文件、manifest、日志；</li>
+          <li><code>config list</code> 输出掩码；</li>
+          <li><code>.yigecli/</code> 中 backup/manifest 默认建议 gitignore。</li>
+        </ul>
+      </section>
+
+      <section id="agent">
+        <h2>11. Agent 友好接口</h2>
+        <ul class="check">
+          <li><strong>无交互默认</strong>：非 TTY 时不弹确认，需写文件的命令要求显式 <code>--yes</code> 或 <code>--dry-run</code></li>
+          <li><strong>稳定 JSON Schema</strong>：所有命令 <code>--json</code> 输出 JSON，字段版本化（<code>schemaVersion</code>）</li>
+          <li><strong>纯退出码</strong>：Agent 可不解析正文只看 exit code</li>
+          <li><strong>幂等</strong>：重复 <code>sync</code> 不重复上传同一 <code>sha256</code></li>
+          <li><strong>可脚本发现</strong>：<code>yigecli --help</code> / <code>yigecli commands --json</code></li>
+          <li><strong>日志可关</strong>：<code>--quiet</code> 时 stdout 仅 JSON；诊断走 stderr</li>
+        </ul>
+        <h3>11.1 建议的 Agent 调用序列</h3>
+        <pre><code>yigecli doctor --json
+yigecli plan ./docs --json
+yigecli sync ./docs --json --yes
+yigecli revert ./docs --dry-run --json</code></pre>
+      </section>
+
+      <section id="errors">
+        <h2>12. 错误模型与退出码</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Code</th><th>含义</th><th>典型场景</th></tr></thead>
+            <tbody>
+              <tr><td>0</td><td>成功</td><td>全部处理完成（含 0 变更）</td></tr>
+              <tr><td>1</td><td>通用失败</td><td>未分类错误</td></tr>
+              <tr><td>2</td><td>用法错误</td><td>参数不合法</td></tr>
+              <tr><td>3</td><td>配置/鉴权</td><td>缺 token、权限不足</td></tr>
+              <tr><td>4</td><td>本地文件</td><td>图片缺失、路径越界</td></tr>
+              <tr><td>5</td><td>远端 API</td><td>4xx/5xx、限流耗尽</td></tr>
+              <tr><td>6</td><td>部分成功</td><td>部分文档回写失败</td></tr>
+              <tr><td>7</td><td>需要确认</td><td>无 <code>--yes</code> 且将修改文件</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>错误 JSON 形状：<code>{ ok:false, code:"E_UPLOAD", message, path?, hint? }</code>，禁止把 secret 打进 message。</p>
+      </section>
+
+      <section id="testing">
+        <h2>13. 测试与验证策略</h2>
+        <p>对齐项目规则：<em>每次改动必须有相关测试，交付前全部通过</em>。设计阶段交付物为文档，验证规则见下；实现阶段按下表落地。</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>层</th><th>手段</th><th>要点</th></tr></thead>
+            <tbody>
+              <tr><td>单元</td><td>vitest</td><td>parse/rewrite/resolve/plan 纯函数；fixture 黄金文件</td></tr>
+              <tr><td>契约</td><td>mock HTTP</td><td>GitHub Contents 请求形状、幂等、退避</td></tr>
+              <tr><td>CLI</td><td>spawn 集成</td><td>退出码、<code>--json</code> schema、无 TTY 行为</td></tr>
+              <tr><td>端到端</td><td>本地假图床</td><td>fixture：md+html+图片 → sync → 断言文档与 manifest</td></tr>
+              <tr><td>设计文档（本阶段）</td><td><code>scripts/validate-design.ps1</code></td><td>index.html 关键锚点/章节完整性</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <ul>
+          <li>黄金用例：代码块中的 <code>![]()</code> 不被改写；中文路径；同一图多引用；已有 URL 跳过。</li>
+          <li>「不能失败的检查不算证明」：新检查需先在已知坏输入上失败再采信。</li>
+        </ul>
+      </section>
+
+      <section id="delivery">
+        <h2>14. 里程碑与交付</h2>
+        <ol class="milestones">
+          <li><strong>M0 设计冻结（本交付）</strong>：架构/命令/契约评审通过 → 实现排期</li>
+          <li><strong>M1 骨架</strong>：<code>init/doctor/config</code> + 配置加载 + 单测</li>
+          <li><strong>M2 抽取</strong>：<code>scan/plan</code> + MD/HTML 解析 + fixture 测试</li>
+          <li><strong>M3 上传</strong>：<code>upload/sync</code> + GitHub adapter + 幂等 cache</li>
+          <li><strong>M4 回写</strong>：rewrite + backup + <code>revert</code> + e2e</li>
+          <li><strong>M5 打磨</strong>：JSON schema 冻结、文档、npm 发布</li>
+        </ol>
+        <p>每个里程碑结束：全量测试通过 + 对应 git commit（遵守项目交付规则）。</p>
+      </section>
+
+      <section id="risks">
+        <h2>15. 风险与开放问题</h2>
+        <div class="cards">
+          <article class="card">
+            <h3>GitHub 限流 / 大文件</h3>
+            <p>图床仓库膨胀与 API 配额。缓解：hash 去重、并发限制、CDN 缓存说明。</p>
+          </article>
+          <article class="card">
+            <h3>解析误伤</h3>
+            <p>MD 代码块、转义括号。缓解：偏移替换 + 黄金测试；极端语法 warning。</p>
+          </article>
+          <article class="card">
+            <h3>「该项目的 API」语义</h3>
+            <p>picx-app 无独立公网 OpenAPI，能力即 GitHub API + URL 约定。若后续发现私有接口再适配。</p>
+          </article>
+        </div>
+        <h3>待你确认</h3>
+        <ul>
+          <li>图床仓库与 URL 风格默认值（jsdelivr 还是 raw / 自定义域名）？</li>
+          <li>是否需要 <code>watch</code> 与 VS Code 集成进 v1？（本设计默认否）</li>
+          <li>实现语言最终确认 Node/TS 或 Go？</li>
+          <li>CLI 包名/命令名是否就叫 <code>yigecli</code>？</li>
+        </ul>
+      </section>
+
+      <footer class="foot">
+        <p class="muted">picture_bed · yigecli design · 仅供实现前评审 · 密钥与 token 不入库</p>
+      </footer>
+    </main>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>
