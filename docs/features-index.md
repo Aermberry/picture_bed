@@ -29,6 +29,7 @@
 | F9 | Manifest 与 revert | P1 | rewrite | 映射可审计；revert 还原本地路径；无 token |
 | F10 | Agent 机器接口 | P0 | cliops | `--json` schema 稳定；退出码契约；无 TTY 不阻塞 |
 | F11 | 单文件上传 | P1 | transfer | upload 子命令输出 URL；与 sync 共用适配器 |
+| F15 | GitHub 点击登录 | P0 | cliops | 本机回调 OAuth 优先；Device Flow 回退；token 本地安全存储；ENV PAT 仍可用 |
 | F12 | watch 监听 | P3 | 待定 | backlog |
 | F13 | 多图床适配器 | P3 | 待定 | backlog；仅保留 HostAdapter 口 |
 | F14 | VS Code / MCP 包装 | P3 | 待定 | backlog |
@@ -100,6 +101,12 @@
 - 优先级：P1 · 模块：**transfer**
 - 实现（域）：[module-transfer · F11](design/module-transfer.md#f11-单文件上传)
 - AC：`upload <file>` 成功输出 publicUrl（人类/JSON）；与 `sync` 共用 HostAdapter 与 URL 策略；失败映射到既有退出码。
+
+## F15 GitHub 点击登录
+
+- 优先级：P0 · 模块：**cliops**
+- 实现（域）：[module-cliops · F15](design/module-cliops.md#f15-github-点击登录)
+- AC：`login` 默认启动 `127.0.0.1` 回调并打开浏览器完成 OAuth；`login --device` 走 Device Flow（显示 user_code）；授权成功后 token 写入用户级凭据文件（0600，不入库）；`YIGE_GITHUB_TOKEN` 优先于存储的 OAuth token；`logout` 可清除；client_id/secret 来自 ENV 或用户配置且输出掩码；state 校验防 CSRF。
 
 ## F12 watch 监听
 

@@ -17,12 +17,27 @@ npm run build
 npm test
 ```
 
+## 登录（GitHub 点击授权）
+
+在 GitHub 创建 **OAuth App**（Callback URL：`http://127.0.0.1:53682/callback`），然后：
+
+```bash
+export YIGE_GITHUB_CLIENT_ID=...
+export YIGE_GITHUB_CLIENT_SECRET=...
+
+node bin/yigecli.js login          # 浏览器点击 Authorize（本机回调）
+node bin/yigecli.js login --device # 远程/无浏览器：Device Flow（输一次性码）
+node bin/yigecli.js logout
+```
+
+Token 存用户级 `~/.config/yigecli/credentials.json`（不入库）。也可继续用 `YIGE_GITHUB_TOKEN`（PAT，优先级更高）。
+
 ## 快速开始
 
 ```bash
 node bin/yigecli.js init
 # 编辑 yigecli.toml：github.owner / github.repo / github.branch / github.dir
-export YIGE_GITHUB_TOKEN=ghp_xxx
+# 登录后无需再导出 PAT；若用 PAT：export YIGE_GITHUB_TOKEN=ghp_xxx
 
 node bin/yigecli.js doctor --json
 node bin/yigecli.js plan ./docs --json
@@ -37,6 +52,8 @@ node bin/yigecli.js revert ./docs --dry-run --json
 | 命令 | 说明 |
 |------|------|
 | `init` | 生成 `yigecli.toml` |
+| `login` | GitHub OAuth 点击登录（`--device` 走 Device Flow） |
+| `logout` | 清除本地 OAuth 凭据 |
 | `doctor` | 配置 / token / API 自检 |
 | `scan <path>` | 扫描文档与图片引用 |
 | `plan <path>` | 生成上传计划（不写不传） |

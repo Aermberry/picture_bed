@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { resolveToken } from './store.js';
 import type { ResolvedConfig, UrlConfig } from './types.js';
 
 export const CONFIG_NAME = 'yigecli.toml';
@@ -129,7 +130,15 @@ export function loadConfig(opts: {
 }
 
 export function getToken(): string | undefined {
-  return process.env.YIGE_GITHUB_TOKEN || process.env.GITHUB_TOKEN || undefined;
+  // Lazy import avoided: resolveToken is pure relative to env + user store
+  return resolveToken()?.token;
+}
+
+export function getOAuthEnv(): { clientId: string; clientSecret: string } {
+  return {
+    clientId: process.env.YIGE_GITHUB_CLIENT_ID || '',
+    clientSecret: process.env.YIGE_GITHUB_CLIENT_SECRET || '',
+  };
 }
 
 export function configTemplate(overrides?: Partial<{ owner: string; repo: string }>): string {

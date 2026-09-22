@@ -61,6 +61,47 @@ Doctor 检查项：
 - 幂等提示写入 data，供 Agent 断点续跑。  
 - `yigecli commands --json` 列出命令与选项（可发现性）。
 
+## F15 GitHub 点击登录
+
+### 意图
+
+`yigecli login` 用 OAuth 完成「浏览器点击授权」，避免手贴 PAT。默认 **Authorization Code + 127.0.0.1 回调**；远程/无浏览器环境用 `--device`（Device Flow）。
+
+### 依赖配置（用户自备 OAuth App）
+
+- `github.client_id` / `YIGE_GITHUB_CLIENT_ID`
+- `github.client_secret` / `YIGE_GITHUB_CLIENT_SECRET`（仅本地用户配置/ENV，禁止入库）
+- 回调 URL：`http://127.0.0.1:<port>/callback`（默认端口可配，建议固定 53682 并写入 OAuth App）
+- scope：默认 `repo`（图床私有仓库）；可降为 `public_repo`
+
+### 本机回调流
+
+1. 生成 `state`（随机），监听 `127.0.0.1:port`
+2. 打开 `https://github.com/login/oauth/authorize?client_id&redirect_uri&scope&state`
+3. 回调校验 `state`，取 `code`
+4. `POST https://github.com/login/oauth/access_token` 换 token
+5. 写入用户级凭据；关闭临时服务器
+
+### Device Flow 回退
+
+1. `POST /login/device/code` → `user_code` / `verification_uri` / `device_code`
+2. 展示码并打开验证页
+3. 轮询 `/login/oauth/access_token`（`urn:ietf:params:oauth:grant-type:device_code`）
+4. 成功后与回调流相同落盘
+
+### 凭据优先级
+
+`YIGE_GITHUB_TOKEN` / `GITHUB_TOKEN` **>** 用户凭据文件中的 OAuth token。
+
+### 失败语义
+
+| 情况 | 退出码 |
+|------|--------|
+| 缺 client_id/secret | 3 |
+| state 不匹配 / 用户拒绝 | 3 |
+| 轮询超时 | 3 |
+| 仅写凭据成功 | 0 |
+
 ## 功能点映射
 
 | F | 本模块章节 |
@@ -68,3 +109,4 @@ Doctor 检查项：
 | [F1](../features-index.md#f1-项目初始化与配置) | §F1 |
 | [F2](../features-index.md#f2-环境与鉴权自检) | §F2 |
 | [F10](../features-index.md#f10-agent-机器接口) | §F10 |
+| [F15](../features-index.md#f15-github-点击登录) | §F15 |
