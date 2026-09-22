@@ -33,7 +33,6 @@
 | F12 | watch 监听 | P3→**done** | cliops | 目录变更触发增量 plan/sync；可退出；不引入常驻特权 |
 | F13 | 多图床适配器 | P3→**done** | transfer | HostAdapter 可替换为非 GitHub 后端且 AC7 语义保持 |
 | F14 | VS Code / MCP 包装 | P3→**done** | cliops | 包装层不复制业务规则，只调用 CLI 契约 |
-| F15 | GitHub 点击登录 | P0 | cliops | 本机回调 OAuth 优先；Device Flow 回退；token 本地安全存储；ENV PAT 仍可用 |
 
 ---
 
