@@ -31,6 +31,7 @@ Current project artifacts win over this memory. `AGENTS.md` (AgentGo v1.15.1) is
 ## Standing corrections
 
 - **Design before implementation**：任何代码行为变更必须**先改设计文档**（features-index / module-* / architecture / 必要时 index.html），**再**写实现与测试。用户 2026-09-22 明确要求；详见 `.agents/rules/delivery.md`。
+- **设计改动必须进 `docs/design` 分支**：此前多次设计修订直接落在 `feature/*` 上，属违规；已用 design-only commit `4300de0` 补进 `docs/design`。之后设计文档变更优先提交到 `docs/design`（隔离 worktree 下用 `git commit-tree` + `git fetch . <sha>:docs/design`）。
 
 ## Notes
 
