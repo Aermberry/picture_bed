@@ -40,3 +40,4 @@
 2026-09-23T00:35:00Z | mimo | merge | docs/design → develop @ b513fb7 | Join design history; FF main; rule: merge docs/design into develop after each design commit | User: was docs/design merged to develop?
 2026-09-23T01:10:00Z | mimo | create/split | skill delivery-git-flow 0.1.0 | Moved Git Flow + Release out of project-design; narrowed git-github-init | User: follow skill-boundary recommendation
 2026-09-23T08:20:00Z | mimo | rename | index.html/styles.css/app.js → docs/html/ | Design-first commit then move; topic feature/design-html-path | User: should index.html live at repo root?
+2026-09-23T08:40:00Z | mimo | create | refs/heads/docs/html-layout @ 2807db3 | Correct prefix for pure-docs change; feature/design-html-path misnamed | User: doc work should be docs/* not feature/*
