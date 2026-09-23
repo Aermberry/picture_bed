@@ -15,3 +15,4 @@
 | 2026-09-22 | Auth: `PICBED_GITHUB_TOKEN` > `GITHUB_TOKEN` > `gh auth token`; **OAuth login removed** | User: OAuth App too heavy to distribute | active |
 | 2026-09-22 | Impl on `feature/yigecli-mvp` (CLI name now `picbed`; branch rename blocked in isolated worktree); design freeze `efa3fb7` on `docs/design`/`develop`/`main` | delivery.md branch model | active |
 | 2026-09-22 | Freeze CLI/package name as **`picbed`** (renamed from `yigecli`) | User chose `picbed`; config `picbed.toml`, state `.picbed/`, env `PICBED_*`, bins `picbed`/`picbed-mcp` | active |
+| 2026-09-23 | Freeze Web 子命令名为 **`ui`**（非 `serve`，无别名） | User: 「ui」 | active |
