@@ -1,6 +1,6 @@
 # picbed 架构设计
 
-> 状态：**CLI 已实现并发布 v0.2.0**（2026-09-22）；**本地 Web 控制台（F16–F22）设计稿**（2026-09-23，**未实现**）· Node/TS
+> 状态：**F1–F22 已实现**（Web 控制台 F16–F22，2026-09-23）· Node/TS CLI + 本地 Web UI
 > 定位：**架构总纲**（分层 / 存储 / CLI 契约 / 数据模型 / 安全 / NFR / 技术选型）。
 > 功能点的完整规格（优先级、AC、实现归属、双向链接）以 [`features-index.md`](features-index.md) 为唯一来源；本文档不重复其逐条 AC。
 > **新人阅读指南**（F 编号、模块名、文档怎么串）：[`design-reading-guide.md`](design-reading-guide.md)。
@@ -9,7 +9,7 @@
 > - 形态：**CLI + 本地 Web UI**（非公网、非多用户、不做 Tauri/桌面壳）
 > - 痛点：CLI 对人类不友好；希望**拖拽文档**即可工作；Agent 仍走 CLI 契约
 > - 图床：对齐 PicX 模型 = **GitHub Contents API + URL 风格约定**；另支持 `local` 后端（F13）
-> - 交付：F1–F15 已实现；**F16–F22 本期只设计**
+> - 交付：F1–F22 已实现（含 `picbed ui`）
 >
 > 技术选型已采用 **Node/TS**（§7）；UI 栈见 §7.1（可改）。
 
@@ -242,7 +242,7 @@ Web API 信封与退出码语义对齐 [`design/cross-cutting.md`](design/cross-
 | M5 打磨 | Agent schema / 发布 | P1 | done（v0.2.0） |
 | M6 扩展 | F12 watch / F13 multi-host / F14 MCP / F15 token auth | P0/P3 | done |
 | M7 Web 控制台 | F16–F18 最小闭环（服务+拖拽工作台+sync） | P0 | **done** |
-| M8 Web 完备 | F19–F22 revert/config/doctor/审计/watch | P1–P2 | design only |
+| M8 Web 完备 | F19–F22 revert/config/doctor/审计/watch | P1–P2 | **done** |
 
 具体功能点、AC 与模块归属：[`features-index.md`](features-index.md)。
 

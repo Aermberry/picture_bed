@@ -174,6 +174,46 @@ export const INDEX_HTML = `<!DOCTYPE html>
       <h2 style="margin-top:16px">结果</h2>
       <pre id="result">（尚无）</pre>
     </section>
+
+    <section>
+      <h2>4. 回滚（F19）</h2>
+      <div class="actions">
+        <button class="secondary" id="loadManifest">查看 manifest</button>
+        <button class="secondary" id="revertDry">revert --dry-run</button>
+        <button id="revert">确认并 revert</button>
+      </div>
+      <pre id="revertOut">（尚无）</pre>
+    </section>
+
+    <section>
+      <h2>5. 配置 / doctor（F20）</h2>
+      <div class="row">
+        <input id="cfgKey" type="text" placeholder="如 github.owner 或 url.style" />
+        <input id="cfgVal" type="text" placeholder="值" />
+      </div>
+      <div class="actions">
+        <button class="secondary" id="cfgGet">读配置</button>
+        <button id="cfgSet">写配置（确认）</button>
+        <button class="secondary" id="doctor">doctor</button>
+      </div>
+      <pre id="cfgOut">（尚无）</pre>
+    </section>
+
+    <section>
+      <h2>6. 审计 run（F21）</h2>
+      <div class="actions"><button class="secondary" id="runs">刷新 runs</button></div>
+      <pre id="runsOut">（尚无）</pre>
+    </section>
+
+    <section>
+      <h2>7. watch（F22）</h2>
+      <div class="actions">
+        <button class="secondary" id="watchPreview">启动 preview</button>
+        <button class="secondary" id="watchConfirm">启动 confirm-each</button>
+        <button class="secondary" id="watchStop">停止</button>
+      </div>
+      <pre id="watchOut">（未启动）</pre>
+    </section>
   </main>
   <script>
     const $ = (id) => document.getElementById(id);
@@ -197,7 +237,7 @@ export const INDEX_HTML = `<!DOCTYPE html>
 
     function renderWorkset() {
       const tb = $('workset');
-      tb.innerHTML = workset.map((w, i) =>
+      tb.innerHTML = workset.map((w) =>
         '<tr><td>' + esc(w.name) + '</td><td>' + esc(w.rel || '—') + '</td><td><span class="tag ' + w.type + '">' + w.type + '</span></td><td>' + esc(w.status) + '</td></tr>'
       ).join('') || '<tr><td colspan="4" class="muted">空</td></tr>';
     }
@@ -246,11 +286,7 @@ export const INDEX_HTML = `<!DOCTYPE html>
           } else {
             const f = item.getAsFile();
             if (!f) continue;
-            items.push({
-              name: f.name,
-              rel: f.webkitRelativePath || f.name,
-              type: /\\.(md|markdown|html|htm)$/i.test(f.name) ? 'file' : 'file',
-            });
+            items.push({ name: f.name, rel: f.webkitRelativePath || f.name, type: 'file' });
           }
         }
       }
@@ -284,7 +320,6 @@ export const INDEX_HTML = `<!DOCTYPE html>
         $('opStatus').textContent = kind + ' ok';
         $('opStatus').className = 'status ok';
         if (data.data?.plan) renderPlan(data.data.plan);
-        if (data.data?.summary && !data.data?.plan) renderPlan([]);
       } else {
         $('opStatus').textContent = (data.error?.code || 'E') + ': ' + (data.error?.message || status);
         $('opStatus').className = 'status bad';
@@ -305,6 +340,54 @@ export const INDEX_HTML = `<!DOCTYPE html>
     $('sync').onclick = async () => {
       if (!confirm('将上传图片并改写文档，确认执行 sync？')) return;
       await runOp('sync', { confirm: true, dryRun: false });
+    };
+
+    $('loadManifest').onclick = async () => {
+      const { data } = await api('/api/manifest');
+      $('revertOut').textContent = JSON.stringify(data, null, 2);
+    };
+    $('revertDry').onclick = async () => {
+      const { data } = await api('/api/revert', { dryRun: true, confirm: true });
+      $('revertOut').textContent = JSON.stringify(data, null, 2);
+    };
+    $('revert').onclick = async () => {
+      if (!confirm('将把文档中的图床 URL 还原为本地路径，确认 revert？')) return;
+      const { data } = await api('/api/revert', { confirm: true, dryRun: false });
+      $('revertOut').textContent = JSON.stringify(data, null, 2);
+    };
+
+    $('cfgGet').onclick = async () => {
+      const { data } = await api('/api/config');
+      $('cfgOut').textContent = JSON.stringify(data, null, 2);
+    };
+    $('cfgSet').onclick = async () => {
+      if (!confirm('将写入配置文件，确认？')) return;
+      const { data } = await api('/api/config', {
+        key: $('cfgKey').value.trim(),
+        value: $('cfgVal').value.trim(),
+        confirm: true,
+      });
+      $('cfgOut').textContent = JSON.stringify(data, null, 2);
+    };
+    $('doctor').onclick = async () => {
+      const { data } = await api('/api/doctor', {});
+      $('cfgOut').textContent = JSON.stringify(data, null, 2);
+    };
+
+    $('runs').onclick = async () => {
+      const { data } = await api('/api/runs');
+      $('runsOut').textContent = JSON.stringify(data, null, 2);
+    };
+
+    async function watchStart(mode, confirmAuto) {
+      const { data } = await api('/api/watch/start', { mode, confirm: confirmAuto });
+      $('watchOut').textContent = JSON.stringify(data, null, 2);
+    }
+    $('watchPreview').onclick = () => watchStart('preview', false);
+    $('watchConfirm').onclick = () => watchStart('confirm-each', false);
+    $('watchStop').onclick = async () => {
+      const { data } = await api('/api/watch/stop', {});
+      $('watchOut').textContent = JSON.stringify(data, null, 2);
     };
 
     refreshHealth();

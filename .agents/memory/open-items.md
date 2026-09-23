@@ -18,4 +18,4 @@
 | 2026-09-23 | 拖拽无 root 策略 | **closed** | 用户选 A：强制先绑根；无暂存预览 |
 | 2026-09-23 | Web 前端栈 / watch 默认模式 | **closed** | 采纳建议：轻量 Vite + 原生 SPA；watch 默认 `preview` |
 | 2026-09-23 | F16–F18 本地 Web 控制台实现 | **closed** | `picbed ui` + 拖拽工作台 + confirm sync；33/33 tests；feature/f16-webui → develop |
-| 2026-09-23 | F19–F22（revert/config/doctor/审计/watch UI） | **open** | P1–P2 待实现 |
+| 2026-09-23 | F19–F22 Web 面板 | **closed** | revert/config-doctor/runs/watch；39/39 tests |
