@@ -241,7 +241,7 @@ Web API 信封与退出码语义对齐 [`design/cross-cutting.md`](design/cross-
 | M4 回写 | rewrite/revert | P0 | done |
 | M5 打磨 | Agent schema / 发布 | P1 | done（v0.2.0） |
 | M6 扩展 | F12 watch / F13 multi-host / F14 MCP / F15 token auth | P0/P3 | done |
-| M7 Web 控制台 | F16–F18 最小闭环（服务+拖拽工作台+sync） | P0 | **design only** |
+| M7 Web 控制台 | F16–F18 最小闭环（服务+拖拽工作台+sync） | P0 | **done** |
 | M8 Web 完备 | F19–F22 revert/config/doctor/审计/watch | P1–P2 | design only |
 
 具体功能点、AC 与模块归属：[`features-index.md`](features-index.md)。
