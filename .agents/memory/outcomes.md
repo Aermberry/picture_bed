@@ -17,3 +17,4 @@ Ledger schema: `date`, `capability` (when applicable), `result` (`helped | hurt 
 | 2026-09-23 | project-design skill v0.3.0 (GitHub Release) | helped | CI≠Release, dual assets, latest/download, GH007 tags, workflow scope |
 | 2026-09-23 | Split delivery-git-flow skill 0.1.0; project-design 0.4.0; git-github-init 0.2.0 | helped | Clear boundaries: init vs design docs vs branch/release |
 | 2026-09-23 | delivery-git-flow 0.2.0 + project-design 0.5.0 | helped | Branch prefix by change nature (feature vs docs); docs/html/ in design map |
+| 2026-09-23 | git-github-init 0.3.0 + delivery-git-flow 0.2.1 | helped | Init must create develop; delete topic branches after merge |
