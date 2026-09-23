@@ -17,7 +17,7 @@ npm install -g https://github.com/Aermberry/picture_bed/releases/latest/download
 也可到 [Releases](https://github.com/Aermberry/picture_bed/releases) 下载带版本号的 `picbed-x.y.z.tgz` 后：
 
 ```powershell
-npm install -g .\picbed-0.2.0.tgz
+npm install -g .\picbed-0.3.0.tgz
 ```
 
 装好后可用全局命令：`picbed`、`picbed-mcp`。
