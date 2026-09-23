@@ -22,8 +22,8 @@ Commands: `init` · `doctor` · `scan` · `plan` · `sync` · `upload` · `rever
 ## Feature progress (authoritative: `docs/features-index.md`)
 
 - Done: F1–F15（含 F12 watch、F13 multi-host、F14 MCP、F15 Token 鉴权）
-- Done: F16–F18 本地 Web 控制台（`picbed ui`，拖拽工作台）
-- Design only: F19–F22（revert/config/审计/watch 面板）
+- Done: F16–F22 本地 Web 控制台（`picbed ui`，含拖拽、revert、config/doctor、runs、watch）
+- Design only: （无）
 - Released: GitHub Release `v0.2.0`（资产 `picbed.tgz` 跟随 `/releases/latest`）
 
 ## Source of truth
@@ -39,6 +39,6 @@ Current project artifacts win over this memory. `AGENTS.md` (AgentGo v1.15.1) is
 
 ## Notes
 
-- Repo commits use GitHub noreply author (`26331797+Aermberry@users.noreply.github.com`) due to GH007 email privacy; global git config was not changed.
+- Repo commits use GitHub noreply author (`26331797+Aermberry@users.noreply.github.com`) due to GH007 email privacy; do **not** change global git config for this. Ambient config may say `user.name=CC` — always force the Aermberry noreply identity via env or `-c` on commits.
 - Design docs belong on `docs/design`; implementation on `feature/*` with Git Flow to `develop`/`main` (see `.agents/rules/delivery.md`).
 - System npm may be blocked by NVM (NVM4306); use `$MIMO_NODE $MIMO_NPM` when `npm` is untrusted.
