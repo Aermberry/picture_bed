@@ -203,9 +203,9 @@ Web API 信封与退出码语义对齐 [`design/cross-cutting.md`](design/cross-
 | 项 | 推荐 | 备选 | 理由 |
 |----|------|------|------|
 | 服务 | Node `http` / 轻量路由（与 CLI 同进程可 spawn） | fastify | 本地单用户，无需重框架 |
-| 前端 | 单页（原生或轻量 Vite） | React | 拖拽 + 列表工作台足够；避免重依赖 |
+| 前端 | 轻量 Vite + 原生 SPA（**已冻结**；不引入 React） | React | 拖拽 + 列表工作台足够；避免重依赖 |
 | 实时进度 | SSE | 轮询 | sync/watch 推送简单 |
-| 拖拽路径 | 根绑定 + 相对路径解析（默认） | File System Access 预览暂存 | 浏览器不给绝对路径；原地回写必须服务端可解析真实路径 |
+| 拖拽路径 | 根绑定 + 相对路径解析（**策略 A，已冻结**） | File System Access 预览暂存（不纳入） | 浏览器不给绝对路径；原地回写必须服务端可解析真实路径 |
 
 ---
 
@@ -257,9 +257,9 @@ Web API 信封与退出码语义对齐 [`design/cross-cutting.md`](design/cross-
 5. 是否增加更多 HostAdapter（对象存储等）？  
 6. 是否发布到 npm 官方源？（当前仅 GitHub Release tarball）  
 7. ~~Web 子命令名：`ui` 还是 `serve`？~~ **已冻结为 `ui`**（2026-09-23，用户确认）；不为 `serve` 保留别名。  
-8. Web 前端栈：原生 / 轻量 Vite / React？（不影响 AC）  
+8. ~~Web 前端栈：原生 / 轻量 Vite / React？~~ **已冻结为轻量 Vite + 原生 SPA（不引入 React）**（2026-09-23，采纳建议）。  
 9. ~~拖拽后「无 root」时：强制先绑根，还是允许暂存预览（策略 B）？~~ **已冻结为策略 A：强制先绑根**（2026-09-23）；未绑根不得进入 scan/plan/sync；暂存预览不纳入本期。  
-10. watch 在 UI 默认模式：`preview` / `confirm-each` / `auto`？（默认 `preview`，`auto` 需显式打开）
+10. ~~watch 在 UI 默认模式：`preview` / `confirm-each` / `auto`？~~ **已冻结为默认 `preview`**（2026-09-23，采纳建议）；`auto` 须显式打开并仍写 RunRecord。
 
 ---
 

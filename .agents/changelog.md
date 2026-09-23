@@ -44,3 +44,4 @@
 2026-09-23T12:00:00Z | mimo | create | docs F16–F22 webui design | features-index + module-webui + architecture/cross-cutting/reading-guide/html; drag-drop workbench; landed docs/design@b90bb15 → develop@85c42c8 | User: 新增 UI + 拖拽文档；本期只设计
 2026-09-23T12:30:00Z | mimo | update | freeze Web CLI name `ui` | architecture open Q7 closed; module-webui startUi | User: ui
 2026-09-23T12:45:00Z | mimo | update | freeze drag path policy A | force bind root before scan/plan; no staging preview | User: A
+2026-09-23T13:00:00Z | mimo | update | freeze web FE stack + watch default | Vite+native SPA; watch default preview | User: 按照你的建议即可

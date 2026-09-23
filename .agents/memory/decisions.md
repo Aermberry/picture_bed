@@ -17,3 +17,4 @@
 | 2026-09-22 | Freeze CLI/package name as **`picbed`** (renamed from `yigecli`) | User chose `picbed`; config `picbed.toml`, state `.picbed/`, env `PICBED_*`, bins `picbed`/`picbed-mcp` | active |
 | 2026-09-23 | Freeze Web 子命令名为 **`ui`**（非 `serve`，无别名） | User: 「ui」 | active |
 | 2026-09-23 | Web 拖拽路径策略 **A：强制先绑 root** | User: 「A」；无暂存预览（策略 B 不纳入） | active |
+| 2026-09-23 | Web 前端 **轻量 Vite + 原生 SPA**；watch 默认 **`preview`** | User: 「按照你的建议即可」 | active |
