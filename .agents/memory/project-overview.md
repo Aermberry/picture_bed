@@ -22,6 +22,7 @@ Commands: `init` · `doctor` · `scan` · `plan` · `sync` · `upload` · `rever
 ## Feature progress (authoritative: `docs/features-index.md`)
 
 - Done: F1–F15（含 F12 watch、F13 multi-host、F14 MCP、F15 Token 鉴权）
+- Design only: F16–F22 本地 Web 控制台（含拖拽文档工作台）
 - Released: GitHub Release `v0.2.0`（资产 `picbed.tgz` 跟随 `/releases/latest`）
 
 ## Source of truth
