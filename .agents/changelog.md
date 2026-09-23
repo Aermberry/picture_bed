@@ -41,4 +41,11 @@
 2026-09-23T01:10:00Z | mimo | create/split | skill delivery-git-flow 0.1.0 | Moved Git Flow + Release out of project-design; narrowed git-github-init | User: follow skill-boundary recommendation
 2026-09-23T08:20:00Z | mimo | rename | index.html/styles.css/app.js → docs/html/ | Design-first commit then move; topic feature/design-html-path | User: should index.html live at repo root?
 2026-09-23T08:40:00Z | mimo | create | refs/heads/docs/html-layout @ 2807db3 | Correct prefix for pure-docs change; feature/design-html-path misnamed | User: doc work should be docs/* not feature/*
-2026-09-23T09:30:00Z | mimo | git-flow init | main + develop + docs/design on origin | Completed init acceptance; develop tracks origin/develop | User: 请执行git flow初始化
+2026-09-23T12:00:00Z | mimo | create | docs F16–F22 webui design | features-index + module-webui + architecture/cross-cutting/reading-guide/html; drag-drop workbench; landed docs/design@b90bb15 → develop@85c42c8 | User: 新增 UI + 拖拽文档；本期只设计
+2026-09-23T12:30:00Z | mimo | update | freeze Web CLI name `ui` | architecture open Q7 closed; module-webui startUi | User: ui
+2026-09-23T12:45:00Z | mimo | update | freeze drag path policy A | force bind root before scan/plan; no staging preview | User: A
+2026-09-23T13:00:00Z | mimo | update | freeze web FE stack + watch default | Vite+native SPA; watch default preview | User: 按照你的建议即可
+2026-09-23T17:45:00Z | mimo | create | F16–F18 web console impl | picbed ui + RootBinder policy A + confirm sync; 33/33 tests | User: 进入实现
+2026-09-23T18:30:00Z | mimo | create | F19–F22 web panels | revert/config-doctor/runs/watch; 39/39 tests | User: 继续做 P1/P2
+2026-09-23 | update | .agents/memory/gotchas.md + project-overview.md | Recorded global git user.name=CC leak into design commits; require explicit Aermberry noreply identity on agent commits | User reported wrong commit author
+2026-09-23 | update | git history refs/heads/{develop,docs/*,feature/f16-webui} | Rewrote CC-authored commits to Aermberry noreply via filter-branch/commit-tree; restored stashed ui CLI wiring | User approved author rewrite

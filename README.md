@@ -17,7 +17,7 @@ npm install -g https://github.com/Aermberry/picture_bed/releases/latest/download
 也可到 [Releases](https://github.com/Aermberry/picture_bed/releases) 下载带版本号的 `picbed-x.y.z.tgz` 后：
 
 ```powershell
-npm install -g .\picbed-0.2.0.tgz
+npm install -g .\picbed-0.3.0.tgz
 ```
 
 装好后可用全局命令：`picbed`、`picbed-mcp`。
@@ -106,6 +106,7 @@ node bin/picbed.js revert ./docs --dry-run --json
 | `upload <file>` | 单文件上传 |
 | `revert <path>` | 按 manifest 还原本地链接 |
 | `watch <path>` | 监听变更并触发 sync（F12） |
+| `ui` | 启动本地 Web 控制台（拖拽工作台） |
 | `config get\|set\|list` | 配置读写（token 掩码） |
 | `commands` | 列出命令 |
 
@@ -127,7 +128,16 @@ picbed sync ./docs --json --yes
 
 ## 功能点
 
-见 [`docs/features-index.md`](docs/features-index.md)：F1–F15 全部已实现。
+见 [`docs/features-index.md`](docs/features-index.md)：F1–F22 全部已实现。
+
+## 本地 Web 控制台（F16–F22）
+
+```bash
+picbed ui
+# → http://127.0.0.1:4780
+```
+
+浏览器打开后：**先绑定扫描根目录** → 拖入 md/html 文档 → plan 预览 → 确认后 sync。另含回滚、配置/doctor、run 审计、watch 控制台。默认只监听本机；token 不会出现在页面里。
 
 ### 多图床（F13）
 
