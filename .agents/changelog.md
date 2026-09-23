@@ -42,3 +42,4 @@
 2026-09-23T08:20:00Z | mimo | rename | index.html/styles.css/app.js → docs/html/ | Design-first commit then move; topic feature/design-html-path | User: should index.html live at repo root?
 2026-09-23T08:40:00Z | mimo | create | refs/heads/docs/html-layout @ 2807db3 | Correct prefix for pure-docs change; feature/design-html-path misnamed | User: doc work should be docs/* not feature/*
 2026-09-23T12:00:00Z | mimo | create | docs F16–F22 webui design | features-index + module-webui + architecture/cross-cutting/reading-guide/html; drag-drop workbench; landed docs/design@b90bb15 → develop@85c42c8 | User: 新增 UI + 拖拽文档；本期只设计
+2026-09-23T12:30:00Z | mimo | update | freeze Web CLI name `ui` | architecture open Q7 closed; module-webui startUi | User: ui
