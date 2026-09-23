@@ -132,7 +132,7 @@ WebUiFacade
 ## F22 监听控制台
 
 - 启停映射 F12：`fs.watch` + debounce；忽略 `node_modules`/`.git`/`.picbed`。
-- 模式：`preview`（只 plan）| `confirm-each`（每批确认后 sync）| `auto`（**默认不推荐**；若提供必须二次开启且仍写 RunRecord）。
+- 模式：`preview`（**默认，已冻结**：只 plan）| `confirm-each`（每批确认后 sync）| `auto`（**须显式打开**；仍写 RunRecord）。
 - 停止：`watch/stop` 或 `ui` 服务退出时级联停止。
 - 失败：监听失败 → 错误可见；不引入系统服务/提权。
 
