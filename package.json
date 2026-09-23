@@ -1,6 +1,6 @@
 {
   "name": "picbed",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Local CLI: extract images from markdown/html, upload to PicX-style GitHub image host, rewrite links",
   "type": "module",
   "bin": {
