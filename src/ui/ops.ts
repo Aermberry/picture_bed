@@ -16,6 +16,7 @@ import { resolveAssets } from '../resolve.js';
 import { applyRewrites, mergeManifest } from '../rewrite.js';
 import { scanDocs } from '../scan.js';
 import type { ResolvedConfig, SyncPlanItem } from '../types.js';
+import { newRunId, recordRun } from './runs.js';
 
 export interface CollectResult {
   docs: { path: string; kind: 'markdown' | 'html' }[];
@@ -96,6 +97,7 @@ export async function runSync(opts: {
   getToken: () => string | undefined;
 }) {
   const { root, cfg, cwd, getToken } = opts;
+  const startedAt = new Date().toISOString();
   const { collected, plan, summary } = await runPlan(root, cfg, cwd);
   const manifest = loadManifest(cwd);
   const token = getToken();
@@ -191,6 +193,26 @@ export async function runSync(opts: {
     warnings.push(`manifest save failed: ${String(err)}`);
   }
 
+  const ok = errors.length === 0;
+  const runId = newRunId();
+  recordRun(cwd, {
+    id: runId,
+    command: 'api.sync',
+    startedAt,
+    finishedAt: new Date().toISOString(),
+    ok,
+    counts: {
+      uploaded,
+      rewritten: rewrittenDocs.length,
+      failed: errors.length,
+      ...summary,
+    },
+    items,
+    errors,
+    warnings,
+    errorCode: ok ? undefined : 'E_PARTIAL',
+  });
+
   return {
     uploaded,
     rewrittenDocs,
@@ -198,6 +220,7 @@ export async function runSync(opts: {
     errors,
     items,
     warnings,
-    ok: errors.length === 0,
+    ok,
+    runId,
   };
 }
