@@ -14,3 +14,4 @@ Ledger schema: `date`, `capability` (when applicable), `result` (`helped | hurt 
 | 2026-09-22 | FF land via `git fetch . src:dst` under worktree isolation | helped | develop/main local refs at `e58cb42` without checkout |
 | 2026-09-22 | gh auth refresh -s workflow + setup-git for CI push | helped | `workflow` scope added; `f391add` (ci.yml) on origin main/develop/feature |
 | 2026-09-23 | project-design skill v0.2.0 (Git Flow + design-first) | helped | Retrospective of docs/design miss, dangling tip, piled feature branches |
+| 2026-09-23 | project-design skill v0.3.0 (GitHub Release) | helped | CI≠Release, dual assets, latest/download, GH007 tags, workflow scope |
