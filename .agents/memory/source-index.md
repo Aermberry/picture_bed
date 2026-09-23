@@ -27,6 +27,7 @@
 | 2026-09-22 | `docs/design/module-transfer.md` | domain design | F6/F7/F11 |
 | 2026-09-22 | `docs/design/module-rewrite.md` | domain design | F8/F9 |
 | 2026-09-22 | `docs/design/module-cliops.md` | domain design | F1/F2/F10/F15 |
+| 2026-09-23 | `docs/design/module-webui.md` | domain design | F16–F22 local web console + drag-drop |
 | 2026-09-22 | `docs/design/cross-cutting.md` | global contracts | exit codes, JSON, flags |
 | 2026-09-22 | `docs/design-reading-guide.md` | onboarding | F/P/module/AC glossary |
 | 2026-09-22 | `docs/html/index.html` + `styles.css` + `app.js` | design HTML presentation | no runtime product code |
