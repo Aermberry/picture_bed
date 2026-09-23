@@ -12,4 +12,4 @@
 | 2026-09-22 | Optional: CI workflow | **closed** | `.github/workflows/ci.yml`: lint+build+test on Node 20/22 |
 | 2026-09-22 | GitHub Release on tag `v*` | **closed** | `release.yml` + tag `v0.1.0` → Release with `picbed-*.tgz` |
 | 2026-09-22 | GitHub Packages (npm) publish | **closed** | User: not needed; Releases tarball only |
-| 2026-09-23 | Delete merged topic branches | **open** | User main checkout: `feature/design-html-path` `feature/process-notes` `docs/html-layout`（已合）；`feature/yigecli-mvp` 不再开发后删；本地+`git push origin --delete` |
+| 2026-09-23 | Delete merged topic branches | **closed** | User cleaned feature/* and docs/html-layout; skeleton rebuilt with docs/design |
