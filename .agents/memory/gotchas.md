@@ -8,3 +8,6 @@
 | 2026-09-22 | Isolated worktree blocks cross-branch `git checkout` / merge (shared ref store) | `git checkout develop` rejected NVM-style guard | Stay on own branch; land via orchestrator/main checkout Git Flow merge |
 | 2026-09-22 | `git fetch . <src>:<dst>` CAN fast-forward other local branch refs even when `checkout`/`worktree add` are blocked | `git fetch . feature/picbed-mvp:develop` succeeded | Use for FF landing of own work into develop/main when isolated; prefer real `merge --no-ff` outside isolation if a merge commit is required |
 | 2026-09-22 | `LocalHostAdapter` resolved `local.root` against `process.cwd()`, not `ResolvedConfig.rootDir` | smoke `sync --cwd` wrote `bed/` into repo | Resolve local host root via `cfg.rootDir`; covered in `tests/host.test.ts` |
+| 2026-09-22 | Annotated `git tag -a` + push hits GH007 (private tagger email) | `v0.1.0` push rejected | Lightweight: `git push origin <sha>:refs/tags/vX.Y.Z`; or noreply tagger env |
+| 2026-09-22 | CI green does not create Releases/Packages assets | User: Releases empty after CI | Separate `release.yml` on `v*` tags + `npm pack` + `gh release create` |
+| 2026-09-22 | Versioned-only asset breaks copy-paste install after bump | README linked `v0.2.0` tarball | Also upload stable `<pkg>.tgz`; docs use `/releases/latest/download/<pkg>.tgz` |

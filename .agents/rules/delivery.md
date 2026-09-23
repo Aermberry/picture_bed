@@ -22,6 +22,17 @@ Rules:
 3. 集成到 `develop` 前：设计已在 `docs/design` 落地、测试全绿。
 4. 隔离 worktree 不能 `checkout` 时：仍须**逻辑上**按 topic 分支；可用 `git commit-tree` / `git fetch . <sha>:refs/heads/feature/<topic>` 创建，或明确记录「本环境无法建分支」并合并前由主 checkout 拆分。
 
+## GitHub Release (MANDATORY when shipping)
+
+1. **CI ≠ Release**：`ci.yml` 只验证；出包必须 **tag `v*`** 触发 `release.yml`。
+2. 发版前：版本号与 tag 一致；测试绿；设计/实现已按 Git Flow 落地。
+3. 资产双份：`<name>-<ver>.tgz` + 稳定名 `<name>.tgz`；README 用 `/releases/latest/download/<name>.tgz`。
+4. Annotated tag 注意 GH007；隔离环境用 `git push origin <sha>:refs/tags/vX.Y.Z`。
+5. 推送 `.github/workflows/**` 需要 **`workflow`** scope。
+6. Packages/npmjs 另需 `npm publish`，不在 Release workflow 内。
+
+Evidence: picture_bed v0.1.0/v0.2.0 release practice; user asked for release retrospective 2026-09-23.
+
 ## Design before implementation (MANDATORY)
 
 Every behavioral change to code **must** land design updates first, then implement:
