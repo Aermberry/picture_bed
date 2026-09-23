@@ -1,11 +1,15 @@
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
-import { getToken, maskToken, loadConfig } from '../config.js';
+import { getToken, loadConfig } from '../config.js';
 import type { JsonEnvelope, ResolvedConfig } from '../types.js';
+import { applyConfigSet, doctorView, publicConfig } from './doctor.js';
 import { publicPlanItem, runPlan, runSync } from './ops.js';
+import { listManifestView, runRevert } from './revert.js';
 import { RootBinder, ensureDocExt } from './root.js';
+import { getRun, listRuns } from './runs.js';
 import { INDEX_HTML } from './static.js';
+import { WatchController } from './watch.js';
 
 export interface UiServerOptions {
   cwd: string;
@@ -56,6 +60,7 @@ export function createUiServer(opts: UiServerOptions): {
 } {
   const cwd = path.resolve(opts.cwd);
   const binder = new RootBinder();
+  const watchCtl = new WatchController();
   const workset: {
     name: string;
     relativePath: string;
@@ -304,17 +309,141 @@ export function createUiServer(opts: UiServerOptions): {
 
       if (req.method === 'GET' && url.pathname === '/api/config') {
         const cfg = loadCfg();
-        send(200, envelope(true, 'api.config', {
-          host: cfg.host,
-          github: cfg.github,
-          url: cfg.url,
-          scan: cfg.scan,
-          upload: cfg.upload,
-          rewrite: cfg.rewrite,
-          token: maskToken(getToken()),
-          configPath: cfg.configPath,
-          root: binder.root,
+        send(200, envelope(true, 'api.config', publicConfig(cfg, { root: binder.root })));
+        return;
+      }
+
+      if (req.method === 'POST' && url.pathname === '/api/config') {
+        const body = JSON.parse((await readBody(req)) || '{}') as {
+          key?: string;
+          value?: string;
+          confirm?: boolean;
+          dryRun?: boolean;
+        };
+        if (body.confirm !== true && !body.dryRun) {
+          send(409, envelope(false, 'api.config', undefined, {
+            code: 'E_CONFIRM',
+            message: 'config set writes files; set confirm: true (or dryRun: true)',
+          }));
+          return;
+        }
+        const cfg = loadCfg();
+        const out = applyConfigSet(cfg, body.key ?? '', body.value ?? '', Boolean(body.dryRun));
+        send(200, envelope(true, 'api.config', out));
+        return;
+      }
+
+      if (req.method === 'POST' && url.pathname === '/api/doctor') {
+        const cfg = loadCfg();
+        const view = doctorView(cfg);
+        send(view.ok ? 200 : 400, envelope(view.ok, 'api.doctor', view, view.ok ? null : {
+          code: 'E_DOCTOR',
+          message: 'doctor failed: ' + view.failures.join(','),
+          hint: 'token: PICBED_GITHUB_TOKEN / GITHUB_TOKEN / gh auth token',
         }));
+        return;
+      }
+
+      if (req.method === 'GET' && url.pathname === '/api/manifest') {
+        const view = listManifestView(cwd);
+        if (!view.ok) {
+          send(400, envelope(false, 'api.manifest', { entries: [] }, view.error));
+          return;
+        }
+        send(200, envelope(true, 'api.manifest', view));
+        return;
+      }
+
+      if (req.method === 'POST' && url.pathname === '/api/revert') {
+        const body = JSON.parse((await readBody(req)) || '{}') as {
+          confirm?: boolean;
+          dryRun?: boolean;
+        };
+        const root = binder.requireRoot();
+        const cfg = loadCfg();
+        if (!body.dryRun && body.confirm !== true) {
+          send(409, envelope(false, 'api.revert', undefined, {
+            code: 'E_CONFIRM',
+            message: 'revert writes files; set confirm: true (or dryRun: true)',
+          }));
+          return;
+        }
+        const result = runRevert({ root, cfg, cwd, dryRun: Boolean(body.dryRun) });
+        if (!result.ok && result.errors.some((e) => e.includes('manifest corrupt'))) {
+          send(400, envelope(false, 'api.revert', result, {
+            code: 'E_MANIFEST_CORRUPT',
+            message: result.errors.join('; '),
+          }));
+          return;
+        }
+        send(result.ok ? 200 : 207, envelope(result.ok, 'api.revert', result, result.ok ? null : {
+          code: 'E_PARTIAL',
+          message: result.errors.join('; '),
+        }));
+        return;
+      }
+
+      if (req.method === 'GET' && url.pathname === '/api/runs') {
+        send(200, envelope(true, 'api.runs', { runs: listRuns(cwd) }));
+        return;
+      }
+
+      const runMatch = /^\/api\/runs\/([a-zA-Z0-9_-]+)$/.exec(url.pathname);
+      if (req.method === 'GET' && runMatch) {
+        const run = getRun(cwd, runMatch[1]);
+        if (!run) {
+          send(404, envelope(false, 'api.runs.get', undefined, { code: 'E_USAGE', message: 'run not found' }));
+          return;
+        }
+        send(200, envelope(true, 'api.runs.get', run));
+        return;
+      }
+
+      if (req.method === 'GET' && url.pathname === '/api/watch') {
+        send(200, envelope(true, 'api.watch', watchCtl.state));
+        return;
+      }
+
+      if (req.method === 'POST' && url.pathname === '/api/watch/start') {
+        const body = JSON.parse((await readBody(req)) || '{}') as {
+          mode?: 'preview' | 'confirm-each' | 'auto';
+          debounceMs?: number;
+          confirm?: boolean;
+        };
+        const root = binder.requireRoot();
+        const mode = body.mode ?? 'preview';
+        if (mode === 'auto' && body.confirm !== true) {
+          send(409, envelope(false, 'api.watch.start', undefined, {
+            code: 'E_CONFIRM',
+            message: 'auto mode must be explicitly enabled with confirm: true',
+          }));
+          return;
+        }
+        const cfg = loadCfg();
+        const state = watchCtl.start({
+          root,
+          debounceMs: body.debounceMs,
+          mode,
+          onBatch: async (changed, m) => {
+            if (m === 'confirm-each') {
+              watchCtl.state.events.push({
+                at: new Date().toISOString(),
+                message: 'awaiting confirm for batch (call /api/sync)',
+                changed,
+              });
+              return;
+            }
+            if (m === 'auto') {
+              await runSync({ root, cfg, cwd, getToken });
+            }
+          },
+        });
+        send(200, envelope(true, 'api.watch.start', state));
+        return;
+      }
+
+      if (req.method === 'POST' && url.pathname === '/api/watch/stop') {
+        send(200, envelope(true, 'api.watch.stop', watchCtl.stop()));
         return;
       }
 
@@ -346,6 +475,11 @@ export function createUiServer(opts: UiServerOptions): {
             host,
             close: () =>
               new Promise<void>((done) => {
+                try {
+                  watchCtl.stop();
+                } catch {
+                  /* ignore */
+                }
                 server.close(() => done());
               }),
           });
