@@ -159,6 +159,12 @@ export async function run(argv: string[]): Promise<ExitCode> {
     .description('watch docs and run sync on change (F12)')
     .option('--debounce <ms>', 'debounce window in ms', '300');
   program
+    .command('ui')
+    .description('start local Web console (F16–F18)')
+    .option('--host <host>', 'bind host (default 127.0.0.1)')
+    .option('--port <port>', 'bind port (default 4780)')
+    .option('--open', 'print URL prominently (browser open is optional)');
+  program
     .command('config')
     .description('get|set|list configuration')
     .argument('[action]', 'get|set|list')
@@ -208,6 +214,7 @@ export async function run(argv: string[]): Promise<ExitCode> {
           'upload',
           'revert',
           'watch',
+          'ui',
           'config',
           'commands',
         ],
@@ -355,6 +362,63 @@ export async function run(argv: string[]): Promise<ExitCode> {
         }
       });
       return ok ? EXIT.OK : EXIT.CONFIG;
+    }
+
+    if (command === 'ui') {
+      const hostArg = argv.find((a) => a.startsWith('--host='))?.split('=')[1]
+        ?? (argv.indexOf('--host') >= 0 ? argv[argv.indexOf('--host') + 1] : undefined)
+        ?? '127.0.0.1';
+      const portArg = argv.find((a) => a.startsWith('--port='))?.split('=')[1]
+        ?? (argv.indexOf('--port') >= 0 ? argv[argv.indexOf('--port') + 1] : undefined)
+        ?? '4780';
+      const host = String(hostArg);
+      const port = Number(portArg);
+      if (!Number.isInteger(port) || port < 0 || port > 65535) {
+        return fail(json, command, EXIT.USAGE, {
+          code: 'E_USAGE',
+          message: `invalid --port: ${portArg}`,
+        });
+      }
+      if (host !== '127.0.0.1' && host !== 'localhost' && host !== '::1') {
+        if (!opts.quiet) {
+          console.error(`warn: binding ${host} exposes the console beyond loopback`);
+        }
+      }
+      const { createUiServer } = await import('./ui/index.js');
+      const ui = createUiServer({ cwd, configPath: opts.config });
+      let handle: Awaited<ReturnType<typeof ui.listen>>;
+      try {
+        handle = await ui.listen(port, host === 'localhost' ? '127.0.0.1' : host);
+      } catch (err) {
+        const e = err as NodeJS.ErrnoException;
+        return fail(json, command, EXIT.USAGE, {
+          code: e.code ?? 'E_PORT',
+          message: e.code === 'EADDRINUSE' ? `port ${port} is already in use` : String(e.message || err),
+        });
+      }
+      emit(
+        json,
+        {
+          schemaVersion: 1,
+          ok: true,
+          command,
+          data: { url: handle.url, host: handle.host, port: handle.port, rootDir: cwd },
+        },
+        () => {
+          console.log(`picbed ui → ${handle.url}`);
+          console.log('drag docs after binding a scan root (policy A). Ctrl+C to stop.');
+        },
+      );
+      const stop = async () => {
+        await handle.close();
+        process.exit(EXIT.OK);
+      };
+      process.on('SIGINT', () => void stop());
+      process.on('SIGTERM', () => void stop());
+      await new Promise(() => {
+        /* run until signal */
+      });
+      return EXIT.OK;
     }
 
     if (command === 'watch') {

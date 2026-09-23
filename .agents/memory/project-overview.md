@@ -39,6 +39,6 @@ Current project artifacts win over this memory. `AGENTS.md` (AgentGo v1.15.1) is
 
 ## Notes
 
-- Repo commits use GitHub noreply author (`26331797+Aermberry@users.noreply.github.com`) due to GH007 email privacy; global git config was not changed.
+- Repo commits use GitHub noreply author (`26331797+Aermberry@users.noreply.github.com`) due to GH007 email privacy; do **not** change global git config for this. Ambient config may say `user.name=CC` — always force the Aermberry noreply identity via env or `-c` on commits.
 - Design docs belong on `docs/design`; implementation on `feature/*` with Git Flow to `develop`/`main` (see `.agents/rules/delivery.md`).
 - System npm may be blocked by NVM (NVM4306); use `$MIMO_NODE $MIMO_NPM` when `npm` is untrusted.
