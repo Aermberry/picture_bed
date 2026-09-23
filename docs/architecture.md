@@ -258,7 +258,7 @@ Web API 信封与退出码语义对齐 [`design/cross-cutting.md`](design/cross-
 6. 是否发布到 npm 官方源？（当前仅 GitHub Release tarball）  
 7. ~~Web 子命令名：`ui` 还是 `serve`？~~ **已冻结为 `ui`**（2026-09-23，用户确认）；不为 `serve` 保留别名。  
 8. Web 前端栈：原生 / 轻量 Vite / React？（不影响 AC）  
-9. 拖拽后「无 root」时：强制先绑根，还是允许暂存预览（策略 B）？（默认策略 A）  
+9. ~~拖拽后「无 root」时：强制先绑根，还是允许暂存预览（策略 B）？~~ **已冻结为策略 A：强制先绑根**（2026-09-23）；未绑根不得进入 scan/plan/sync；暂存预览不纳入本期。  
 10. watch 在 UI 默认模式：`preview` / `confirm-each` / `auto`？（默认 `preview`，`auto` 需显式打开）
 
 ---
