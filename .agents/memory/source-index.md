@@ -29,7 +29,7 @@
 | 2026-09-22 | `docs/design/module-cliops.md` | domain design | F1/F2/F10/F15 |
 | 2026-09-22 | `docs/design/cross-cutting.md` | global contracts | exit codes, JSON, flags |
 | 2026-09-22 | `docs/design-reading-guide.md` | onboarding | F/P/module/AC glossary |
-| 2026-09-22 | `index.html` + `styles.css` + `app.js` | design HTML presentation | no runtime product code |
+| 2026-09-22 | `docs/html/index.html` + `styles.css` + `app.js` | design HTML presentation | no runtime product code |
 | 2026-09-22 | `scripts/validate-bootstrap.ps1` | bootstrap layout check | AgentGo layout |
 | 2026-09-22 | `scripts/validate-design.ps1` | design pack check | section/asset validation |
 | 2026-09-22 | `.github/workflows/ci.yml` | CI | Node 20/22: npm ci, lint, build, test |

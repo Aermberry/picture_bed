@@ -4,7 +4,7 @@ $root = Split-Path -Parent $PSScriptRoot
 $fail = @()
 
 foreach ($rel in @(
-  'index.html', 'styles.css', 'app.js',
+  'docs/html/index.html', 'docs/html/styles.css', 'docs/html/app.js',
   'docs/architecture.md', 'docs/features-index.md', 'docs/design-reading-guide.md',
   'docs/design/module-ingest.md', 'docs/design/module-transfer.md',
   'docs/design/module-rewrite.md', 'docs/design/module-cliops.md',
@@ -13,7 +13,7 @@ foreach ($rel in @(
   if (-not (Test-Path (Join-Path $root $rel))) { $fail += "missing: $rel" }
 }
 
-$htmlPath = Join-Path $root 'index.html'
+$htmlPath = Join-Path $root 'docs/html/index.html'
 if (Test-Path $htmlPath) {
   $html = Get-Content $htmlPath -Raw
   foreach ($id in @('guide', 'features', 'architecture', 'modules', 'cli', 'docs')) {

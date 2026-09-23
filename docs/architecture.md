@@ -69,6 +69,7 @@
 
 | 存储 | 内容 | 位置 | 写者 |
 |------|------|------|------|
+| 源文档 | md / html 等 | 用户指定目录（默认原地回写；`--out-dir` 写副本） | 用户 / `LinkRewriter` |
 | HTML 呈现 | 设计评审页 | `docs/html/index.html`（+ `styles.css` / `app.js`） | 设计维护者 |
 | 源图片 | 本地图片文件 | 相对文档目录解析 | **只读**（picbed 不改图片字节） |
 | 配置 | owner/repo/branch/dir/url 风格 | `./picbed.toml` / ENV | `init` / `config set` |

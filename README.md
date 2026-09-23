@@ -2,7 +2,7 @@
 
 本地 CLI：读取 Markdown / HTML 中的内嵌图片，上传到 PicX 同源 **GitHub 图床**，自动回写稳定链接。面向人与 Agent。
 
-设计文档见 [`docs/`](docs/)（F/P/模块/AC），HTML 呈现见 [`index.html`](index.html)。
+设计文档见 [`docs/`](docs/)（F/P/模块/AC），HTML 呈现见 [`docs/html/index.html`](docs/html/index.html)。
 
 ## 安装
 
