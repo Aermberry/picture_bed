@@ -10,16 +10,17 @@ Follow Git Flow for all product work. **One feature point / one coherent change 
 
 | Branch | From | Purpose | When to merge |
 |--------|------|---------|----------------|
-| `feature/<topic>` | `develop` | 一个功能点 / 一次完整变更（如 `feature/f13-multi-host`） | 该 F 的设计+实现+测试完成后 → `develop` |
-| `docs/design` | design freeze | 设计文档 | 设计修订后；里程碑再快照进 release |
+| `feature/<topic>` | `develop` | **产品实现**一个功能点（如 `feature/f13-multi-host`） | 测试完成后 → `develop` |
+| `docs/<topic>` | `develop` 或 `docs/design` | **纯文档/设计**变更（如 `docs/html-layout`） | 设计/文档完成后 → `develop` |
+| `docs/design` | design freeze | 设计文档主线 | 设计修订后；里程碑再快照进 release |
 | `develop` | — | 功能集成 | — |
 | `main` | `develop` | 发布 | Git Flow 发布合并 / FF |
 | `release/*` / `hotfix/*` | `develop`/`main` | 发布/热修 | 按 Git Flow |
 
 Rules:
 1. **禁止**把多个不相关功能点堆进同一长期 `feature/*`（违规示例：F12/F13/F14 全在 `feature/yigecli-mvp`）。
-2. 命名：`feature/f12-watch`、`feature/f13-multi-host`、`feature/f14-mcp`… 或语义化短横线主题。
-3. 集成到 `develop` 前：设计已在 `docs/design` 落地、测试全绿。
+2. 命名：**实现**用 `feature/<topic>`；**纯文档/设计**用 `docs/<topic>`（违规示例：文档迁移用了 `feature/design-html-path`）。
+3. 集成到 `develop` 前：设计已在 `docs/design` 落地（或本次即文档变更）、测试全绿。
 4. 隔离 worktree 不能 `checkout` 时：仍须**逻辑上**按 topic 分支；可用 `git commit-tree` / `git fetch . <sha>:refs/heads/feature/<topic>` 创建，或明确记录「本环境无法建分支」并合并前由主 checkout 拆分。
 
 ## GitHub Release (MANDATORY when shipping)
