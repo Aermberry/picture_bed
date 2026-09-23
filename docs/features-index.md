@@ -34,9 +34,9 @@
 | F12 | watch 监听 | P3→**done** | cliops | 目录变更触发增量 plan/sync；可退出；不引入常驻特权 |
 | F13 | 多图床适配器 | P3→**done** | transfer | HostAdapter 可替换为非 GitHub 后端且 AC7 语义保持 |
 | F14 | VS Code / MCP 包装 | P3→**done** | cliops | 包装层不复制业务规则，只调用 CLI 契约 |
-| F16 | 本地 Web 控制台服务 | P0 | webui | 本机 HTTP 起停、健康检查、token 不出响应 |
-| F17 | 目录/拖拽与计划工作台 | P0 | webui | 路径或拖拽导入；scan/plan；dry-run 无副作用 |
-| F18 | 一键同步 | P0 | webui | 确认后 sync；进度与结果可观察 |
+| F16 | 本地 Web 控制台服务 | P0→**done** | webui | 本机 HTTP 起停、健康检查、token 不出响应 |
+| F17 | 目录/拖拽与计划工作台 | P0→**done** | webui | 路径或拖拽导入；scan/plan；dry-run 无副作用 |
+| F18 | 一键同步 | P0→**done** | webui | 确认后 sync；进度与结果可观察 |
 | F19 | 回滚面板 | P1 | webui | manifest 可视；revert 可 dry-run |
 | F20 | 配置与自检面板 | P1 | webui | config 掩码编辑；doctor 报告可见 |
 | F21 | 审计与报告 | P2 | webui | run 记录/失败明细；JSON 与契约对齐 |
