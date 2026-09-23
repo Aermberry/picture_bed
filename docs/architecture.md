@@ -168,7 +168,7 @@ URL：
 | `upload` | 单文件上传 |
 | `revert` | 按 manifest 还原本地链接 |
 | `config` | get/set/list（token 掩码） |
-| `ui` | 启动本地 Web 控制台（F16，设计中） |
+| `ui` | 启动本地 Web 控制台（F16；命令名已冻结为 `ui`） |
 
 全局：`--json --quiet --verbose --config --cwd --yes --dry-run`  
 退出码：0 成功 / 2 用法 / 3 配置鉴权 / 4 本地文件 / 5 远端 API / 6 部分成功 / 7 需确认。  
@@ -256,7 +256,7 @@ Web API 信封与退出码语义对齐 [`design/cross-cutting.md`](design/cross-
 4. ~~实现语言最终确认 Node/TS 或 Go？~~ **已采用 Node/TS**。  
 5. 是否增加更多 HostAdapter（对象存储等）？  
 6. 是否发布到 npm 官方源？（当前仅 GitHub Release tarball）  
-7. Web 子命令名：`ui` 还是 `serve`？（设计暂用 `ui`）  
+7. ~~Web 子命令名：`ui` 还是 `serve`？~~ **已冻结为 `ui`**（2026-09-23，用户确认）；不为 `serve` 保留别名。  
 8. Web 前端栈：原生 / 轻量 Vite / React？（不影响 AC）  
 9. 拖拽后「无 root」时：强制先绑根，还是允许暂存预览（策略 B）？（默认策略 A）  
 10. watch 在 UI 默认模式：`preview` / `confirm-each` / `auto`？（默认 `preview`，`auto` 需显式打开）

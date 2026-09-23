@@ -45,7 +45,7 @@ ManifestView{ version, entries[] }   # 无 token
 
 ```
 WebUiFacade
-  serve(opts: { host?, port?, open? }): UiServerHandle
+  startUi(opts: { host?, port?, open? }): UiServerHandle   # CLI 入口 `picbed ui`（已冻结命令名）
   # HTTP 映射（信封同 cross-cutting JSON，command 为 api.*）
   # GET  /api/health
   # GET  /api/config          # token 掩码
@@ -133,7 +133,7 @@ WebUiFacade
 
 - 启停映射 F12：`fs.watch` + debounce；忽略 `node_modules`/`.git`/`.picbed`。
 - 模式：`preview`（只 plan）| `confirm-each`（每批确认后 sync）| `auto`（**默认不推荐**；若提供必须二次开启且仍写 RunRecord）。
-- 停止：`watch/stop` 或 serve 退出时级联停止。
+- 停止：`watch/stop` 或 `ui` 服务退出时级联停止。
 - 失败：监听失败 → 错误可见；不引入系统服务/提权。
 
 ## 失败语义
