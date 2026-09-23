@@ -65,7 +65,9 @@ describe('ui F19–F22', () => {
     const doc = await api('/api/doctor', {});
     expect(doc.data.ok).toBe(true);
     const cfg = await api('/api/config');
-    expect(cfg.data.data.token).toMatch(/\*{4}/);
+    const masked = String(cfg.data.data.token ?? '');
+    // 无 token 时为空串；有 token 时必须掩码（不得回显原文）
+    expect(masked === '' || /\*{4}/.test(masked)).toBe(true);
     const raw = JSON.stringify(cfg.data);
     expect(raw).not.toMatch(/ghp_[A-Za-z0-9]{10,}/);
     expect(raw).not.toMatch(/gho_[A-Za-z0-9]{10,}/);
