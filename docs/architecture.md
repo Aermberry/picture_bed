@@ -1,17 +1,17 @@
 # picbed 架构设计
 
-> 状态：**已实现并发布 v0.2.0**（2026-09-22）· Node/TS CLI
+> 状态：**CLI 已实现并发布 v0.2.0**（2026-09-22）；**本地 Web 控制台（F16–F22）设计稿**（2026-09-23，**未实现**）· Node/TS
 > 定位：**架构总纲**（分层 / 存储 / CLI 契约 / 数据模型 / 安全 / NFR / 技术选型）。
 > 功能点的完整规格（优先级、AC、实现归属、双向链接）以 [`features-index.md`](features-index.md) 为唯一来源；本文档不重复其逐条 AC。
 > **新人阅读指南**（F 编号、模块名、文档怎么串）：[`design-reading-guide.md`](design-reading-guide.md)。
-> 范围：本地 CLI **picbed**——扫描目录中 Markdown / HTML 等文档内嵌图片，经 PicX 同源 **GitHub 图床通道**上传，自动回写稳定公开链接；面向人与 **Agent** 双模式。
-> 约束输入（用户确认）：
-> - 形态：**CLI only**（不做 Web UI / 桌面壳；picx-app 已覆盖 GUI）
-> - 痛点：批量处理一篇文章/文件夹中的本地图片；流程须 **Agent 可稳定驱动**
-> - 图床：对齐 PicX 模型 = **GitHub Contents API + URL 风格约定**（非 picx 私有前端接口）；另支持 `local` 后端（F13）
-> - 交付：设计 + 实现已完成（F1–F15）；安装见 README（Release tarball / 源码）
+> 范围：本地工具 **picbed**——扫描目录中 Markdown / HTML 等文档内嵌图片，经 PicX 同源 **GitHub 图床通道**上传，自动回写稳定公开链接；**CLI 供人与 Agent**，**本地 Web 控制台**供人拖拽/点选操作。
+> 约束输入（用户确认 2026-09-23）：
+> - 形态：**CLI + 本地 Web UI**（非公网、非多用户、不做 Tauri/桌面壳）
+> - 痛点：CLI 对人类不友好；希望**拖拽文档**即可工作；Agent 仍走 CLI 契约
+> - 图床：对齐 PicX 模型 = **GitHub Contents API + URL 风格约定**；另支持 `local` 后端（F13）
+> - 交付：F1–F15 已实现；**F16–F22 本期只设计**
 >
-> 技术选型已采用 **Node/TS**（§7）。
+> 技术选型已采用 **Node/TS**（§7）；UI 栈见 §7.1（可改）。
 
 ---
 
@@ -24,9 +24,12 @@
 - G3 回写：把文档中的本地引用替换为公开链接，可 dry-run、可备份、可 revert。
 - G4 Agent 契约：无交互默认、稳定退出码、`--json` schema、幂等重跑。
 - G5 安全：token 不入库、不进日志/manifest；默认拒绝路径越界与绝对路径。
+- G6 本地 Web 控制台：人在浏览器中**拖拽文档/目录**或选择路径完成 scan/plan/sync/revert/config/doctor/watch（F16–F22）。
 
 ### 非目标
-- Web / Tauri GUI（picx-app 已覆盖）。
+- 公网部署、多用户/账号体系、云端托管 UI。
+- Tauri / Electron 桌面壳（若需再单列设计）。
+- 完整图床资产管理 GUI（picx-app 已覆盖）：不做相册/批量改图工具箱。
 - GitHub OAuth 登录（已移除；用 PAT / `gh auth token`）。
 - 图片压缩、水印、裁剪工具箱。
 - 非图片二进制托管（PDF / 视频等）。
@@ -34,20 +37,27 @@
 ### 已超出原 v1 划界但已实现
 - 多图床：`HostAdapter` 工厂（**github | local**，F13）。
 - watch 监听、MCP 包装（F12 / F14）。
+- 本地 Web 控制台（F16–F22）——原「CLI only」非目标已按用户确认收窄为「不做公网/桌面壳」。
 
 ---
 
 ## 2. 总体架构
 
-分层 + 单向依赖：**CLI → 应用编排 → 领域核心 → 主机/文件系统适配器**。核心域无网络 I/O，便于单测。
+分层 + 单向依赖：**CLI / WebUI（呈现）→ 应用编排 → 领域核心 → 主机/文件系统适配器**。核心域无网络 I/O，便于单测。
 
 ```
 ┌──────────────────────────────────────────────────────────┐
 │  CLI 层 picbed                                           │
-│   init · doctor · scan · plan · sync · upload · revert · watch · config │
+│   init · doctor · scan · plan · sync · upload · revert · watch · config · ui │
 │   退出码 / --json / --yes / --dry-run / --quiet             │
 └───────────────▲──────────────────────────────────────────┘
                 │  命令 DTO / 结果 DTO
+┌───────────────┴──────────────────────────────────────────┐
+│  WebUI 呈现层（本地控制台 F16–F22）                        │
+│   静态页 + HTTP API · 拖拽/路径工作台 · ConfirmGate        │
+│   仅 127.0.0.1 · token 不进浏览器                         │
+└───────────────▲──────────────────────────────────────────┘
+                │  同一应用 DTO / JSON 信封
 ┌───────────────┴──────────────────────────────────────────┐
 │  应用编排 Application                                      │
 │   SyncOrchestrator · PlanBuilder · DoctorService           │
@@ -77,6 +87,7 @@
 | Manifest | localPath+sha → publicUrl | `./.picbed/manifest.json` | `ManifestStore` |
 | Backup | 回写前文档副本 | `./.picbed/backup/` | `LinkRewriter` |
 | Cache | sha → 已上传 URL | 并入 manifest 或 `./.picbed/cache.json` | `SyncOrchestrator` |
+| Run 记录 | 每次 sync/revert 等结果摘要 | `./.picbed/runs/`（建议 gitignore） | `RunRecorder`（webui） |
 | 远端图床 | 图片 blob | GitHub 图床仓库 `{dir}/…` | `GitHubHostAdapter` |
 
 设计要点：
@@ -96,6 +107,7 @@
 - **LinkRewriter**：按偏移切片替换 URL，保留 alt/title/srcset 其它候选；原子写。
 - **ManifestStore**：读写映射，支撑幂等、revert、审计。
 - **DoctorService**：配置完整性、token 探测、API 连通与权限。
+- **WebUiFacade / UiServer / ConfirmGate / ViewMapper**（webui）：本机 HTTP 控制台、写操作确认门、拖拽工作集与视图映射；**不**重写域规则（F16–F22）。
 
 ### 2.3 应用编排
 
@@ -156,10 +168,11 @@ URL：
 | `upload` | 单文件上传 |
 | `revert` | 按 manifest 还原本地链接 |
 | `config` | get/set/list（token 掩码） |
+| `ui` | 启动本地 Web 控制台（F16，设计中） |
 
 全局：`--json --quiet --verbose --config --cwd --yes --dry-run`  
 退出码：0 成功 / 2 用法 / 3 配置鉴权 / 4 本地文件 / 5 远端 API / 6 部分成功 / 7 需确认。  
-详细 AC 见 [`features-index.md`](features-index.md)；模块接口见 `design/module-*.md`。
+Web API 信封与退出码语义对齐 [`design/cross-cutting.md`](design/cross-cutting.md)；详细 AC 见 [`features-index.md`](features-index.md)。
 
 ---
 
@@ -168,7 +181,8 @@ URL：
 - Token 最小权限：仅目标图床仓库 Contents 读写。
 - 拒绝：路径穿越（`..` 出根）、默认拒绝绝对路径与 `file://`。
 - 日志/JSON 错误禁止回显 secret；`config list` 掩码。
-- `.picbed/backup`、`manifest` 建议 gitignore（manifest 无 secret 仍建议本地）。
+- `.picbed/backup`、`manifest`、`.picbed/runs` 建议 gitignore（manifest 无 secret 仍建议本地）。
+- **Web 控制台**：默认只监听 `127.0.0.1`；token **永不**进入 HTTP 响应/页面；写操作需页面确认 + 服务端 `confirm`；同源静态 + API，不做跨站开放；非回环绑定须显式且告警。
 
 ---
 
@@ -183,6 +197,15 @@ URL：
 | 测试 | vitest + fixture | go test | 黄金文件友好 |
 
 栈无关设计优先；定栈后仅实例化目录与构建，不改 AC。
+
+### 7.1 Web 控制台（F16–F22，可改）
+
+| 项 | 推荐 | 备选 | 理由 |
+|----|------|------|------|
+| 服务 | Node `http` / 轻量路由（与 CLI 同进程可 spawn） | fastify | 本地单用户，无需重框架 |
+| 前端 | 单页（原生或轻量 Vite） | React | 拖拽 + 列表工作台足够；避免重依赖 |
+| 实时进度 | SSE | 轮询 | sync/watch 推送简单 |
+| 拖拽路径 | 根绑定 + 相对路径解析（默认） | File System Access 预览暂存 | 浏览器不给绝对路径；原地回写必须服务端可解析真实路径 |
 
 ---
 
@@ -218,6 +241,8 @@ URL：
 | M4 回写 | rewrite/revert | P0 | done |
 | M5 打磨 | Agent schema / 发布 | P1 | done（v0.2.0） |
 | M6 扩展 | F12 watch / F13 multi-host / F14 MCP / F15 token auth | P0/P3 | done |
+| M7 Web 控制台 | F16–F18 最小闭环（服务+拖拽工作台+sync） | P0 | **design only** |
+| M8 Web 完备 | F19–F22 revert/config/doctor/审计/watch | P1–P2 | design only |
 
 具体功能点、AC 与模块归属：[`features-index.md`](features-index.md)。
 
@@ -230,7 +255,11 @@ URL：
 3. ~~v1 是否纳入 watch、VS Code 集成？~~ **已实现 F12/F14**。  
 4. ~~实现语言最终确认 Node/TS 或 Go？~~ **已采用 Node/TS**。  
 5. 是否增加更多 HostAdapter（对象存储等）？  
-6. 是否发布到 npm 官方源？（当前仅 GitHub Release tarball）
+6. 是否发布到 npm 官方源？（当前仅 GitHub Release tarball）  
+7. Web 子命令名：`ui` 还是 `serve`？（设计暂用 `ui`）  
+8. Web 前端栈：原生 / 轻量 Vite / React？（不影响 AC）  
+9. 拖拽后「无 root」时：强制先绑根，还是允许暂存预览（策略 B）？（默认策略 A）  
+10. watch 在 UI 默认模式：`preview` / `confirm-each` / `auto`？（默认 `preview`，`auto` 需显式打开）
 
 ---
 
