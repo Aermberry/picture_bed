@@ -41,7 +41,7 @@ Every behavioral change to code **must** land design updates first, then impleme
    - `docs/features-index.md` (F/AC definition authority)
    - relevant `docs/design/module-*.md` / `cross-cutting.md`
    - `docs/architecture.md` when layering/constraints change
-   - `index.html` when the HTML design presentation would go stale
+   - `docs/html/index.html`（设计 HTML 呈现）当展示会过期时——**不放仓库根**
 2. Then implement `src/**` + tests to match the revised design on the **topic `feature/*` branch**.
 3. Do not ship code whose behavior is not described in the design pack (or an explicit, dated exception noted in changelog + open-items).
 
