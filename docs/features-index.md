@@ -9,6 +9,7 @@
 > - **transfer** 模块（F6/F7 上传与 URL）→ [`design/module-transfer.md`](design/module-transfer.md)
 > - **rewrite** 模块（F8/F9 回写与 revert）→ [`design/module-rewrite.md`](design/module-rewrite.md)
 > - **cliops** 模块（F1/F2/F10/F11 配置、doctor、Agent 契约）→ [`design/module-cliops.md`](design/module-cliops.md)
+> - **webui** 模块（F16–F22 本地 Web 控制台，含拖拽工作台）→ [`design/module-webui.md`](design/module-webui.md)
 > - 横切约定 / 退出码 / JSON → [`design/cross-cutting.md`](design/cross-cutting.md)
 >
 > 模块文档内有「功能点映射」节链回本文件，形成相向链接。
@@ -33,6 +34,13 @@
 | F12 | watch 监听 | P3→**done** | cliops | 目录变更触发增量 plan/sync；可退出；不引入常驻特权 |
 | F13 | 多图床适配器 | P3→**done** | transfer | HostAdapter 可替换为非 GitHub 后端且 AC7 语义保持 |
 | F14 | VS Code / MCP 包装 | P3→**done** | cliops | 包装层不复制业务规则，只调用 CLI 契约 |
+| F16 | 本地 Web 控制台服务 | P0 | webui | 本机 HTTP 起停、健康检查、token 不出响应 |
+| F17 | 目录/拖拽与计划工作台 | P0 | webui | 路径或拖拽导入；scan/plan；dry-run 无副作用 |
+| F18 | 一键同步 | P0 | webui | 确认后 sync；进度与结果可观察 |
+| F19 | 回滚面板 | P1 | webui | manifest 可视；revert 可 dry-run |
+| F20 | 配置与自检面板 | P1 | webui | config 掩码编辑；doctor 报告可见 |
+| F21 | 审计与报告 | P2 | webui | run 记录/失败明细；JSON 与契约对齐 |
+| F22 | 监听控制台 | P2 | webui | watch 启停与事件日志；无常驻特权 |
 
 ---
 
@@ -126,13 +134,55 @@
 - 实现（域）：[module-cliops · F14](design/module-cliops.md#f14-vs-code--mcp-包装)
 - AC：包装层不复制业务规则，只调用 CLI 契约。实现：`picbed-mcp` stdio JSON-RPC 服务；tools = doctor/scan/plan/sync/upload/revert；全部 `spawn` 既有 CLI + `--json`。
 
+## F16 本地 Web 控制台服务
+
+- 优先级：P0 · 模块：**webui**
+- 实现（域）：[module-webui · F16](design/module-webui.md#f16-本地-web-控制台服务)
+- AC：`ui` 子命令在本机拉起 HTTP 控制台并打印可访问 URL；默认**仅**监听 `127.0.0.1`；`--port` 可指定端口，占用时失败退出码 2 并提示；SIGINT/SIGTERM 干净退出且不残留监听；`GET /api/health` 返回 `ok:true` 与 `schemaVersion`；**任意** HTTP 响应不得出现 token 明文或可还原 secret。
+
+## F17 目录/拖拽与计划工作台
+
+- 优先级：P0 · 模块：**webui**
+- 实现（域）：[module-webui · F17](design/module-webui.md#f17-目录拖拽与计划工作台)
+- AC：支持**拖拽**导入（单个/多个文档、文件夹）与路径指定两种入口；拖入文件夹可作为扫描根，拖入文档可加入当前工作集并参与 scan/plan；无法映射到服务端真实路径的拖拽项报 `blocked` 且含可诊断原因；界面按 `upload|skip-cache|skip-remote|blocked` 分组展示 reason 与路径；预览/计划模式**不**上传、**不**改写文档；与 CLI `plan` / `sync --dry-run` 分类语义一致。
+
+## F18 一键同步
+
+- 优先级：P0 · 模块：**webui**
+- 实现（域）：[module-webui · F18](design/module-webui.md#f18-一键同步)
+- AC：写盘/上传前界面**显式确认**（服务端写操作需 `confirm` 标志，缺省拒绝并返回需确认错误）；执行中可观察进度与逐条结果；完成后汇总 uploaded / rewritten / skipped / blocked；部分失败可区分展示，且与 CLI 退出码语义对齐（含 partial）；重复执行幂等可预期。
+
+## F19 回滚面板
+
+- 优先级：P1 · 模块：**webui**
+- 实现（域）：[module-webui · F19](design/module-webui.md#f19-回滚面板)
+- AC：可浏览 manifest（doc / raw / publicUrl / sha256）；支持 `revert --dry-run` 等价预览（不写盘）；确认后将 URL 还原为原文档 raw 路径；manifest 损坏时界面可见错误且不静默清空。
+
+## F20 配置与自检面板
+
+- 优先级：P1 · 模块：**webui**
+- 实现（域）：[module-webui · F20](design/module-webui.md#f20-配置与自检面板)
+- AC：可查看当前配置且 **token 一律掩码**；可编辑非 secret 配置键并校验枚举（如 `url.style`）；可触发 doctor 并展示 checks / failures（含缺键名、HTTP 状态）；缺 token 时给出 PAT 与 `gh auth` 获取指引（hint），不回显 secret。
+
+## F21 审计与报告
+
+- 优先级：P2 · 模块：**webui**
+- 实现（域）：[module-webui · F21](design/module-webui.md#f21-审计与报告)
+- AC：可查看最近 run 记录（时间、命令、counts、ok/partial/fail）；可展开失败明细（path + reason + 退出码语义）；可导出 JSON，信封含 `schemaVersion` 且字段与 [`cross-cutting.md`](design/cross-cutting.md) 对齐；报告**无 token**。
+
+## F22 监听控制台
+
+- 优先级：P2 · 模块：**webui**
+- 实现（域）：[module-webui · F22](design/module-webui.md#f22-监听控制台)
+- AC：可对目录启停 watch（等价 F12 语义）；变更批次在界面可见；可选择「仅预览」或「确认后同步」；停止后进程/监听退出，**无**常驻特权；忽略规则与 F12 一致（`node_modules`/`.git`/`.picbed`）。
+
 ---
 
 ## 优先级说明
 
-- **P0**：最小可用闭环（配置→抽取→计划→上传→回写→Agent JSON）。
-- **P1**：revert/manifest 完备、单文件上传。
-- **P2**：（预留）增强，如更丰富 report。
+- **P0**：最小可用闭环（配置→抽取→计划→上传→回写→Agent JSON）；Web 控制台最小闭环（F16–F18）。
+- **P1**：revert/manifest 完备、单文件上传；Web 回滚与配置/doctor（F19–F20）。
+- **P2**：Web 审计报告与 watch 控制台（F21–F22）；更丰富 report 增强。
 - **P3**：原 backlog（watch、多图床、IDE 集成）——**均已实现**，保留编号仅作交付史。
 
 *定义以本表为准；实现细节以 module-* / cross-cutting 为准；冲突须显式修文档。*

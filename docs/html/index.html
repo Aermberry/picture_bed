@@ -42,14 +42,15 @@
         <p class="lede">
           写法对齐 <code>my_gallery/docs</code>：<strong>先用 F/P/模块/AC 标识体系</strong>写 Markdown 设计族谱，
           本页仅作 <strong>HTML 呈现层</strong>，便于浏览器浏览与评审。权威定义在 <code>docs/features-index.md</code>。
-          <strong>F1–F15 已实现</strong>（Node/TS CLI）。
+          <strong>F1–F15 已实现</strong>（Node/TS CLI）；<strong>F16–F22 本地 Web 控制台（含拖拽工作台）设计中</strong>。
         </p>
         <div class="meta-row">
-          <span class="pill">CLI only</span>
+          <span class="pill">CLI + 本地 Web UI</span>
+          <span class="pill">拖拽文档工作台</span>
           <span class="pill">GitHub Contents API（PicX 同源）</span>
-          <span class="pill">F1–F15 done</span>
+          <span class="pill">F1–F15 done · F16–F22 design</span>
           <span class="pill">v0.2.0</span>
-          <span class="pill">2026-09-22</span>
+          <span class="pill">2026-09-23</span>
         </div>
       </header>
 
@@ -78,7 +79,7 @@
           </article>
           <article class="card">
             <h3>模块 · 归属</h3>
-            <p>主责限界上下文：<code>ingest</code> / <code>transfer</code> / <code>rewrite</code> / <code>cliops</code>。</p>
+            <p>主责限界上下文：<code>ingest</code> / <code>transfer</code> / <code>rewrite</code> / <code>cliops</code> / <code>webui</code>。</p>
           </article>
           <article class="card">
             <h3>AC · 验收</h3>
@@ -105,8 +106,9 @@
           <li>G3 回写链接：dry-run / backup / revert</li>
           <li>G4 Agent 契约：<code>--json</code>、退出码、无 TTY、幂等</li>
           <li>G5 安全：token 不入库；默认拒路径越界</li>
+          <li>G6 本地 Web 控制台：<strong>拖拽文档/目录</strong>或路径指定，完成 scan/plan/sync/revert 等</li>
         </ul>
-        <p><strong>非目标：</strong>Web/Tauri、OAuth 登录（已移除）、图片工具箱。watch / 多图床 / MCP 已实现（原 P3）。</p>
+        <p><strong>非目标：</strong>公网/多用户 UI、Tauri/桌面壳、OAuth 登录（已移除）、图片工具箱。watch / 多图床 / MCP 已实现（原 P3）。</p>
       </section>
 
       <section id="features">
@@ -133,6 +135,13 @@
               <tr><td>F13</td><td>多图床适配器</td><td>P3→done</td><td>transfer</td><td>HostAdapter：github | local</td></tr>
               <tr><td>F14</td><td>VS Code / MCP 包装</td><td>P3→done</td><td>cliops</td><td>picbed-mcp 只转调 CLI --json</td></tr>
               <tr><td>F15</td><td>GitHub Token 鉴权</td><td>P0→done</td><td>cliops</td><td>PAT / GITHUB_TOKEN / gh auth；无 OAuth</td></tr>
+              <tr><td>F16</td><td>本地 Web 控制台服务</td><td>P0</td><td>webui</td><td>本机起停；health；token 不出响应</td></tr>
+              <tr><td>F17</td><td>目录/拖拽与计划工作台</td><td>P0</td><td>webui</td><td>拖拽文档/文件夹；scan/plan；dry-run 无副作用</td></tr>
+              <tr><td>F18</td><td>一键同步</td><td>P0</td><td>webui</td><td>显式确认后 sync；进度与 partial 可观察</td></tr>
+              <tr><td>F19</td><td>回滚面板</td><td>P1</td><td>webui</td><td>manifest 可视；revert 可 dry-run</td></tr>
+              <tr><td>F20</td><td>配置与自检面板</td><td>P1</td><td>webui</td><td>config 掩码；doctor 报告</td></tr>
+              <tr><td>F21</td><td>审计与报告</td><td>P2</td><td>webui</td><td>run 记录；失败明细；JSON 对齐</td></tr>
+              <tr><td>F22</td><td>监听控制台</td><td>P2</td><td>webui</td><td>watch 启停与事件；无常驻特权</td></tr>
             </tbody>
           </table>
         </div>
@@ -140,37 +149,42 @@
 
       <section id="architecture">
         <h2>4. 总体架构</h2>
-        <p>CLI → 应用编排 → 领域核心（无 I/O）→ Host / LocalStore 适配器。</p>
+        <p>CLI / WebUI（呈现）→ 应用编排 → 领域核心（无 I/O）→ Host / LocalStore 适配器。</p>
         <figure class="diagram" aria-label="架构图">
-          <svg viewBox="0 0 680 400" xmlns="http://www.w3.org/2000/svg" role="img">
+          <svg viewBox="0 0 680 460" xmlns="http://www.w3.org/2000/svg" role="img">
             <defs>
               <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
                 <path d="M0,0 L6,3 L0,6" fill="none" stroke="#334155" stroke-width="1"/>
               </marker>
             </defs>
-            <rect x="40" y="28" width="600" height="52" rx="8" fill="#E8EEF7" stroke="#94A3B8" stroke-width="0.5"/>
-            <text x="340" y="58" text-anchor="middle" dominant-baseline="central" font-size="14" fill="#0F172A">CLI 层 · init/doctor/scan/plan/sync/upload/revert/watch/config</text>
+            <rect x="40" y="20" width="600" height="44" rx="8" fill="#E8EEF7" stroke="#94A3B8" stroke-width="0.5"/>
+            <text x="340" y="46" text-anchor="middle" dominant-baseline="central" font-size="13" fill="#0F172A">CLI · init/doctor/scan/plan/sync/upload/revert/watch/config/ui</text>
 
-            <rect x="40" y="110" width="600" height="48" rx="8" fill="#F8FAFC" stroke="#94A3B8" stroke-width="0.5"/>
-            <text x="340" y="138" text-anchor="middle" dominant-baseline="central" font-size="13" fill="#0F172A">应用编排 · SyncOrchestrator / PlanBuilder / DoctorService</text>
+            <rect x="40" y="88" width="600" height="52" rx="8" fill="#FEF3C7" stroke="#D97706" stroke-width="0.5"/>
+            <text x="340" y="110" text-anchor="middle" font-size="13" fill="#0F172A">WebUI 本地控制台（F16–F22）</text>
+            <text x="340" y="128" text-anchor="middle" font-size="11" fill="#78350F">拖拽文档/目录工作台 · ConfirmGate · 127.0.0.1 · token 不进浏览器</text>
 
-            <rect x="40" y="188" width="600" height="64" rx="8" fill="#EEF2FF" stroke="#818CF8" stroke-width="0.5"/>
-            <text x="340" y="214" text-anchor="middle" font-size="13" fill="#0F172A">领域核心（无 I/O）</text>
-            <text x="340" y="236" text-anchor="middle" font-size="11" fill="#475569">Scanner · Extractor · Resolver · Deduper · Rewriter · Manifest</text>
+            <rect x="40" y="168" width="600" height="48" rx="8" fill="#F8FAFC" stroke="#94A3B8" stroke-width="0.5"/>
+            <text x="340" y="196" text-anchor="middle" dominant-baseline="central" font-size="13" fill="#0F172A">应用编排 · SyncOrchestrator / PlanBuilder / DoctorService</text>
 
-            <rect x="40" y="284" width="280" height="64" rx="8" fill="#F8FAFC" stroke="#94A3B8" stroke-width="0.5"/>
-            <text x="180" y="310" text-anchor="middle" font-size="12" fill="#0F172A">HostAdapter</text>
-            <text x="180" y="330" text-anchor="middle" font-size="11" fill="#475569">github | local · URL 风格</text>
+            <rect x="40" y="246" width="600" height="64" rx="8" fill="#EEF2FF" stroke="#818CF8" stroke-width="0.5"/>
+            <text x="340" y="272" text-anchor="middle" font-size="13" fill="#0F172A">领域核心（无 I/O）</text>
+            <text x="340" y="294" text-anchor="middle" font-size="11" fill="#475569">Scanner · Extractor · Resolver · Deduper · Rewriter · Manifest</text>
 
-            <rect x="360" y="284" width="280" height="64" rx="8" fill="#F8FAFC" stroke="#94A3B8" stroke-width="0.5"/>
-            <text x="500" y="310" text-anchor="middle" font-size="12" fill="#0F172A">LocalStore</text>
-            <text x="500" y="330" text-anchor="middle" font-size="11" fill="#475569">FS · hash · cache · backup · manifest</text>
+            <rect x="40" y="340" width="280" height="64" rx="8" fill="#F8FAFC" stroke="#94A3B8" stroke-width="0.5"/>
+            <text x="180" y="366" text-anchor="middle" font-size="12" fill="#0F172A">HostAdapter</text>
+            <text x="180" y="386" text-anchor="middle" font-size="11" fill="#475569">github | local · URL 风格</text>
 
-            <line x1="340" y1="80" x2="340" y2="110" stroke="#334155" stroke-width="1" marker-end="url(#arrow)"/>
-            <line x1="340" y1="158" x2="340" y2="188" stroke="#334155" stroke-width="1" marker-end="url(#arrow)"/>
-            <line x1="180" y1="252" x2="180" y2="284" stroke="#334155" stroke-width="1" marker-end="url(#arrow)"/>
-            <line x1="500" y1="252" x2="500" y2="284" stroke="#334155" stroke-width="1" marker-end="url(#arrow)"/>
-            <text x="340" y="380" text-anchor="middle" font-size="11" fill="#64748B">图片字节只读 · 回写只改文档 URL 子串 · token 不进核心模型</text>
+            <rect x="360" y="340" width="280" height="64" rx="8" fill="#F8FAFC" stroke="#94A3B8" stroke-width="0.5"/>
+            <text x="500" y="366" text-anchor="middle" font-size="12" fill="#0F172A">LocalStore</text>
+            <text x="500" y="386" text-anchor="middle" font-size="11" fill="#475569">FS · hash · cache · backup · manifest · runs</text>
+
+            <line x1="340" y1="64" x2="340" y2="88" stroke="#334155" stroke-width="1" marker-end="url(#arrow)"/>
+            <line x1="340" y1="140" x2="340" y2="168" stroke="#334155" stroke-width="1" marker-end="url(#arrow)"/>
+            <line x1="340" y1="216" x2="340" y2="246" stroke="#334155" stroke-width="1" marker-end="url(#arrow)"/>
+            <line x1="180" y1="310" x2="180" y2="340" stroke="#334155" stroke-width="1" marker-end="url(#arrow)"/>
+            <line x1="500" y1="310" x2="500" y2="340" stroke="#334155" stroke-width="1" marker-end="url(#arrow)"/>
+            <text x="340" y="440" text-anchor="middle" font-size="11" fill="#64748B">图片字节只读 · 回写只改文档 URL 子串 · token 不进核心模型</text>
           </svg>
         </figure>
       </section>
@@ -205,6 +219,12 @@
                 <td>F1–F2, F10, F12, F14, F15</td>
                 <td><code>docs/design/module-cliops.md</code></td>
               </tr>
+              <tr>
+                <td><code>webui</code></td>
+                <td>本地 Web 控制台：拖拽工作台、确认门、审计</td>
+                <td>F16–F22</td>
+                <td><code>docs/design/module-webui.md</code></td>
+              </tr>
             </tbody>
           </table>
         </div>
@@ -223,7 +243,7 @@
               <tr><td>4</td><td>本地文件</td><td>缺失、越界</td></tr>
               <tr><td>5</td><td>远端 API</td><td>限流、5xx</td></tr>
               <tr><td>6</td><td>部分成功</td><td>部分文档失败</td></tr>
-              <tr><td>7</td><td>需确认</td><td>无 <code>--yes</code> 且将写盘</td></tr>
+              <tr><td>7</td><td>需确认</td><td>无 <code>--yes</code> / Web 缺 <code>confirm</code></td></tr>
             </tbody>
           </table>
         </div>
@@ -235,7 +255,7 @@
   "warnings": [],
   "error": null
 }</code></pre>
-        <p>全局旗标：<code>--json --quiet --verbose --config --cwd --yes --dry-run</code>。详见 <code>docs/design/cross-cutting.md</code>。</p>
+        <p>全局旗标：<code>--json --quiet --verbose --config --cwd --yes --dry-run</code>；Web API 同信封（<code>command: api.*</code>）。详见 <code>docs/design/cross-cutting.md</code>。</p>
       </section>
 
       <section id="upload">
@@ -255,7 +275,8 @@ https://cdn.jsdelivr.net/gh/{owner}/{repo}@{branch}/{path}
         <h2>8. 测试与验证</h2>
         <ul>
           <li>单测（extract/resolve/rewrite）对齐 F4/F5/F8；Host mock 对齐 F7；CLI JSON 对齐 F10；e2e fixture 对齐 F6–F9。</li>
-          <li>黄金用例：代码块内 <code>![]()</code> 不改写；中文路径；同图多引用；已 URL 跳过。</li>
+          <li>Web：health/confirm/掩码（F16/F18/F20）；拖拽解析与 plan 分组（F17）；revert/runs/watch（F19/F21/F22）。</li>
+          <li>黄金用例：代码块内 <code>![]()</code> 不改写；中文路径；同图多引用；已 URL 跳过；拖拽项不在 root 下 → blocked。</li>
           <li>交付规则：<strong>每次改动相关测试/验证全部通过</strong>；设计阶段用 <code>scripts/validate-design.ps1</code> 校验 docs 结构与本页锚点。</li>
         </ul>
       </section>
@@ -269,7 +290,7 @@ https://cdn.jsdelivr.net/gh/{owner}/{repo}@{branch}/{path}
               <tr><td>阅读指南</td><td><code>docs/design-reading-guide.md</code></td></tr>
               <tr><td>架构总纲</td><td><code>docs/architecture.md</code></td></tr>
               <tr><td>功能点总表（F 权威）</td><td><code>docs/features-index.md</code></td></tr>
-              <tr><td>模块详设</td><td><code>docs/design/module-{ingest,transfer,rewrite,cliops}.md</code></td></tr>
+              <tr><td>模块详设</td><td><code>docs/design/module-{ingest,transfer,rewrite,cliops,webui}.md</code></td></tr>
               <tr><td>横切约定</td><td><code>docs/design/cross-cutting.md</code></td></tr>
               <tr><td>HTML 呈现（本页）</td><td><code>docs/html/index.html</code> + <code>styles.css</code> + <code>app.js</code></td></tr>
             </tbody>
@@ -282,11 +303,13 @@ https://cdn.jsdelivr.net/gh/{owner}/{repo}@{branch}/{path}
         <ul class="check">
           <li><strong>已冻结：</strong>命令/包名 <code>picbed</code>；栈 Node/TS；F1–F15 已实现；OAuth 登录已移除</li>
           <li><strong>已发布：</strong>GitHub Release <code>v0.2.0</code>（<code>picbed.tgz</code> 跟随 latest）</li>
+          <li><strong>设计中：</strong>F16–F22 本地 Web 控制台（含<strong>拖拽文档</strong>工作台）——本期只设计</li>
         </ul>
         <ul>
           <li>URL 默认风格是否在文档示例中再收紧？</li>
           <li>是否增加更多 HostAdapter 后端（对象存储等）？</li>
           <li>npm 官方源发布？（当前仅 GitHub Release tarball）</li>
+          <li>Web 子命令名 <code>ui</code>/<code>serve</code>；前端栈；拖拽无 root 时强制绑根 vs 暂存预览；watch 默认 preview/confirm-each/auto</li>
         </ul>
       </section>
 
