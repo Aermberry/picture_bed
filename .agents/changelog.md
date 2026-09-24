@@ -53,3 +53,4 @@
 2026-09-23T20:10:00Z | mimo | update | README.md | Add npx tarball install/run usage (not npm registry name) | User: 在readme上补充npx用法
 2026-09-23T20:30:00Z | mimo | create | feature/npm-publish | package.json meta + release.yml npm publish + docs Q6 | User: 已注册 npm 账号
 2026-09-24T12:40:59Z | mimo | create | openspec/ + .agents/skills/openspec-* + .agents/workflows/opsx-* | Ran `openspec init` (Antigravity profile, schema spec-driven); doctor OK | User: openspec init
+2026-09-24T12:45:00Z | mimo | create | bcf3df6 feature/npm-publish | Commit OpenSpec scaffold + @fission-ai/openspec dep + npm run openspec; 39/39 tests; author forced Aermberry noreply via GIT_* env (PowerShell `git -c user.name="..."` failed) | User: 好的（提交）
