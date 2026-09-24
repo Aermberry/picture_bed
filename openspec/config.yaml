@@ -1,0 +1,42 @@
+schema: spec-driven
+
+context: |
+  Project: picture_bed · picbed — local CLI + Web console that extracts images from
+  Markdown/HTML, uploads to a PicX-style GitHub image host, and rewrites stable links.
+  Stack: TypeScript ESM, Node.js >= 20, commander, vitest, tsc.
+  Commits: conventional `type(scope): description` (feat|fix|refactor|docs|test|chore).
+  Process: design-before-implementation — update the design pack first, then code + tests.
+  Definition authority: docs/features-index.md (F/P/module/AC). Feature IDs F1-F22.
+  Modules: ingest (F3-F5), transfer (F6/F7/F11), rewrite (F8/F9), cliops (F1/F2/F10/F12/F14/F15),
+  webui (F16-F22). Architecture: docs/architecture.md. Contracts: docs/design/cross-cutting.md.
+  Domain designs: docs/design/module-*.md. Reading guide: docs/design-reading-guide.md.
+  Validation: npm test, npm run lint (tsc --noEmit), npm run build.
+  Git Flow: feature/<topic> for implementation, docs/<topic> for docs/design;
+  design-pack revisions land on docs/design then merge into develop.
+  Agent protocol: AGENTS.md (AgentGo) + .agents/ memory. Do not invent a second spec system
+  alongside F/P/AC — OpenSpec changes should reference existing F IDs and module docs.
+
+rules:
+  proposal:
+    - Treat docs/features-index.md as the source of truth for feature definitions and acceptance criteria.
+    - Reference existing F/P/module/AC IDs; do not invent a parallel numbering scheme.
+    - Always include a "Non-goals" section when scope could expand.
+    - State which module (ingest/transfer/rewrite/cliops/webui) owns the change.
+  design:
+    - Check docs/architecture.md and docs/design/module-*.md; flag conflicts instead of silently replacing existing design.
+    - Keep AC scenarios aligned with the F entry in docs/features-index.md (single definition authority).
+    - Call out exit-code and --json schemaVersion impacts from docs/design/cross-cutting.md when relevant.
+  tasks:
+    - Land design-pack updates before implementation tasks (see delivery.md design-before-implementation).
+    - Break tasks so each coding batch maps to one feature point / one feature/<topic> branch.
+    - Include test updates (vitest) and validation commands in the task list.
+
+operations:
+  apply:
+    guidance:
+      - If tasks imply behavior change, confirm the design pack is already updated on docs/design or in this change.
+      - Run npm test and npm run lint before claiming completion.
+  archive:
+    guidance:
+      - After archive, ensure docs/features-index.md still matches shipped behavior; update F status if needed.
+      - Merge docs/design into develop after any design-pack commit; do not leave docs/design dangling.

@@ -37,5 +37,8 @@
 | 2026-09-22 | `vitest.config.ts` | test runner config | vitest |
 | 2026-09-22 | `tsconfig.json` | TS project | ESM build to `dist/` |
 | 2026-09-22 | `.gitignore` | ignore rules | OS/env/node/build/IDE + picbed local secrets |
+| 2026-09-24 | `openspec/config.yaml` | OpenSpec root config | schema `spec-driven`; context/rules 对齐 F/P/AC + design-first |
+| 2026-09-24 | `@fission-ai/openspec` | OpenSpec CLI dep | package.json dep `^1.13.2`；change 工作流，不取代 `docs/features-index` |
+| 2026-09-24 | `.agents/skills/openspec-*` + `.agents/workflows/opsx-*` | OpenSpec AI workflows | `openspec init` 生成；提交在 `docs/openspec` |
 
 No CI config found. Contribution/style guides not present beyond README and design pack.

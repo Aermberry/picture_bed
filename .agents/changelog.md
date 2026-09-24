@@ -52,3 +52,7 @@
 2026-09-23 | update | git history refs/heads/{develop,docs/*,feature/f16-webui} | Rewrote CC-authored commits to Aermberry noreply via filter-branch/commit-tree; restored stashed ui CLI wiring | User approved author rewrite
 2026-09-23T20:10:00Z | mimo | update | README.md | Add npx tarball install/run usage (not npm registry name) | User: 在readme上补充npx用法
 2026-09-23T20:30:00Z | mimo | create | feature/npm-publish | package.json meta + release.yml npm publish + docs Q6 | User: 已注册 npm 账号
+2026-09-24T12:40:59Z | mimo | create | openspec/ + .agents/skills/openspec-* + .agents/workflows/opsx-* | Ran `openspec init` (Antigravity profile, schema spec-driven); doctor OK | User: openspec init
+2026-09-24T12:45:00Z | mimo | create | bcf3df6 feature/npm-publish | Commit OpenSpec scaffold + @fission-ai/openspec dep + npm run openspec; 39/39 tests; author forced Aermberry noreply via GIT_* env (PowerShell `git -c user.name="..."` failed) | User: 好的（提交）
+2026-09-24T13:05:00Z | mimo:ses_ffe5f2e49c257ffeN1IR0yE1vr | delete | openspec/ + .agents/skills/openspec-* + .agents/workflows/opsx-* + @fission-ai/openspec | Removed OpenSpec scaffold and CLI dep; design authority stays F/P/AC + .agents | User: 按照你的建议执行（不采用 OpenSpec）
+2026-09-24T13:40:00Z | mimo:ses_ffe5f2e49c257ffeN1IR0yE1vr | create | docs/openspec @ 236ad43+5f66a40 | User reversed: keep OpenSpec on dedicated docs/openspec (from develop); config.yaml grounded in F/P/AC; reinstall CLI dep | User: 2（保留 OpenSpec）
