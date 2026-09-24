@@ -255,7 +255,7 @@ Web API 信封与退出码语义对齐 [`design/cross-cutting.md`](design/cross-
 3. ~~v1 是否纳入 watch、VS Code 集成？~~ **已实现 F12/F14**。  
 4. ~~实现语言最终确认 Node/TS 或 Go？~~ **已采用 Node/TS**。  
 5. 是否增加更多 HostAdapter（对象存储等）？  
-6. 是否发布到 npm 官方源？（当前仅 GitHub Release tarball）  
+6. ~~是否发布到 npm 官方源？（当前仅 GitHub Release tarball）~~ **已启用双通道**（2026-09-23，用户已注册 npm 账号）：GitHub Release tarball **+** `npm publish`（`npx picbed` / `npm i -g picbed`）。  
 7. ~~Web 子命令名：`ui` 还是 `serve`？~~ **已冻结为 `ui`**（2026-09-23，用户确认）；不为 `serve` 保留别名。  
 8. ~~Web 前端栈：原生 / 轻量 Vite / React？~~ **已冻结为轻量 Vite + 原生 SPA（不引入 React）**（2026-09-23，采纳建议）。  
 9. ~~拖拽后「无 root」时：强制先绑根，还是允许暂存预览（策略 B）？~~ **已冻结为策略 A：强制先绑根**（2026-09-23）；未绑根不得进入 scan/plan/sync；暂存预览不纳入本期。  
