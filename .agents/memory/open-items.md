@@ -19,4 +19,7 @@
 | 2026-09-23 | Web 前端栈 / watch 默认模式 | **closed** | 采纳建议：轻量 Vite + 原生 SPA；watch 默认 `preview` |
 | 2026-09-23 | F16–F18 本地 Web 控制台实现 | **closed** | `picbed ui` + 拖拽工作台 + confirm sync；33/33 tests；feature/f16-webui → develop |
 | 2026-09-23 | F19–F22 Web 面板 | **closed** | revert/config-doctor/runs/watch；39/39 tests |
-| 2026-09-24 | Commit OpenSpec scaffold + openspec dep | **closed** | `bcf3df6` on `feature/npm-publish` (Aermberry noreply); 39/39 tests green |
+| 2026-09-24 | Commit OpenSpec scaffold + openspec dep | **closed** | 现落在 `docs/openspec`（`236ad43`/`5f66a40` + config）；曾误堆 `feature/npm-publish` |
+| 2026-09-24 | Push `docs/openspec` / merge → `develop` | **open** | 未推送；合并前确认是否先并入 `docs/design` 或直接 develop（工具链配置） |
+| 2026-09-24 | Delete `Aermberry/feat-openspec-init` | **blocked** | snaggletooth worktree 有未提交改动（`openspec/`、`.claude/`）；确认后再 worktree remove + branch -D |
+| 2026-09-24 | Clean `feature/npm-publish` OpenSpec add/remove | **open** | 应将 `feature/npm-publish` 收回到 `5a160cf`（纯 npm-publish），OpenSpec 只在 `docs/openspec` |
