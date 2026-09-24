@@ -57,3 +57,4 @@
 2026-09-24T13:05:00Z | mimo:ses_ffe5f2e49c257ffeN1IR0yE1vr | delete | openspec/ + .agents/skills/openspec-* + .agents/workflows/opsx-* + @fission-ai/openspec | Removed OpenSpec scaffold and CLI dep; design authority stays F/P/AC + .agents | User: 按照你的建议执行（不采用 OpenSpec）
 2026-09-24T13:40:00Z | mimo:ses_ffe5f2e49c257ffeN1IR0yE1vr | create | docs/openspec @ 236ad43+5f66a40 | User reversed: keep OpenSpec on dedicated docs/openspec (from develop); config.yaml grounded in F/P/AC; reinstall CLI dep | User: 2（保留 OpenSpec）
 2026-09-24T14:05:00Z | mimo:ses_ffe5f2e49c257ffeN1IR0yE1vr | merge | docs/openspec → develop @ 43fc1bc; push docs/openspec + develop | Landed OpenSpec tooling on develop via commit-tree merge (worktree blocks git merge) | User: 合并并推送
+2026-09-25T00:50:00Z | mimo:ses_ffe5f2e49c257ffeN1IR0yE1vr | create | release/0.3.2 | Bump package.json 0.3.2 (OIDC npm publish + OpenSpec tooling + npx docs); 39/39 tests | User: 发布吧
