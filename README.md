@@ -17,12 +17,49 @@ npm install -g https://github.com/Aermberry/picture_bed/releases/latest/download
 也可到 [Releases](https://github.com/Aermberry/picture_bed/releases) 下载带版本号的 `picbed-x.y.z.tgz` 后：
 
 ```powershell
-npm install -g .\picbed-0.3.0.tgz
+npm install -g .\picbed-0.3.1.tgz
 ```
 
 装好后可用全局命令：`picbed`、`picbed-mcp`。
 
-**方式 2 · 从源码**
+**方式 2 · npm 官方源（已发布后可用）**
+
+```bash
+npm install -g picbed
+# 或免安装：
+npx picbed ui
+```
+
+**方式 3 · npx 直接跑 Release tarball（无需 npm 源）**
+
+不写进全局依赖，直接跑 Release 包（npm ≥ 7）：
+
+```bash
+npx --yes https://github.com/Aermberry/picture_bed/releases/latest/download/picbed.tgz ui
+```
+
+其它子命令同理，参数接在包后面：
+
+```bash
+npx --yes https://github.com/Aermberry/picture_bed/releases/latest/download/picbed.tgz doctor --json
+npx --yes https://github.com/Aermberry/picture_bed/releases/latest/download/picbed.tgz plan ./docs
+```
+
+也可先下载再 npx：
+
+```powershell
+Invoke-WebRequest -Uri https://github.com/Aermberry/picture_bed/releases/latest/download/picbed.tgz -OutFile picbed.tgz
+npx --yes .\picbed.tgz ui
+```
+
+```bash
+curl -L -o picbed.tgz https://github.com/Aermberry/picture_bed/releases/latest/download/picbed.tgz
+npx --yes ./picbed.tgz ui
+```
+
+> **说明**：若 npm 源尚未同步到当前版本，可用下方 tarball 的 `npx` / `npm install -g …/picbed.tgz`。不要用未注册前的裸名 `npx picbed`。
+
+**方式 4 · 从源码**
 
 ```bash
 git clone https://github.com/Aermberry/picture_bed.git
