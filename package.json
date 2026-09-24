@@ -1,8 +1,19 @@
 {
   "name": "picbed",
-  "version": "0.3.0",
-  "description": "Local CLI: extract images from markdown/html, upload to PicX-style GitHub image host, rewrite links",
+  "version": "0.3.1",
+  "description": "Local CLI + Web console: extract images from markdown/html, upload to PicX-style GitHub image host, rewrite links",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aermberry/picture_bed.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Aermberry/picture_bed/issues"
+  },
+  "homepage": "https://github.com/Aermberry/picture_bed#readme",
+  "publishConfig": {
+    "access": "public"
+  },
   "bin": {
     "picbed": "./bin/picbed.js",
     "picbed-mcp": "./bin/picbed-mcp.js"
