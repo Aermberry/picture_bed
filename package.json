@@ -28,7 +28,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "tsc -p tsconfig.json --noEmit",
-    "picbed": "node ./bin/picbed.js"
+    "picbed": "node ./bin/picbed.js",
+    "openspec": "openspec"
   },
   "engines": {
     "node": ">=20"
@@ -43,6 +44,7 @@
   ],
   "license": "MIT",
   "dependencies": {
+    "@fission-ai/openspec": "^1.13.2",
     "commander": "^12.1.0"
   },
   "devDependencies": {

@@ -19,3 +19,4 @@
 | 2026-09-23 | Web 前端栈 / watch 默认模式 | **closed** | 采纳建议：轻量 Vite + 原生 SPA；watch 默认 `preview` |
 | 2026-09-23 | F16–F18 本地 Web 控制台实现 | **closed** | `picbed ui` + 拖拽工作台 + confirm sync；33/33 tests；feature/f16-webui → develop |
 | 2026-09-23 | F19–F22 Web 面板 | **closed** | revert/config-doctor/runs/watch；39/39 tests |
+| 2026-09-24 | Commit OpenSpec scaffold + openspec dep | **open** | `openspec/`, `.agents/skills/openspec-*`, `.agents/workflows/opsx-*`, `package.json`(+lock) 未提交；等用户确认后 commit |
