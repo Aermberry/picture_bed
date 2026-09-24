@@ -47,5 +47,14 @@
 2026-09-23T13:00:00Z | mimo | update | freeze web FE stack + watch default | Vite+native SPA; watch default preview | User: 按照你的建议即可
 2026-09-23T17:45:00Z | mimo | create | F16–F18 web console impl | picbed ui + RootBinder policy A + confirm sync; 33/33 tests | User: 进入实现
 2026-09-23T18:30:00Z | mimo | create | F19–F22 web panels | revert/config-doctor/runs/watch; 39/39 tests | User: 继续做 P1/P2
+2026-09-23T19:55:00Z | mimo | create | GitHub Release v0.3.1 | tag push → release.yml; dual assets picbed-0.3.1.tgz + picbed.tgz; v0.3.0 tag orphaned (test fail) | User: 好的（发版）
 2026-09-23 | update | .agents/memory/gotchas.md + project-overview.md | Recorded global git user.name=CC leak into design commits; require explicit Aermberry noreply identity on agent commits | User reported wrong commit author
 2026-09-23 | update | git history refs/heads/{develop,docs/*,feature/f16-webui} | Rewrote CC-authored commits to Aermberry noreply via filter-branch/commit-tree; restored stashed ui CLI wiring | User approved author rewrite
+2026-09-23T20:10:00Z | mimo | update | README.md | Add npx tarball install/run usage (not npm registry name) | User: 在readme上补充npx用法
+2026-09-23T20:30:00Z | mimo | create | feature/npm-publish | package.json meta + release.yml npm publish + docs Q6 | User: 已注册 npm 账号
+2026-09-24T12:40:59Z | mimo | create | openspec/ + .agents/skills/openspec-* + .agents/workflows/opsx-* | Ran `openspec init` (Antigravity profile, schema spec-driven); doctor OK | User: openspec init
+2026-09-24T12:45:00Z | mimo | create | bcf3df6 feature/npm-publish | Commit OpenSpec scaffold + @fission-ai/openspec dep + npm run openspec; 39/39 tests; author forced Aermberry noreply via GIT_* env (PowerShell `git -c user.name="..."` failed) | User: 好的（提交）
+2026-09-24T13:05:00Z | mimo:ses_ffe5f2e49c257ffeN1IR0yE1vr | delete | openspec/ + .agents/skills/openspec-* + .agents/workflows/opsx-* + @fission-ai/openspec | Removed OpenSpec scaffold and CLI dep; design authority stays F/P/AC + .agents | User: 按照你的建议执行（不采用 OpenSpec）
+2026-09-24T13:40:00Z | mimo:ses_ffe5f2e49c257ffeN1IR0yE1vr | create | docs/openspec @ 236ad43+5f66a40 | User reversed: keep OpenSpec on dedicated docs/openspec (from develop); config.yaml grounded in F/P/AC; reinstall CLI dep | User: 2（保留 OpenSpec）
+2026-09-24T14:05:00Z | mimo:ses_ffe5f2e49c257ffeN1IR0yE1vr | merge | docs/openspec → develop @ 43fc1bc; push docs/openspec + develop | Landed OpenSpec tooling on develop via commit-tree merge (worktree blocks git merge) | User: 合并并推送
+2026-09-25T00:50:00Z | mimo:ses_ffe5f2e49c257ffeN1IR0yE1vr | create | release/0.3.2 | Bump package.json 0.3.2 (OIDC npm publish + OpenSpec tooling + npx docs); 39/39 tests | User: 发布吧

@@ -6,6 +6,7 @@ on:
 
 permissions:
   contents: write
+  id-token: write
 
 jobs:
   release:
@@ -16,6 +17,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
+          registry-url: https://registry.npmjs.org
       - run: npm ci
       - run: npm run lint
       - run: npm run build
@@ -30,3 +32,9 @@ jobs:
           gh release create "$GITHUB_REF_NAME" picbed-*.tgz picbed.tgz \
             --title "$GITHUB_REF_NAME" \
             --generate-notes
+      - name: Publish to npm (trusted publishing / OIDC)
+        run: |
+          # No long-lived NPM_TOKEN. Requires npm Trusted Publisher
+          # bound to Aermberry/picture_bed + workflow file release.yml.
+          # Provenance is generated automatically by npm for OIDC publishes.
+          npm publish --access public

@@ -1,8 +1,19 @@
 {
   "name": "picbed",
-  "version": "0.3.1",
-  "description": "Local CLI: extract images from markdown/html, upload to PicX-style GitHub image host, rewrite links",
+  "version": "0.3.2",
+  "description": "Local CLI + Web console: extract images from markdown/html, upload to PicX-style GitHub image host, rewrite links",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aermberry/picture_bed.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Aermberry/picture_bed/issues"
+  },
+  "homepage": "https://github.com/Aermberry/picture_bed#readme",
+  "publishConfig": {
+    "access": "public"
+  },
   "bin": {
     "picbed": "./bin/picbed.js",
     "picbed-mcp": "./bin/picbed-mcp.js"
@@ -17,7 +28,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "tsc -p tsconfig.json --noEmit",
-    "picbed": "node ./bin/picbed.js"
+    "picbed": "node ./bin/picbed.js",
+    "openspec": "openspec"
   },
   "engines": {
     "node": ">=20"
@@ -32,6 +44,7 @@
   ],
   "license": "MIT",
   "dependencies": {
+    "@fission-ai/openspec": "^1.13.2",
     "commander": "^12.1.0"
   },
   "devDependencies": {
