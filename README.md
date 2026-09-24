@@ -22,13 +22,15 @@ npm install -g .\picbed-0.3.1.tgz
 
 装好后可用全局命令：`picbed`、`picbed-mcp`。
 
-**方式 2 · npm 官方源（已发布后可用）**
+**方式 2 · npm 官方源（Trusted Publishing 自动发布后可用）**
 
 ```bash
 npm install -g picbed
 # 或免安装：
 npx picbed ui
 ```
+
+发版说明：tag `v*` 触发 GitHub Release **同时**用 npm **Trusted Publishing（OIDC）** 发到官方源，**无需**长期 `NPM_TOKEN`。
 
 **方式 3 · npx 直接跑 Release tarball（无需 npm 源）**
 
