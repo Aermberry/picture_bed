@@ -24,7 +24,7 @@ Commands: `init` · `doctor` · `scan` · `plan` · `sync` · `upload` · `rever
 - Done: F1–F15（含 F12 watch、F13 multi-host、F14 MCP、F15 Token 鉴权）
 - Done: F16–F22 本地 Web 控制台（`picbed ui`，含拖拽、revert、config/doctor、runs、watch）
 - Design only: （无）
-- Released: GitHub Release `v0.2.0`（资产 `picbed.tgz` 跟随 `/releases/latest`）
+- Released: GitHub Release `v0.3.1`（资产 `picbed.tgz` / `picbed-0.3.1.tgz` 跟随 `/releases/latest`）；`v0.3.0` tag 存在但 Release 失败（CI token-mask 测试），以 **v0.3.1** 为准
 
 ## Source of truth
 
