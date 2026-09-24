@@ -22,7 +22,15 @@ npm install -g .\picbed-0.3.1.tgz
 
 装好后可用全局命令：`picbed`、`picbed-mcp`。
 
-**方式 2 · npx 免安装（试用 / 脚本）**
+**方式 2 · npm 官方源（已发布后可用）**
+
+```bash
+npm install -g picbed
+# 或免安装：
+npx picbed ui
+```
+
+**方式 3 · npx 直接跑 Release tarball（无需 npm 源）**
 
 不写进全局依赖，直接跑 Release 包（npm ≥ 7）：
 
@@ -49,9 +57,9 @@ curl -L -o picbed.tgz https://github.com/Aermberry/picture_bed/releases/latest/d
 npx --yes ./picbed.tgz ui
 ```
 
-> **注意**：当前**未**发布到 npm 官方源，因此不能写 `npx picbed`；请始终带上 tarball URL 或本地 `.tgz` 路径。
+> **说明**：若 npm 源尚未同步到当前版本，可用下方 tarball 的 `npx` / `npm install -g …/picbed.tgz`。不要用未注册前的裸名 `npx picbed`。
 
-**方式 3 · 从源码**
+**方式 4 · 从源码**
 
 ```bash
 git clone https://github.com/Aermberry/picture_bed.git
