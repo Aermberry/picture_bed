@@ -51,3 +51,4 @@
 2026-09-23 | update | .agents/memory/gotchas.md + project-overview.md | Recorded global git user.name=CC leak into design commits; require explicit Aermberry noreply identity on agent commits | User reported wrong commit author
 2026-09-23 | update | git history refs/heads/{develop,docs/*,feature/f16-webui} | Rewrote CC-authored commits to Aermberry noreply via filter-branch/commit-tree; restored stashed ui CLI wiring | User approved author rewrite
 2026-09-23T20:10:00Z | mimo | update | README.md | Add npx tarball install/run usage (not npm registry name) | User: 在readme上补充npx用法
+2026-09-23T20:30:00Z | mimo | create | feature/npm-publish | package.json meta + release.yml npm publish + docs Q6 | User: 已注册 npm 账号
