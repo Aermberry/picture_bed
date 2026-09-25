@@ -3,6 +3,17 @@ name: Release
 on:
   push:
     tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Git ref to build and publish to npm (skip GitHub Release if tag already exists)'
+        required: false
+        default: ''
+      skip_github_release:
+        description: 'Skip GitHub Release step (npm-only republish)'
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: write
@@ -13,11 +24,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
           registry-url: https://registry.npmjs.org
+      - name: Upgrade npm for Trusted Publishing (OIDC needs npm >= 11.5)
+        run: npm install -g npm@latest
       - run: npm ci
       - run: npm run lint
       - run: npm run build
@@ -26,22 +41,35 @@ jobs:
       - name: Copy stable asset name
         run: cp picbed-*.tgz picbed.tgz
       - name: Create GitHub Release
+        if: ${{ github.event_name == 'push' || inputs.skip_github_release != true }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create "$GITHUB_REF_NAME" picbed-*.tgz picbed.tgz \
-            --title "$GITHUB_REF_NAME" \
-            --generate-notes
+          ref_name="${GITHUB_REF_NAME}"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.ref }}" ]; then
+            ref_name="${{ inputs.ref }}"
+          fi
+          if gh release view "$ref_name" >/dev/null 2>&1; then
+            echo "Release $ref_name already exists; upload assets only"
+            gh release upload "$ref_name" picbed-*.tgz picbed.tgz --clobber
+          else
+            gh release create "$ref_name" picbed-*.tgz picbed.tgz \
+              --title "$ref_name" \
+              --generate-notes
+          fi
       - name: Publish to npm (trusted publishing / OIDC)
         id: npm_publish
         continue-on-error: true
+        env:
+          # Force OIDC: do not send a (possibly empty/stale) password token.
+          NODE_AUTH_TOKEN: ''
         run: |
-          # No long-lived NPM_TOKEN. Requires npm Trusted Publisher
-          # bound to Aermberry/picture_bed + workflow file release.yml.
-          # Provenance is generated automatically by npm for OIDC publishes.
-          npm publish --access public
+          # setup-node writes //registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}.
+          # An empty/stale token blocks OIDC; clear it so npm uses trusted publishing.
+          npm config delete '//registry.npmjs.org/:_authToken' || true
+          npm whoami || true
+          npm publish --access public --provenance
       - name: npm publish status
         if: steps.npm_publish.outcome != 'success'
         run: |
-          echo "::warning::npm publish failed (often E404 until Trusted Publisher is configured on npmjs.com for package 'picbed' + workflow release.yml). GitHub Release assets are already published."
-          echo "Re-run this job after configuring Trusted Publisher, or publish manually once to claim the name."
+          echo "::warning::npm publish failed. Trusted Publisher must match Aermberry/picture_bed + release.yml; npm CLI must be >= 11.5. GitHub Release assets are already published."

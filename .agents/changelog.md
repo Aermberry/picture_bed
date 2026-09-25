@@ -68,3 +68,4 @@
 2026-09-25 | update | src/ui/static.ts + ui-shell.md + ui.test.ts | Polish: icon tokens (--ico-*), multi-format copy (url/md/html), workset remove | User: 继续打磨
 2026-09-25 | create | tag v0.3.3 + GitHub Release | merge release/0.3.3 into main; assets picbed-0.3.3.tgz+picbed.tgz contain new UI (晴空蓝); npx latest fixed. npm publish still E404 (Trusted Publisher) | User: ok (approved release)
 2026-09-25 | update | package.json + release.yml | npm pkg fix (bin paths); npm publish continue-on-error so Release assets always ship | User: pasted npm publish E404 log
+2026-09-25 | update | release.yml | Root-cause npm E404: v0.3.1 never used CI publish (manual 0.3.1); OIDC needs npm>=11.5 and must clear empty NODE_AUTH_TOKEN; add workflow_dispatch republish | User: 之前发布成功过
