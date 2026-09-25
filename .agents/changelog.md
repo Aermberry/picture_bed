@@ -66,3 +66,4 @@
 2026-09-25 | update | src/ui/static.ts + ui-shell.md + ui.test.ts | UI polish: 3 themes (morning-mist/klein/cream), tokenized Logo, quota bar, theme pills, file detail modal | User: 改进UI界面 per updated UI spec
 2026-09-25 | update | src/ui/static.ts + ui-shell.md + ui.test.ts | UI: KyoAni soft palette 晴空蓝×夕照金 — chroma shadows, air gradient, colored soft shadow, larger radii | User: 参照文档做改进
 2026-09-25 | update | src/ui/static.ts + ui-shell.md + ui.test.ts | Polish: icon tokens (--ico-*), multi-format copy (url/md/html), workset remove | User: 继续打磨
+2026-09-25 | create | tag v0.3.3 + GitHub Release | merge release/0.3.3 into main; assets picbed-0.3.3.tgz+picbed.tgz contain new UI (晴空蓝); npx latest fixed. npm publish still E404 (Trusted Publisher) | User: ok (approved release)
