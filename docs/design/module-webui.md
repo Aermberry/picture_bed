@@ -1,7 +1,8 @@
 # webui 模块详细设计
 
-> 归属功能点：F16 本地 Web 控制台服务、F17 目录/拖拽与计划工作台、F18 一键同步、F19 回滚面板、F20 配置与自检面板、F21 审计与报告、F22 监听控制台。
+> 归属功能点：F16 本地 Web 控制台服务、F17 目录/拖拽与计划工作台、F18 一键同步、F19 回滚面板、F20 配置与自检面板、F21 审计与报告、F22 监听控制台、F23 控制台壳层与视觉重设计。
 > 架构见 [`../architecture.md`](../architecture.md)；定义见 [`../features-index.md`](../features-index.md)；全局契约见 [`cross-cutting.md`](cross-cutting.md)。
+> 壳层布局与主题令牌见 [`wireframes/ui-shell.md`](wireframes/ui-shell.md)（F23 视格权威）。
 > 栈无关；接口为意图伪码。**本期只设计，不实现业务/UI 代码。**
 
 ## 目的
@@ -64,6 +65,21 @@ WebUiFacade
 ```
 
 `ViewMapper` 把应用结果 DTO 映射为视图模型；**禁止**在 mapper 中改变 action 分类或退出码语义。
+
+### 呈现壳层（F23，不改 HTTP 契约）
+
+静态 SPA 视图（hash 或 JS 切换）：
+
+```
+#/upload    # 默认：文件放置 DropZone + root + 工作集 + plan/sync
+#/manage    # 统计 + manifest 网格 + 回滚 + 审计 + 监听
+#/settings  # 配置 + doctor + 偏好 Toggle
+#/doc       # 设计规范（令牌/Logo/图标）
+```
+
+- 侧栏固定四文案：**上传 / 管理 / 设置 / 规范**（用户 UI 方案；缺一不可达）。
+- 主题「晨雾蓝 × 落日暖」令牌、组件、Logo 动效以 [`wireframes/ui-shell.md`](wireframes/ui-shell.md) + 用户《设计交付规范》为准。
+- 壳层组件只消费既有 `/api/*`；禁止为布局新造与信封冲突的私有字段。
 
 ## F16 本地 Web 控制台服务
 
@@ -136,6 +152,16 @@ WebUiFacade
 - 停止：`watch/stop` 或 `ui` 服务退出时级联停止。
 - 失败：监听失败 → 错误可见；不引入系统服务/提权。
 
+## F23 Web 控制台壳层与视觉重设计
+
+- **范围**：仅呈现层（布局、导航、主题、文案层级）；**不改** API、JSON 信封、`confirm` 门、token 纪律、拖拽策略 A。
+- **壳层**：72px 侧栏 + 56px 顶栏 + 可滚动 Content（min-width 860）。
+- **导航**：四视图「上传 / 管理 / 设置 / 规范」。默认上传/文件放置。
+- **信息重排**：F17/F18 上传视图；F19/F21/F22 管理视图；F20 设置视图；规范页只读设计系统。
+- **主题**：晨雾蓝 × 落日暖（`#4E86AD` / `#E39A6B` / `#F3F7FA`…）；禁止各面板私自改色；Toggle 36×20 且 `flex-shrink:0`。
+- **Logo**：44×44 squircle，idle/scanning/uploading 三态；规范页可切 V1–V3。
+- **失败**：壳层加载 API 失败时主区可见错误条，不白屏；静态资源缺失仍走 F16 失败语义。
+
 ## 失败语义
 
 | 情况 | 行为 |
@@ -158,5 +184,6 @@ WebUiFacade
 | [F20](../features-index.md#f20-配置与自检面板) | §F20 |
 | [F21](../features-index.md#f21-审计与报告) | §F21 |
 | [F22](../features-index.md#f22-监听控制台) | §F22 |
+| [F23](../features-index.md#f23-web-控制台壳层与视觉重设计) | §F23 · [`wireframes/ui-shell.md`](wireframes/ui-shell.md) |
 
-*规则与数据以本模块为准；验收契约以 features-index AC 为准；业务不变量以 ingest/transfer/rewrite/cliops 为准。*
+*规则与数据以本模块为准；验收契约以 features-index AC 为准；视觉与布局以 wireframes/ui-shell.md 为准；业务不变量以 ingest/transfer/rewrite/cliops 为准。*
