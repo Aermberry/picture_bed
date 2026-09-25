@@ -65,3 +65,4 @@
 2026-09-25 | create | .githooks/post-commit + pre-push + README | Auto-push after commit; pre-push blocks release/tags/main unless PICBED_RELEASE_OK=1; core.hooksPath=.githooks | User: git hook automation
 2026-09-25 | update | src/ui/static.ts + ui-shell.md + ui.test.ts | UI polish: 3 themes (morning-mist/klein/cream), tokenized Logo, quota bar, theme pills, file detail modal | User: 改进UI界面 per updated UI spec
 2026-09-25 | update | src/ui/static.ts + ui-shell.md + ui.test.ts | UI: KyoAni soft palette 晴空蓝×夕照金 — chroma shadows, air gradient, colored soft shadow, larger radii | User: 参照文档做改进
+2026-09-25 | update | src/ui/static.ts + ui-shell.md + ui.test.ts | Polish: icon tokens (--ico-*), multi-format copy (url/md/html), workset remove | User: 继续打磨
