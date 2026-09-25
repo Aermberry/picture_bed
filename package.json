@@ -15,8 +15,8 @@
     "access": "public"
   },
   "bin": {
-    "picbed": "./bin/picbed.js",
-    "picbed-mcp": "./bin/picbed-mcp.js"
+    "picbed": "bin/picbed.js",
+    "picbed-mcp": "bin/picbed-mcp.js"
   },
   "files": [
     "bin",
