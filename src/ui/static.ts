@@ -31,6 +31,12 @@ export const INDEX_HTML = `<!DOCTYPE html>
       --logo-ring:78,147,192;
       --logo-bg-v2:#8A7EB4;   --logo-accent-v2:#C4BBE4; --logo-line-v2:#FFC978; --logo-ring-v2:138,126,180;
       --logo-bg-v3:#FFC978;   --logo-accent-v3:#FFE3B3; --logo-line-v3:#8A6A3A; --logo-ring-v3:255,201,120;
+      /* 图标令牌（粗描边双色 · 随主题） */
+      --ico-stroke:#2E4B7E;
+      --ico-fill:#FFFFFF;
+      --ico-soft:#B5D8F2;
+      --ico-muted:#C3D5EC;
+      --ico-dot:#FFC978;
       --r-sm:8px; --r-md:14px; --r-lg:20px; --r-full:999px;
       --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px;
       --sp-5:20px; --sp-6:24px; --sp-8:32px;
@@ -49,6 +55,7 @@ export const INDEX_HTML = `<!DOCTYPE html>
       --logo-bg:#6484CE; --logo-accent:#A9C0F2; --logo-line:#FFA978; --logo-ring:100,132,206;
       --logo-bg-v2:#78739F; --logo-accent-v2:#B4AEE0; --logo-line-v2:#FFA978; --logo-ring-v2:120,115,159;
       --logo-bg-v3:#FFA978; --logo-accent-v3:#FFD0AF; --logo-line-v3:#FFFFFF; --logo-ring-v3:255,169,120;
+      --ico-stroke:#2F3D6B; --ico-soft:#A9C0F2; --ico-muted:#CBD3E8; --ico-dot:#FFA978;
     }
     /* B 柔樱粉 × 若叶 */
     body[data-theme="cream"]{
@@ -61,6 +68,7 @@ export const INDEX_HTML = `<!DOCTYPE html>
       --logo-bg:#D37493; --logo-accent:#F8C9DC; --logo-line:#FFFFFF; --logo-ring:211,116,147;
       --logo-bg-v2:#6E5468; --logo-accent-v2:#C6A5CE; --logo-line-v2:#F8C9DC; --logo-ring-v2:110,84,104;
       --logo-bg-v3:#86D9B4; --logo-accent-v3:#C2EBDC; --logo-line-v3:#FFFFFF; --logo-ring-v3:134,217,180;
+      --ico-stroke:#6E4A62; --ico-soft:#F8C9DC; --ico-muted:#E8D5E0; --ico-dot:#86D9B4;
     }
     /* Logo 候选位提升（回退到当前主题生效值，不写死 hex） */
     body[data-logo="v2"], body[data-theme][data-logo="v2"]{
@@ -157,6 +165,13 @@ export const INDEX_HTML = `<!DOCTYPE html>
     .content{flex:1; overflow:auto; padding:var(--sp-6)}
     .hint{font-size:12px; color:var(--c-text-3)}
 
+    /* 图标令牌消费（symbol 内只挂 class，零硬编码） */
+    .ico-s{fill:var(--ico-fill,#fff); stroke:var(--ico-stroke,#2E4B7E)}
+    .ico-stroke{fill:none; stroke:var(--ico-stroke,#2E4B7E)}
+    .ico-soft{fill:var(--ico-soft,#B5D8F2); stroke:var(--ico-stroke,#2E4B7E)}
+    .ico-muted{fill:var(--ico-muted,#C3D5EC); stroke:var(--ico-stroke,#2E4B7E)}
+    .ico-dot{fill:var(--ico-dot,#FFC978)}
+
     /* 顶栏容量进度条：主色填充 + Primary-Soft 轨道，>80% 转 Danger */
     .quota{display:flex; align-items:center; gap:8px; min-width:180px}
     .quota .lbl{font-size:12px; color:var(--c-text-3); white-space:nowrap}
@@ -240,6 +255,11 @@ export const INDEX_HTML = `<!DOCTYPE html>
       padding:12px; overflow:auto; max-height:220px; font-size:11px; margin-top:var(--sp-3);
     }
     .muted{color:var(--c-text-3)}
+    .linkish{
+      border:none; background:none; color:var(--c-danger);
+      font-size:11px; cursor:pointer; padding:0 4px; font-family:inherit;
+    }
+    .linkish:hover{text-decoration:underline}
 
     .stat-row{display:flex; gap:var(--sp-4); margin-bottom:var(--sp-5)}
     .stat-card{
@@ -366,19 +386,19 @@ export const INDEX_HTML = `<!DOCTYPE html>
 <body>
 <svg xmlns="http://www.w3.org/2000/svg" style="display:none">
   <symbol id="i-upload" viewBox="0 0 24 24">
-    <rect x="3.5" y="11" width="17" height="9.5" rx="1.5" fill="#fff" stroke="#2E4B7E" stroke-width="2"/>
-    <path d="M12 3.2v8.8M8.5 6.7 12 3.2l3.5 3.5" fill="none" stroke="#2E4B7E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-    <rect x="7" y="16.2" width="10" height="2.4" rx="1.2" fill="#B5D8F2"/>
+    <rect class="ico-s" x="3.5" y="11" width="17" height="9.5" rx="1.5" stroke-width="2"/>
+    <path class="ico-stroke" d="M12 3.2v8.8M8.5 6.7 12 3.2l3.5 3.5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect class="ico-soft" x="7" y="16.2" width="10" height="2.4" rx="1.2"/>
   </symbol>
   <symbol id="i-folder" viewBox="0 0 24 24">
-    <path d="M3.5 6.2A1.7 1.7 0 0 1 5.2 4.5h3.9l2.1 2.6h7.6a1.7 1.7 0 0 1 1.7 1.7v9.5a1.7 1.7 0 0 1-1.7 1.7H5.2a1.7 1.7 0 0 1-1.7-1.7z" fill="#fff" stroke="#2E4B7E" stroke-width="2" stroke-linejoin="round"/>
-    <rect x="6.8" y="13.2" width="7.5" height="2.2" rx="1.1" fill="#B5D8F2"/>
-    <rect x="6.8" y="16.4" width="4.5" height="2.2" rx="1.1" fill="#C9CDD4"/>
+    <path class="ico-s" d="M3.5 6.2A1.7 1.7 0 0 1 5.2 4.5h3.9l2.1 2.6h7.6a1.7 1.7 0 0 1 1.7 1.7v9.5a1.7 1.7 0 0 1-1.7 1.7H5.2a1.7 1.7 0 0 1-1.7-1.7z" stroke-width="2" stroke-linejoin="round"/>
+    <rect class="ico-soft" x="6.8" y="13.2" width="7.5" height="2.2" rx="1.1"/>
+    <rect class="ico-muted" x="6.8" y="16.4" width="4.5" height="2.2" rx="1.1"/>
   </symbol>
   <symbol id="i-gear" viewBox="0 0 24 24">
-    <circle cx="12" cy="12" r="5.4" fill="#fff" stroke="#2E4B7E" stroke-width="2"/>
-    <circle cx="12" cy="12" r="1.9" fill="#B5D8F2"/>
-    <g stroke="#2E4B7E" stroke-width="2" stroke-linecap="round">
+    <circle class="ico-s" cx="12" cy="12" r="5.4" stroke-width="2"/>
+    <circle class="ico-soft" cx="12" cy="12" r="1.9"/>
+    <g class="ico-stroke" stroke-width="2" stroke-linecap="round">
       <path d="M12 2.6v2.8"/><path d="M12 18.6v2.8"/>
       <path d="M2.6 12h2.8"/><path d="M18.6 12h2.8"/>
       <path d="M5.4 5.4l2 2"/><path d="M16.6 16.6l2 2"/>
@@ -386,20 +406,20 @@ export const INDEX_HTML = `<!DOCTYPE html>
     </g>
   </symbol>
   <symbol id="i-search" viewBox="0 0 24 24">
-    <circle cx="10.5" cy="10.5" r="6.4" fill="#fff" stroke="#2E4B7E" stroke-width="2"/>
-    <path d="M15.3 15.3l5 5" stroke="#2E4B7E" stroke-width="2" stroke-linecap="round"/>
-    <path d="M7.3 9.2a3.6 3.6 0 0 1 2.6-2.4" fill="none" stroke="#B5D8F2" stroke-width="2" stroke-linecap="round"/>
+    <circle class="ico-s" cx="10.5" cy="10.5" r="6.4" stroke-width="2"/>
+    <path class="ico-stroke" d="M15.3 15.3l5 5" stroke-width="2" stroke-linecap="round"/>
+    <path class="ico-soft" d="M7.3 9.2a3.6 3.6 0 0 1 2.6-2.4" stroke-width="2" stroke-linecap="round"/>
   </symbol>
   <symbol id="i-book" viewBox="0 0 24 24">
-    <path d="M4.5 5.2A1.7 1.7 0 0 1 6.2 3.5h5.3a2 2 0 0 1 2 2v14a1.8 1.8 0 0 0-1.8-1.8H6.2A1.7 1.7 0 0 1 4.5 16z" fill="#fff" stroke="#2E4B7E" stroke-width="2" stroke-linejoin="round"/>
-    <path d="M19.5 5.2a1.7 1.7 0 0 0-1.7-1.7H12.5a2 2 0 0 0-2 2v14a1.8 1.8 0 0 1 1.8-1.8h5.5a1.7 1.7 0 0 0 1.7-1.7z" fill="#B5D8F2" stroke="#2E4B7E" stroke-width="2" stroke-linejoin="round"/>
-    <path d="M8 8.5h4M8 12h3" stroke="#C9CDD4" stroke-width="2" stroke-linecap="round"/>
+    <path class="ico-s" d="M4.5 5.2A1.7 1.7 0 0 1 6.2 3.5h5.3a2 2 0 0 1 2 2v14a1.8 1.8 0 0 0-1.8-1.8H6.2A1.7 1.7 0 0 1 4.5 16z" stroke-width="2" stroke-linejoin="round"/>
+    <path class="ico-soft" d="M19.5 5.2a1.7 1.7 0 0 0-1.7-1.7H12.5a2 2 0 0 0-2 2v14a1.8 1.8 0 0 1 1.8-1.8h5.5a1.7 1.7 0 0 0 1.7-1.7z" stroke-width="2" stroke-linejoin="round"/>
+    <path class="ico-muted" d="M8 8.5h4M8 12h3" stroke-width="2" stroke-linecap="round"/>
   </symbol>
   <symbol id="i-image" viewBox="0 0 24 24">
-    <rect x="3" y="4" width="18" height="16" rx="2" fill="#fff" stroke="#2E4B7E" stroke-width="2"/>
-    <circle cx="15.6" cy="9" r="1.8" fill="#E39A6B"/>
-    <path d="M4.8 18.2 9.4 12.2l4 6z" fill="#B5D8F2" stroke="#2E4B7E" stroke-width="1.6" stroke-linejoin="round"/>
-    <path d="M12.4 18.2l3.2-3.8 3.6 3.8z" fill="#C9CDD4" stroke="#2E4B7E" stroke-width="1.6" stroke-linejoin="round"/>
+    <rect class="ico-s" x="3" y="4" width="18" height="16" rx="2" stroke-width="2"/>
+    <circle class="ico-dot" cx="15.6" cy="9" r="1.8"/>
+    <path class="ico-soft" d="M4.8 18.2 9.4 12.2l4 6z" stroke-width="1.6" stroke-linejoin="round"/>
+    <path class="ico-muted" d="M12.4 18.2l3.2-3.8 3.6 3.8z" stroke-width="1.6" stroke-linejoin="round"/>
   </symbol>
 </svg>
 
@@ -780,15 +800,39 @@ export const INDEX_HTML = `<!DOCTYPE html>
   }
 
   function openDetail(name, url) {
+    const has = url && /^https?:/.test(url);
     $("modalTitle").textContent = name;
-    $("modalBody").textContent = "外链详情 · 点击复制可复制 URL";
-    $("modalExtra").innerHTML = '<div class="detail-url">' + esc(url || "（无外链）") + "</div>";
-    $("modalOk").textContent = "复制外链";
+    $("modalBody").textContent = has ? "外链详情 · 可复制 URL / Markdown / HTML" : "暂无外链（可先 sync 生成）";
+    $("modalExtra").innerHTML =
+      '<div class="detail-url">' + esc(url || "（无外链）") + "</div>" +
+      (has
+        ? '<div class="token-row" style="margin-top:12px">' +
+          '<button type="button" class="chip chip-btn active" data-copy="url">URL</button>' +
+          '<button type="button" class="chip chip-btn" data-copy="md">Markdown</button>' +
+          '<button type="button" class="chip chip-btn" data-copy="html">HTML</button>' +
+          "</div>"
+        : "");
+    $("modalOk").textContent = "复制";
     $("modal").classList.add("show");
+    const fmt = (kind) => {
+      if (!has) return "";
+      if (kind === "md") return "![" + name + "](" + url + ")";
+      if (kind === "html") return '<img src="' + url + '" alt="' + name + '" />';
+      return url;
+    };
+    let kind = "url";
+    $("modalExtra").querySelectorAll("[data-copy]").forEach((b) => {
+      b.addEventListener("click", () => {
+        kind = b.dataset.copy;
+        $("modalExtra").querySelectorAll("[data-copy]").forEach((x) => x.classList.remove("active"));
+        b.classList.add("active");
+      });
+    });
     const ok = async () => {
-      if (url) {
-        await navigator.clipboard.writeText(url).catch(() => {});
-        toast("已复制外链");
+      const text = fmt(kind);
+      if (text) {
+        await navigator.clipboard.writeText(text).catch(() => {});
+        toast(kind === "url" ? "已复制外链" : kind === "md" ? "已复制 Markdown" : "已复制 HTML");
       } else toast("无外链可复制");
       cleanup();
     };
@@ -864,12 +908,20 @@ export const INDEX_HTML = `<!DOCTYPE html>
     $("workset").innerHTML =
       workset
         .map(
-          (w) =>
+          (w, i) =>
             "<tr><td>" + esc(w.name) + "</td><td>" + esc(w.rel || "—") +
             '</td><td><span class="tag ' + esc(w.type) + '">' + esc(w.type) +
-            "</span></td><td>" + esc(w.status) + "</td></tr>"
+            "</span></td><td>" + esc(w.status) +
+            ' <button type="button" class="linkish" data-rm="' + i + '">移出</button></td></tr>'
         )
         .join("") || '<tr><td colspan="4" class="muted">空 · 请拖拽文档/文件夹</td></tr>';
+    $("workset").querySelectorAll("[data-rm]").forEach((b) => {
+      b.addEventListener("click", () => {
+        workset.splice(Number(b.dataset.rm) || 0, 1);
+        renderWorkset();
+        toast("已移出工作集");
+      });
+    });
   }
 
   $("bind").onclick = async () => {

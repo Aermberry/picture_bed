@@ -193,6 +193,12 @@ describe('ui server F16–F18', () => {
     // topbar quota + theme pills
     expect(html).toContain('quota');
     expect(html).toContain('data-theme-btn');
+    // icon tokens (no hardcoded #2E4B7E in symbols)
+    expect(html).toContain('--ico-stroke');
+    expect(html).toContain('class="ico-s"');
+    expect(html).not.toContain('stroke="#2E4B7E"');
+    // multi-format copy in detail modal
+    expect(html).toContain('data-copy="md"');
     // fill must NOT be injected by JS setAttribute on logo parts
     expect(html).not.toMatch(/querySelector\\(\\\"\\.bg\\\"\\)\\.setAttribute/);
   });
