@@ -1,0 +1,36 @@
+#!/bin/sh
+# Auto-push after every commit (user rule 2026-09-25).
+# Does NOT create tags or releases — those stay behind pre-push review.
+# Note: `git commit-tree` does not run hooks; agent must push manually for commit-tree lands.
+
+set -u
+
+branch="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo HEAD)"
+if [ "$branch" = "HEAD" ] || [ -z "$branch" ]; then
+  exit 0
+fi
+
+if ! git remote get-url origin >/dev/null 2>&1; then
+  echo "post-commit: no origin remote; skip push" >&2
+  exit 0
+fi
+
+# Never auto-push work-in-progress on release branches/tags from hooks alone.
+case "$branch" in
+  release/*|hotfix/*)
+    echo "post-commit: skip auto-push on $branch (release/hotfix needs explicit push)" >&2
+    exit 0
+    ;;
+esac
+
+if git rev-parse --abbrev-ref --symbolic-full-name '@{u}' >/dev/null 2>&1; then
+  if ! git push --quiet; then
+    echo "post-commit: push failed for $branch — fix remote/auth and push manually" >&2
+  fi
+else
+  if ! git push -u origin "$branch" --quiet; then
+    echo "post-commit: push -u origin $branch failed — fix remote/auth and push manually" >&2
+  fi
+fi
+
+exit 0

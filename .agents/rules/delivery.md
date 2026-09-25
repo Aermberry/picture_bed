@@ -60,7 +60,18 @@ After each `git commit` (including commit-tree landing), **immediately push** th
 - **Exception — Release**: creating tags, GitHub Releases, `npm publish`, or `release/*` shipping **requires explicit user review/approval first**. Auto-push does **not** authorize release actions.
 - Isolated worktree: `git push origin <branch>` or `git push origin <sha>:refs/heads/<branch>` after `git fetch .` landing.
 
-Evidence: user standing instruction 2026-09-25（「每次执行 git-commit 后，自动执行推送；只有在执行 release 时，才需要我的审核」）.
+### Git hooks（自动化）
+
+Versioned hooks live in [`.githooks/`](../../.githooks/) (`core.hooksPath = .githooks`):
+
+| Hook | 行为 |
+|------|------|
+| `post-commit` | 非 `release/*`/`hotfix/*` 的当前分支自动 `git push`（失败仅告警） |
+| `pre-push` | 拦截 `tags` / `main` / `release/*` / `hotfix/*`，除非 `PICBED_RELEASE_OK=1`（单次放行） |
+
+**边界**：`git commit-tree` 不触发 hook；此类落地后仍须手动 push。release 放行示例见 `.githooks/README.md`。
+
+Evidence: user standing instruction 2026-09-25（「每次执行git-commit后，自动执行推送；只有在执行release时，才需要我的审核」+「可以编写git hook来自动化执行」）.
 
 ## Tests before delivery
 
