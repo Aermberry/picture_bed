@@ -63,3 +63,4 @@
 2026-09-25 | update | src/ui/static.ts + F23 design pack | 按用户《图床工具-UI方案》实现四视图壳层（晨雾蓝×落日暖、Logo 三态、DropZone、FileCard、Toggle）；接线 session/plan/sync/manifest/runs/watch/config/doctor；40/40 tests | User: 请阅读UI设计方案，并实现UI界面
 2026-09-25 | update | .agents/rules/delivery.md + memory | Standing rule: auto-push after every commit; release requires user review | User instruction
 2026-09-25 | create | .githooks/post-commit + pre-push + README | Auto-push after commit; pre-push blocks release/tags/main unless PICBED_RELEASE_OK=1; core.hooksPath=.githooks | User: git hook automation
+2026-09-25 | update | src/ui/static.ts + ui-shell.md + ui.test.ts | UI polish: 3 themes (morning-mist/klein/cream), tokenized Logo, quota bar, theme pills, file detail modal | User: 改进UI界面 per updated UI spec
