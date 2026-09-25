@@ -5,6 +5,7 @@ export const INDEX_HTML = `<!DOCTYPE html>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>picbed 本地控制台</title>
   <style>
+    /* ========== Design Tokens · 晨雾蓝（默认） ========== */
     :root{
       --c-primary:#4E86AD;
       --c-primary-hover:#3D6F94;
@@ -18,6 +19,14 @@ export const INDEX_HTML = `<!DOCTYPE html>
       --c-text:#25384A;
       --c-text-2:#64798C;
       --c-text-3:#9AABBC;
+      /* Logo 专属令牌（组件级，随主题/候选位覆盖） */
+      --logo-bg:#4E86AD;
+      --logo-ink:#FFFFFF;
+      --logo-accent:#85B7EB;
+      --logo-line:#EF9F27;
+      --logo-ring:78,134,173;
+      --logo-bg-v2:#4B5563;   --logo-accent-v2:#C3CBD4; --logo-line-v2:#EF9F27; --logo-ring-v2:75,85,99;
+      --logo-bg-v3:#BA7517;   --logo-accent-v3:#FAC775; --logo-line-v3:#854F0B; --logo-ring-v3:186,117,23;
       --r-sm:6px; --r-md:10px; --r-lg:16px; --r-full:999px;
       --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px;
       --sp-5:20px; --sp-6:24px; --sp-8:32px;
@@ -25,6 +34,34 @@ export const INDEX_HTML = `<!DOCTYPE html>
       --shadow-2:0 4px 12px rgba(0,0,0,.08);
       font-family:"PingFang SC","Microsoft YaHei",-apple-system,sans-serif;
     }
+    /* A 橙窗蓝调 · 降脏底 #F1F3F6 */
+    body[data-theme="klein"]{
+      --c-primary:#1D50A2; --c-primary-hover:#173F80; --c-primary-soft:#E8EEF9;
+      --c-accent:#E8641B; --c-bg:#F1F3F6; --c-border:#E2E6EB;
+      --c-text:#1C1C1C; --c-text-2:#5C5952; --c-text-3:#9B968B;
+      --logo-bg:#1D50A2; --logo-accent:#8FA9E8; --logo-line:#E8641B; --logo-ring:29,80,162;
+      --logo-bg-v2:#5C5952; --logo-accent-v2:#B4B2A9; --logo-line-v2:#E8641B; --logo-ring-v2:92,89,82;
+      --logo-bg-v3:#E8641B; --logo-accent-v3:#F0997B; --logo-line-v3:#FFFFFF; --logo-ring-v3:232,100,27;
+    }
+    /* B 奶油花园 · 降脏底 #F5F2F2 */
+    body[data-theme="cream"]{
+      --c-primary:#E58BA6; --c-primary-hover:#D0708F; --c-primary-soft:#FBEEF2;
+      --c-accent:#7FA86B; --c-bg:#F5F2F2; --c-border:#E9E0E0;
+      --c-text:#4A423B; --c-text-2:#8A7F74; --c-text-3:#B8AEA3;
+      --logo-bg:#E58BA6; --logo-accent:#F5C6D4; --logo-line:#FFFFFF; --logo-ring:229,139,166;
+      --logo-bg-v2:#4A423B; --logo-accent-v2:#B8AEA3; --logo-line-v2:#F5C6D4; --logo-ring-v2:74,66,59;
+      --logo-bg-v3:#7FA86B; --logo-accent-v3:#C0DCAE; --logo-line-v3:#FFFFFF; --logo-ring-v3:127,168,107;
+    }
+    /* Logo 候选位提升：必须带 [data-theme] 才能盖过主题块 */
+    body[data-logo="v2"], body[data-theme][data-logo="v2"]{
+      --logo-bg:var(--logo-bg-v2,#4E86AD);       --logo-accent:var(--logo-accent-v2,#85B7EB);
+      --logo-line:var(--logo-line-v2,#EF9F27);   --logo-ring:var(--logo-ring-v2,78,134,173);
+    }
+    body[data-logo="v3"], body[data-theme][data-logo="v3"]{
+      --logo-bg:var(--logo-bg-v3,#4E86AD);       --logo-accent:var(--logo-accent-v3,#85B7EB);
+      --logo-line:var(--logo-line-v3,#EF9F27);   --logo-ring:var(--logo-ring-v3,78,134,173);
+    }
+
     *{margin:0;padding:0;box-sizing:border-box}
     body{
       background:var(--c-bg); color:var(--c-text);
@@ -37,12 +74,20 @@ export const INDEX_HTML = `<!DOCTYPE html>
       display:flex; flex-direction:column; align-items:center;
       padding:var(--sp-5) 0; gap:var(--sp-2);
     }
+
+    /* Logo：造型零色值，全部消费 --logo-* */
     .logo{
       width:44px;height:44px;border-radius:14px;
       margin-bottom:var(--sp-6); position:relative; overflow:hidden;
       cursor:pointer; flex-shrink:0; transition:transform .15s, box-shadow .2s;
-      box-shadow:0 2px 6px rgba(34,56,90,.18);
+      box-shadow:0 2px 6px rgba(var(--logo-ring,78,134,173),.28);
     }
+    .logo .bg{fill:var(--logo-bg,#4E86AD)}
+    .logo .ink-f{fill:var(--logo-ink,#FFFFFF)}
+    .logo .accent{fill:var(--logo-accent,#85B7EB)}
+    .logo .link{stroke:var(--logo-line,#EF9F27)}
+    .logo .g-scan rect{fill:var(--logo-line,#EF9F27)}
+    .logo .g-up path{stroke:var(--logo-ink,#FFFFFF)}
     .logo:hover{transform:scale(1.06)}
     .logo svg{width:100%;height:100%;display:block}
     .logo .g-scan{opacity:0}
@@ -50,8 +95,8 @@ export const INDEX_HTML = `<!DOCTYPE html>
     .logo.scanning .g-scan{opacity:1; animation:scanMove 1.2s ease-in-out infinite}
     @keyframes scanMove{0%,100%{transform:translateY(13px)}50%{transform:translateY(24px)}}
     @keyframes ringPulse{
-      0%{box-shadow:0 0 0 0 rgba(78,134,173,.45)}
-      100%{box-shadow:0 0 0 12px rgba(78,134,173,0)}
+      0%{box-shadow:0 0 0 0 rgba(var(--logo-ring,78,134,173),.45)}
+      100%{box-shadow:0 0 0 12px rgba(var(--logo-ring,78,134,173),0)}
     }
     .logo .g-up{opacity:0}
     .logo.uploading .g-up{opacity:1; animation:rise 0.9s ease-in-out infinite}
@@ -91,6 +136,26 @@ export const INDEX_HTML = `<!DOCTYPE html>
     .topbar .right{margin-left:auto; display:flex; gap:var(--sp-3); align-items:center}
     .content{flex:1; overflow:auto; padding:var(--sp-6)}
     .hint{font-size:12px; color:var(--c-text-3)}
+
+    /* 顶栏容量进度条：主色填充 + Primary-Soft 轨道，>80% 转 Danger */
+    .quota{display:flex; align-items:center; gap:8px; min-width:180px}
+    .quota .lbl{font-size:12px; color:var(--c-text-3); white-space:nowrap}
+    .quota .bar{
+      flex:1; height:6px; border-radius:var(--r-full);
+      background:var(--c-primary-soft); overflow:hidden;
+    }
+    .quota .fill{height:100%; width:24%; border-radius:var(--r-full); background:var(--c-primary); transition:width .3s, background .2s}
+    .quota.hot .fill{background:var(--c-danger)}
+    .quota .val{font-size:12px; color:var(--c-text-2); white-space:nowrap}
+
+    .theme-pills{display:flex; gap:6px}
+    .pill{
+      font-size:11px; padding:4px 10px; border-radius:var(--r-full);
+      border:1px solid var(--c-border); background:var(--c-surface);
+      color:var(--c-text-2); cursor:pointer; font-family:inherit;
+    }
+    .pill:hover{border-color:var(--c-primary); color:var(--c-primary)}
+    .pill.active{background:var(--c-primary); border-color:var(--c-primary); color:#fff; font-weight:600}
 
     .dropzone{
       min-height:420px;
@@ -180,8 +245,20 @@ export const INDEX_HTML = `<!DOCTYPE html>
     .file-card:hover{box-shadow:var(--shadow-2); transform:translateY(-2px)}
     .file-thumb{
       height:110px; display:flex;align-items:center;justify-content:center;
-      font-size:34px; color:#fff; background:linear-gradient(135deg,#7FA8C9,#4E86AD);
+      font-size:34px; color:#fff;
     }
+    .file-thumb.th1{background:linear-gradient(135deg,#7FA8C9,#4E86AD)}
+    .file-thumb.th2{background:linear-gradient(135deg,#8FBFAD,#4C9A82)}
+    .file-thumb.th3{background:linear-gradient(135deg,#EFC08C,#D9985E)}
+    .file-thumb.th4{background:linear-gradient(135deg,#E39A8B,#C46B5C)}
+    body[data-theme="klein"] .th1{background:linear-gradient(135deg,#3E76C9,#1D50A2)}
+    body[data-theme="klein"] .th2{background:linear-gradient(135deg,#F0997B,#D85A30)}
+    body[data-theme="klein"] .th3{background:linear-gradient(135deg,#B4B2A9,#888780)}
+    body[data-theme="klein"] .th4{background:linear-gradient(135deg,#5F5E5A,#2C2C2A)}
+    body[data-theme="cream"] .th1{background:linear-gradient(135deg,#F2B8C6,#E58BA6)}
+    body[data-theme="cream"] .th2{background:linear-gradient(135deg,#A8C68F,#7FA86B)}
+    body[data-theme="cream"] .th3{background:linear-gradient(135deg,#F5E3C8,#E8C99B)}
+    body[data-theme="cream"] .th4{background:linear-gradient(135deg,#C9D2C0,#A3B295)}
     .file-thumb img{width:100%;height:100%;object-fit:cover}
     .file-meta{padding:var(--sp-3)}
     .file-meta .name{font-size:13px; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
@@ -232,12 +309,19 @@ export const INDEX_HTML = `<!DOCTYPE html>
 
     .toast{
       position:fixed; right:24px; bottom:24px;
-      background:var(--c-text); color:#fff; padding:12px 18px;
+      background:var(--c-surface); color:var(--c-text);
+      padding:12px 18px; border:1px solid var(--c-border);
       border-radius:var(--r-md); box-shadow:var(--shadow-2);
       opacity:0; pointer-events:none; transition:opacity .2s, transform .2s;
       transform:translateY(8px); z-index:50;
+      display:flex; align-items:center; gap:10px;
     }
     .toast.show{opacity:1; transform:translateY(0)}
+    .toast .ico-dot{
+      width:8px;height:8px;border-radius:50%;
+      background:var(--c-accent); flex-shrink:0;
+    }
+
     .modal{
       position:fixed; inset:0; background:rgba(37,56,74,.35);
       display:none; align-items:center; justify-content:center; z-index:40;
@@ -246,9 +330,16 @@ export const INDEX_HTML = `<!DOCTYPE html>
     .modal .panel{
       background:var(--c-surface); border-radius:var(--r-lg); padding:var(--sp-6);
       width:min(420px,90vw); box-shadow:var(--shadow-2);
+      animation:fadeUp .15s ease-out;
     }
+    @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
     .modal h3{margin-bottom:var(--sp-3)}
     .modal .actions{display:flex; gap:var(--sp-3); justify-content:flex-end; margin-top:var(--sp-5)}
+    .detail-url{
+      font-size:11px; word-break:break-all; background:var(--c-bg);
+      border:1px solid var(--c-border); border-radius:var(--r-sm);
+      padding:8px; margin-top:8px; color:var(--c-text-2);
+    }
   </style>
 </head>
 <body>
@@ -295,27 +386,16 @@ export const INDEX_HTML = `<!DOCTYPE html>
   <nav class="sidebar">
     <div class="logo" id="logo" title="点击预览 Logo 动效状态">
       <svg viewBox="0 0 40 40">
-        <defs>
-          <linearGradient id="gA" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stop-color="#4E86AD"/><stop offset="1" stop-color="#4E86AD"/>
-          </linearGradient>
-          <linearGradient id="gB" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stop-color="#1D9E75"/><stop offset="1" stop-color="#1D9E75"/>
-          </linearGradient>
-          <linearGradient id="gC" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stop-color="#BA7517"/><stop offset="1" stop-color="#BA7517"/>
-          </linearGradient>
-        </defs>
-        <rect class="bg" width="40" height="40" rx="13" fill="#4E86AD"/>
+        <rect class="bg" width="40" height="40" rx="13"/>
         <g class="g-glyph">
-          <rect class="ink-f" x="8" y="9" width="13" height="13" rx="2.5" fill="#FFFFFF"/>
-          <rect class="accent" x="19" y="18" width="13" height="13" rx="2.5" fill="#85B7EB"/>
-          <path class="link" d="M14.6 17.2 23.4 26" stroke="#EF9F27" stroke-width="2.4" stroke-linecap="round" fill="none"/>
+          <rect class="ink-f" x="8" y="9" width="13" height="13" rx="2.5"/>
+          <rect class="accent" x="19" y="18" width="13" height="13" rx="2.5"/>
+          <path class="link" d="M14.6 17.2 23.4 26" fill="none" stroke-width="2.4" stroke-linecap="round"/>
         </g>
-        <g class="g-scan"><rect x="10" width="20" height="2.8" rx="1.4" fill="#EF9F27"/></g>
+        <g class="g-scan"><rect x="10" width="20" height="2.8" rx="1.4"/></g>
         <g class="g-up">
-          <path d="M20 30v-9.5" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/>
-          <path d="M16 24l4-4 4 4" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M20 30v-9.5" stroke-width="2.6" stroke-linecap="round"/>
+          <path d="M16 24l4-4 4 4" fill="none" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
         </g>
       </svg>
     </div>
@@ -332,6 +412,16 @@ export const INDEX_HTML = `<!DOCTYPE html>
       <h1 id="pageTitle">文件放置</h1>
       <span class="crumb" id="pageCrumb">拖入文件即可上传 · picbed 本地控制台</span>
       <div class="right">
+        <div class="quota" id="quota" title="本机映射规模示意">
+          <span class="lbl">已用</span>
+          <div class="bar"><div class="fill" id="quotaFill"></div></div>
+          <span class="val" id="quotaVal">0 / 200</span>
+        </div>
+        <div class="theme-pills" id="themePills">
+          <button type="button" class="pill active" data-theme-btn="">晨雾蓝</button>
+          <button type="button" class="pill" data-theme-btn="klein">橙窗蓝调</button>
+          <button type="button" class="pill" data-theme-btn="cream">奶油花园</button>
+        </div>
         <span class="hint" id="health">…</span>
       </div>
     </header>
@@ -458,6 +548,17 @@ export const INDEX_HTML = `<!DOCTYPE html>
           </div>
         </div>
         <div class="card">
+          <h3>外观主题</h3>
+          <div class="form-row"><label>界面主题</label>
+            <select id="themeSelect">
+              <option value="">晨雾蓝 × 落日暖</option>
+              <option value="klein">A 橙窗蓝调</option>
+              <option value="cream">B 奶油花园</option>
+            </select>
+          </div>
+          <div class="hint">主题切换即时生效并记忆在本机 localStorage；Logo 候选随主题联动。</div>
+        </div>
+        <div class="card">
           <h3>自检 doctor（F20）</h3>
           <div class="row">
             <button class="btn btn-ghost" id="doctor" type="button">运行 doctor</button>
@@ -472,27 +573,25 @@ export const INDEX_HTML = `<!DOCTYPE html>
 
     <!-- 规范 -->
     <section class="content doc" id="view-doc" style="display:none">
-      <p class="hint" style="margin-bottom:16px">💡 本页可切换左上角 Logo 配色，预览扫描 / 上传动效。</p>
-      <h2>🎨 主题配色 ·「晨雾蓝 × 落日暖」</h2>
-      <div class="token-row">
-        <div class="chip"><span class="dot" style="background:#4E86AD"></span>Primary 丹宁蓝 · #4E86AD</div>
-        <div class="chip"><span class="dot" style="background:#3D6F94"></span>Primary-Hover · #3D6F94</div>
-        <div class="chip"><span class="dot" style="background:#EAF2F8"></span>Primary-Soft 雾蓝 · #EAF2F8</div>
-        <div class="chip"><span class="dot" style="background:#E39A6B"></span>Accent 落日琥珀 · #E39A6B</div>
-        <div class="chip"><span class="dot" style="background:#4C9A82"></span>Success 青瓷绿 · #4C9A82</div>
-        <div class="chip"><span class="dot" style="background:#C46B5C"></span>Danger 陶土红 · #C46B5C</div>
-        <div class="chip"><span class="dot" style="background:#F3F7FA;border:1px solid #DDE7EF"></span>BG 晨雾蓝灰 · #F3F7FA</div>
-        <div class="chip"><span class="dot" style="background:#FFFFFF;border:1px solid #DDE7EF"></span>Surface · #FFFFFF</div>
-        <div class="chip"><span class="dot" style="background:#DDE7EF"></span>Border · #DDE7EF</div>
-        <div class="chip"><span class="dot" style="background:#25384A"></span>Text 藏青 · #25384A</div>
-        <div class="chip"><span class="dot" style="background:#64798C"></span>Text-2 灰蓝 · #64798C</div>
-        <div class="chip"><span class="dot" style="background:#9AABBC"></span>Text-3 · #9AABBC</div>
+      <p class="hint" style="margin-bottom:16px">💡 顶栏可切换三套主题；Logo 候选随主题联动；点击左上角 Logo 预览扫描 / 上传动效。</p>
+      <h2>🎨 主题配色（三套 · 令牌换肤）</h2>
+      <div class="token-row" id="themeSwitchRow">
+        <button type="button" class="chip chip-btn active" data-theme-btn="">默认 · 晨雾蓝</button>
+        <button type="button" class="chip chip-btn" data-theme-btn="klein">A · 橙窗蓝调</button>
+        <button type="button" class="chip chip-btn" data-theme-btn="cream">B · 奶油花园</button>
       </div>
+      <div class="token-row" id="tokenSwatches"></div>
       <ul class="spec-list">
-        <li><b>60-30-10 法则</b>：60% 雾蓝灰底/白面 · 30% 丹宁蓝 · 10% 落日琥珀（点睛，不铺面）</li>
-        <li>间距 4 的倍数；圆角 6 / 10 / 16 / 999；阴影 shadow-1 / shadow-2</li>
-        <li>H1 16/600 · H2 18/700 · Body 14/400 · Caption 12/400</li>
+        <li><b>60-30-10</b>：中性铺底 · 主色块面 · 辅助色只点睛（同屏 ≤3）</li>
+        <li>底色降脏：A 用冷灰白 <code>#F1F3F6</code>，B 用微暖中性 <code>#F5F2F2</code>（与纯白差 10+）</li>
+        <li>换肤原理：<code>body[data-theme]</code> 覆盖 <code>--c-*</code> 与 <code>--logo-*</code>，组件结构零改动</li>
       </ul>
+      <h2>✨ Logo 令牌与候选位</h2>
+      <ul class="spec-list">
+        <li>SVG 造型<strong>零色值</strong>，全部 <code>var(--logo-*)</code>；JS 只写 <code>data-theme</code> / <code>data-logo</code></li>
+        <li>候选位 ① 主色同族 ② 中性 ③ 辅助色点睛 —— 随主题自动切换三套</li>
+      </ul>
+      <div class="token-row" id="logoVarRow"></div>
       <h2>🖼 图标规范</h2>
       <div class="token-row">
         <div class="chip"><svg style="width:30px;height:30px"><use href="#i-upload"/></svg>i-upload</div>
@@ -503,34 +602,24 @@ export const INDEX_HTML = `<!DOCTYPE html>
         <div class="chip"><svg style="width:30px;height:30px"><use href="#i-image"/></svg>i-image</div>
       </div>
       <ul class="spec-list">
-        <li>粗描边双色 · 描边 <code>#2E4B7E</code> · 线宽 2/24 · 点缀 <code>#B5D8F2</code> / <code>#C9CDD4</code> · 点睛 <code>#E39A6B</code></li>
+        <li>粗描边双色 · 描边 <code>#2E4B7E</code> · 线宽 2/24 · 点缀 <code>#B5D8F2</code> / <code>#C9CDD4</code></li>
         <li>导航 22px · 行内 16px · 空状态主视觉 52px</li>
-      </ul>
-      <h2>✨ Logo 与状态动效</h2>
-      <ul class="spec-list">
-        <li>44×44 squircle · 层叠相片 + 琥珀外链斜线 · 三态 idle / scanning / uploading</li>
-        <li style="list-style:none;margin-left:-20px">
-          <div class="token-row" style="margin-top:8px">
-            <button class="chip chip-btn active" data-var="" type="button">V1 丹宁雾蓝</button>
-            <button class="chip chip-btn" data-var="v2" type="button">V2 青瓷绿</button>
-            <button class="chip chip-btn" data-var="v3" type="button">V3 落日琥珀</button>
-          </div>
-          <span class="hint">↑ 点击切换 Logo 配色；点击左上角 Logo 预览动效</span>
-        </li>
       </ul>
       <h2>🔗 交互</h2>
       <ul class="spec-list">
-        <li>导航切换四视图 · 拖放上传触发 Logo 动效 · 设置保存 Toast · FileCard 复制外链</li>
+        <li>导航四视图 · 拖放触发 Logo 动效 · FileCard 详情浮层（复制外链）· 设置保存 Toast（琥珀点睛）</li>
+        <li>顶栏容量条 &gt;80% 自动转 Danger</li>
       </ul>
     </section>
   </main>
 </div>
 
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast"><span class="ico-dot"></span><span id="toastText"></span></div>
 <div class="modal" id="modal">
   <div class="panel">
     <h3 id="modalTitle">确认</h3>
     <p id="modalBody" class="hint"></p>
+    <div id="modalExtra"></div>
     <div class="actions">
       <button class="btn btn-ghost" id="modalCancel" type="button">取消</button>
       <button class="btn btn-primary" id="modalOk" type="button">确认</button>
@@ -544,6 +633,94 @@ export const INDEX_HTML = `<!DOCTYPE html>
   let manifestEntries = [];
   let sortDesc = true;
 
+  const THEME_WHITELIST = ["", "klein", "cream"];
+  const LOGO_VARIANTS = {
+    "": [
+      { key: "", label: "D1 丹宁雾蓝" },
+      { key: "v2", label: "D2 石墨中性" },
+      { key: "v3", label: "D3 落日琥珀" },
+    ],
+    klein: [
+      { key: "", label: "A1 克莱因蓝" },
+      { key: "v2", label: "A2 砖地灰" },
+      { key: "v3", label: "A3 窗框橙" },
+    ],
+    cream: [
+      { key: "", label: "B1 绣球粉" },
+      { key: "v2", label: "B2 暖褐" },
+      { key: "v3", label: "B3 花园绿" },
+    ],
+  };
+  const THEME_TOKENS = {
+    "": { name: "晨雾蓝", primary: "#4E86AD", accent: "#E39A6B", bg: "#F3F7FA", text: "#25384A", soft: "#EAF2F8", border: "#DDE7EF" },
+    klein: { name: "橙窗蓝调", primary: "#1D50A2", accent: "#E8641B", bg: "#F1F3F6", text: "#1C1C1C", soft: "#E8EEF9", border: "#E2E6EB" },
+    cream: { name: "奶油花园", primary: "#E58BA6", accent: "#7FA86B", bg: "#F5F2F2", text: "#4A423B", soft: "#FBEEF2", border: "#E9E0E0" },
+  };
+
+  let curTheme = "";
+  let curLogo = 0;
+
+  function setTheme(t) {
+    curTheme = THEME_WHITELIST.indexOf(t) > -1 ? t : "";
+    curLogo = 0;
+    if (curTheme) document.body.dataset.theme = curTheme;
+    else delete document.body.dataset.theme;
+    try { localStorage.setItem("picbed.theme", curTheme); } catch (_) {}
+    applyLogo();
+    syncThemeUI();
+    renderTokenSwatches();
+    renderLogoVarRow();
+  }
+
+  function applyLogo() {
+    const list = (LOGO_VARIANTS[curTheme] || LOGO_VARIANTS[""]).list
+      || LOGO_VARIANTS[curTheme] || LOGO_VARIANTS[""];
+    const v = (list[curLogo] || list[0]).key;
+    if (v) document.body.dataset.logo = v;
+    else delete document.body.dataset.logo;
+  }
+
+  function syncThemeUI() {
+    document.querySelectorAll("[data-theme-btn]").forEach((b) => {
+      b.classList.toggle("active", b.dataset.themeBtn === curTheme);
+    });
+    const sel = $("themeSelect");
+    if (sel) sel.value = curTheme;
+  }
+
+  function renderTokenSwatches() {
+    const t = THEME_TOKENS[curTheme] || THEME_TOKENS[""];
+    const el = $("tokenSwatches");
+    if (!el) return;
+    const rows = [
+      ["Primary", t.primary], ["Accent", t.accent], ["BG", t.bg],
+      ["Border", t.border], ["Text", t.text], ["Primary-Soft", t.soft],
+    ];
+    el.innerHTML = rows.map(([n, c]) =>
+      '<div class="chip"><span class="dot" style="background:' + c + '"></span>' + n + " " + c + "</div>"
+    ).join("");
+  }
+
+  function renderLogoVarRow() {
+    const list = LOGO_VARIANTS[curTheme] || LOGO_VARIANTS[""];
+    const el = $("logoVarRow");
+    if (!el) return;
+    el.innerHTML = list.map((v, i) =>
+      '<button type="button" class="chip chip-btn' + (i === curLogo ? " active" : "") + '" data-logo-idx="' + i + '">' + v.label + "</button>"
+    ).join("");
+    el.querySelectorAll("[data-logo-idx]").forEach((b) => {
+      b.addEventListener("click", () => {
+        curLogo = Number(b.dataset.logoIdx) || 0;
+        applyLogo();
+        renderLogoVarRow();
+      });
+    });
+  }
+
+  document.querySelectorAll("[data-theme-btn]").forEach((btn) => {
+    btn.addEventListener("click", () => setTheme(btn.dataset.themeBtn || ""));
+  });
+
   const titles = {
     upload: ["文件放置", "拖入文件即可上传 · picbed 本地控制台"],
     manage: ["文件管理", "共 0 个文件"],
@@ -556,15 +733,17 @@ export const INDEX_HTML = `<!DOCTYPE html>
   }
 
   function toast(msg) {
-    const el = $("toast");
-    el.textContent = msg;
-    el.classList.add("show");
-    setTimeout(() => el.classList.remove("show"), 2200);
+    $("toastText").textContent = msg;
+    $("toast").classList.add("show");
+    setTimeout(() => $("toast").classList.remove("show"), 2200);
   }
 
-  function confirmAsync(msg) {
+  function confirmAsync(msg, extraHtml) {
     return new Promise((resolve) => {
+      $("modalTitle").textContent = "确认";
       $("modalBody").textContent = msg;
+      $("modalExtra").innerHTML = extraHtml || "";
+      $("modalOk").textContent = "确认";
       $("modal").classList.add("show");
       const ok = () => { cleanup(); resolve(true); };
       const cancel = () => { cleanup(); resolve(false); };
@@ -576,6 +755,29 @@ export const INDEX_HTML = `<!DOCTYPE html>
       $("modalOk").addEventListener("click", ok);
       $("modalCancel").addEventListener("click", cancel);
     });
+  }
+
+  function openDetail(name, url) {
+    $("modalTitle").textContent = name;
+    $("modalBody").textContent = "外链详情 · 点击复制可复制 URL";
+    $("modalExtra").innerHTML = '<div class="detail-url">' + esc(url || "（无外链）") + "</div>";
+    $("modalOk").textContent = "复制外链";
+    $("modal").classList.add("show");
+    const ok = async () => {
+      if (url) {
+        await navigator.clipboard.writeText(url).catch(() => {});
+        toast("已复制外链");
+      } else toast("无外链可复制");
+      cleanup();
+    };
+    const cancel = () => cleanup();
+    function cleanup() {
+      $("modal").classList.remove("show");
+      $("modalOk").removeEventListener("click", ok);
+      $("modalCancel").removeEventListener("click", cancel);
+    }
+    $("modalOk").addEventListener("click", ok);
+    $("modalCancel").addEventListener("click", cancel);
   }
 
   async function api(path, body, method) {
@@ -594,6 +796,13 @@ export const INDEX_HTML = `<!DOCTYPE html>
     el.style.color = cls === "ok" ? "var(--c-success)" : cls === "bad" ? "var(--c-danger)" : "var(--c-text-3)";
   }
 
+  function setQuota(used, total) {
+    const pct = total > 0 ? Math.min(100, Math.round((used / total) * 100)) : 0;
+    $("quotaFill").style.width = pct + "%";
+    $("quotaVal").textContent = used + " / " + total;
+    $("quota").classList.toggle("hot", pct > 80);
+  }
+
   /* ── 导航 ── */
   function switchView(v) {
     document.querySelectorAll(".nav-item").forEach((b) => b.classList.toggle("active", b.dataset.view === v));
@@ -609,48 +818,13 @@ export const INDEX_HTML = `<!DOCTYPE html>
     btn.addEventListener("click", () => switchView(btn.dataset.view));
   });
 
-  /* ── Logo ── */
+  /* ── Logo 动效（不注入色值） ── */
   const logo = $("logo");
   let upTimer = null;
   function logoState(s) {
     logo.classList.remove("scanning", "uploading");
     if (s) logo.classList.add(s);
   }
-  const VARIANTS = {
-    "": { bg: "url(#gA)", ink: "#FFFFFF" },
-    v2: { bg: "url(#gB)", ink: "#FFFFFF" },
-    v3: { bg: "url(#gC)", ink: "#FFFFFF" },
-  };
-  function applyVariant(v) {
-    const c = VARIANTS[v] || VARIANTS[""];
-    logo.classList.remove("v2", "v3");
-    if (v) logo.classList.add(v);
-    const svg = logo.querySelector("svg");
-    svg.querySelector(".bg").setAttribute("fill", c.bg);
-    svg.querySelectorAll(".ink-f").forEach((el) => el.setAttribute("fill", c.ink));
-    svg.querySelectorAll(".g-up path").forEach((el) => el.setAttribute("stroke", c.ink));
-    if (v === "v3") {
-      svg.querySelector(".accent").setAttribute("fill", "#FAC775");
-      svg.querySelector(".link").setAttribute("stroke", "#854F0B");
-      svg.querySelector(".g-scan rect").setAttribute("fill", "#854F0B");
-    } else if (v === "v2") {
-      svg.querySelector(".accent").setAttribute("fill", "#9FE1CB");
-      svg.querySelector(".link").setAttribute("stroke", "#EF9F27");
-      svg.querySelector(".g-scan rect").setAttribute("fill", "#EF9F27");
-    } else {
-      svg.querySelector(".accent").setAttribute("fill", "#85B7EB");
-      svg.querySelector(".link").setAttribute("stroke", "#EF9F27");
-      svg.querySelector(".g-scan rect").setAttribute("fill", "#EF9F27");
-    }
-  }
-  document.querySelectorAll(".chip-btn").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      document.querySelectorAll(".chip-btn").forEach((b) => b.classList.remove("active"));
-      btn.classList.add("active");
-      applyVariant(btn.dataset.var);
-    });
-  });
-  applyVariant("");
   logo.addEventListener("click", () => {
     if (logo.classList.contains("scanning")) {
       logoState("uploading");
@@ -658,30 +832,20 @@ export const INDEX_HTML = `<!DOCTYPE html>
     } else logoState("scanning");
   });
 
-  /* ── 健康 ── */
   async function refreshHealth() {
     const { data } = await api("/api/health");
     if (data.ok) setHealth("本机服务正常 · schema " + data.schemaVersion, "ok");
     else setHealth("服务异常", "bad");
   }
 
-  /* ── 工作集 / 拖放 ── */
   function renderWorkset() {
     $("workset").innerHTML =
       workset
         .map(
           (w) =>
-            "<tr><td>" +
-            esc(w.name) +
-            "</td><td>" +
-            esc(w.rel || "—") +
-            '</td><td><span class="tag ' +
-            esc(w.type) +
-            '">' +
-            esc(w.type) +
-            "</span></td><td>" +
-            esc(w.status) +
-            "</td></tr>"
+            "<tr><td>" + esc(w.name) + "</td><td>" + esc(w.rel || "—") +
+            '</td><td><span class="tag ' + esc(w.type) + '">' + esc(w.type) +
+            "</span></td><td>" + esc(w.status) + "</td></tr>"
         )
         .join("") || '<tr><td colspan="4" class="muted">空 · 请拖拽文档/文件夹</td></tr>';
   }
@@ -718,9 +882,7 @@ export const INDEX_HTML = `<!DOCTYPE html>
     }
     for (const it of items) {
       const { data } = await api("/api/session/drop", {
-        name: it.name,
-        relativePath: it.rel,
-        type: it.type,
+        name: it.name, relativePath: it.rel, type: it.type,
       });
       if (data.ok && data.data.boundRoot) {
         $("root").value = data.data.boundRoot;
@@ -728,16 +890,11 @@ export const INDEX_HTML = `<!DOCTYPE html>
         $("rootStatus").className = "status ok";
       }
       workset.push({
-        name: it.name,
-        rel: it.rel,
-        type: it.type,
+        name: it.name, rel: it.rel, type: it.type,
         status: data.ok ? data.data.action || "ok" : (data.error?.code || "E") + ": " + (data.error?.message || ""),
       });
     }
     renderWorkset();
-    logoState("uploading");
-    clearTimeout(upTimer);
-    upTimer = setTimeout(() => logoState(null), 2200);
   }
 
   ["dragenter", "dragover"].forEach((ev) =>
@@ -761,7 +918,11 @@ export const INDEX_HTML = `<!DOCTYPE html>
   dz.addEventListener("drop", async (e) => {
     $("dropTitle").textContent = "正在处理…";
     await ingestDrop(e.dataTransfer);
+    logoState("uploading");
+    clearTimeout(upTimer);
+    upTimer = setTimeout(() => { logoState(null); upTimer = null; }, 2200);
     $("dropTitle").textContent = "已加入工作集";
+    toast("上传完成");
     setTimeout(() => ($("dropTitle").textContent = "将文件拖放到此处"), 1800);
   });
 
@@ -770,19 +931,11 @@ export const INDEX_HTML = `<!DOCTYPE html>
     input.type = "file";
     input.multiple = true;
     input.onchange = () => {
-      const dt = { items: [] };
-      // synthesize from FileList via DataTransfer if available
       const files = Array.from(input.files || []);
       for (const f of files) {
-        workset.push({
-          name: f.name,
-          rel: f.webkitRelativePath || f.name,
-          type: "file",
-          status: "pending-drop",
-        });
+        workset.push({ name: f.name, rel: f.webkitRelativePath || f.name, type: "file", status: "pending-drop" });
       }
       if (files.length) {
-        // still need server bind; prompt path via root input
         toast("已加入本地列表，请绑定 root 后拖拽或填写路径");
         renderWorkset();
         logoState("uploading");
@@ -803,23 +956,15 @@ export const INDEX_HTML = `<!DOCTYPE html>
     }
   };
 
-  /* ── plan / sync ── */
   function renderPlan(plan) {
     $("planBody").innerHTML =
       (plan || [])
         .map(
           (p) =>
-            "<tr><td><span class=\\"tag " +
-            esc(p.action) +
-            '">' +
-            esc(p.action) +
-            "</span></td><td>" +
-            esc(p.raw || p.localPath || "") +
-            "</td><td>" +
-            esc(p.doc || "") +
-            "</td><td>" +
-            esc(p.reason || "") +
-            "</td></tr>"
+            '<tr><td><span class="tag ' + esc(p.action) + '">' + esc(p.action) +
+            "</span></td><td>" + esc(p.raw || p.localPath || "") +
+            "</td><td>" + esc(p.doc || "") +
+            "</td><td>" + esc(p.reason || "") + "</td></tr>"
         )
         .join("") || '<tr><td colspan="4" class="muted">无</td></tr>';
   }
@@ -849,7 +994,6 @@ export const INDEX_HTML = `<!DOCTYPE html>
     await runOp("sync", { confirm: true, dryRun: false });
   };
 
-  /* ── 管理 ── */
   function renderFiles(list) {
     const q = ($("fileSearch").value || "").toLowerCase();
     let items = (list || []).filter((e) => !q || String(e.publicUrl || e.localPath || "").toLowerCase().includes(q));
@@ -863,38 +1007,25 @@ export const INDEX_HTML = `<!DOCTYPE html>
         .map((e, i) => {
           const name = String(e.localPath || e.publicUrl || "asset").split(/[\\\\/]/).pop();
           const hasUrl = e.publicUrl && /^https?:/.test(e.publicUrl);
+          const th = "th" + ((i % 4) + 1);
           return (
-            '<div class="file-card" data-url="' +
-            esc(e.publicUrl || "") +
-            '" data-name="' +
-            esc(name) +
-            '">' +
-            '<div class="file-thumb" style="background:linear-gradient(135deg,#7FA8C9,#4E86AD)">' +
+            '<div class="file-card" data-url="' + esc(e.publicUrl || "") + '" data-name="' + esc(name) + '">' +
+            '<div class="file-thumb ' + th + '">' +
             (hasUrl ? '<img src="' + esc(e.publicUrl) + '" alt="" onerror="this.remove()"/>' : "🖼") +
-            "</div>" +
-            '<div class="file-meta"><div class="name">' +
-            esc(name) +
-            '</div><div class="row"><span>' +
-            esc(String(e.sha256 || "").slice(0, 8) || "—") +
-            '</span><span class="tag">' +
-            (hasUrl ? "外链中" : "无外链") +
-            "</span></div></div></div>"
+            '</div><div class="file-meta"><div class="name">' + esc(name) +
+            '</div><div class="row"><span>' + esc(String(e.sha256 || "").slice(0, 8) || "—") +
+            '</span><span class="tag">' + (hasUrl ? "外链中" : "无外链") + "</span></div></div></div>"
           );
         })
         .join("") || '<div class="muted">暂无映射文件</div>';
     $("fileGrid").querySelectorAll(".file-card").forEach((card) => {
-      card.addEventListener("click", async () => {
-        const url = card.dataset.url;
-        if (!url) return toast("无外链可复制");
-        await navigator.clipboard.writeText(url).catch(() => {});
-        toast("已复制外链：" + card.dataset.name);
-      });
+      card.addEventListener("click", () => openDetail(card.dataset.name, card.dataset.url));
     });
-    const total = items.length;
-    $("statTotal").textContent = String(total);
+    $("statTotal").textContent = String(items.length);
     $("statMapped").textContent = String((list || []).filter((e) => e.publicUrl).length);
-    titles.manage[1] = "共 " + total + " 个文件";
-    if (!$("view-manage").style.display || $("view-manage").style.display !== "none") {
+    setQuota(items.length, 200);
+    titles.manage[1] = "共 " + items.length + " 个文件";
+    if ($("view-manage").style.display !== "none") {
       $("pageCrumb").textContent = titles.manage[1];
     }
   }
@@ -907,7 +1038,6 @@ export const INDEX_HTML = `<!DOCTYPE html>
     const runsRes = await api("/api/runs");
     const runs = runsRes.data?.data?.runs || runsRes.data?.data || [];
     $("statRuns").textContent = String(Array.isArray(runs) ? runs.length : 0);
-    // month count: entries with updatedAt in current month, else 0
     const now = new Date();
     const ym = now.getUTCFullYear() + "-" + String(now.getUTCMonth() + 1).padStart(2, "0");
     $("statMonth").textContent = String(
@@ -959,7 +1089,6 @@ export const INDEX_HTML = `<!DOCTYPE html>
     $("watchOut").textContent = JSON.stringify(data, null, 2);
   };
 
-  /* ── 设置 ── */
   async function loadConfigForm() {
     const { data } = await api("/api/config");
     if (!data.ok) return;
@@ -1005,6 +1134,22 @@ export const INDEX_HTML = `<!DOCTYPE html>
     toast(data.ok ? "doctor 通过" : "doctor 发现问题");
   };
 
+  const themeSelect = $("themeSelect");
+  if (themeSelect) {
+    themeSelect.addEventListener("change", () => setTheme(themeSelect.value || ""));
+  }
+
+  // init
+  try {
+    const saved = localStorage.getItem("picbed.theme") || "";
+    if (THEME_WHITELIST.indexOf(saved) > -1) curTheme = saved;
+  } catch (_) {}
+  if (curTheme) document.body.dataset.theme = curTheme;
+  applyLogo();
+  syncThemeUI();
+  renderTokenSwatches();
+  renderLogoVarRow();
+  setQuota(0, 200);
   renderWorkset();
   refreshHealth();
 </script>
