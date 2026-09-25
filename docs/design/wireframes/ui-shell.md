@@ -139,9 +139,10 @@ App (flex, height 100vh)
 
 ## 4. Logo 与图标
 
-- **Logo 语义**：层叠相片 + 琥珀外链斜线（上传图片 → 拿到外链）。默认 V1 底 `#4E86AD`，后层 `#85B7EB`，线 `#EF9F27`。
-- **动效**：`scanning`（dragover）扫描线 1.2s + 光环；`uploading`（drop）箭头升腾 0.9s；idle hover `scale(1.06)`。点击 Logo 可预览扫描→上传→静止。
-- **图标**：粗描边双色，24×24，描边 `#2E4B7E` 线宽 2，点缀 `#B5D8F2` / `#C9CDD4` / 点睛 `#E39A6B`。symbol：`i-upload` `i-folder` `i-gear` `i-search` `i-image` `i-book`。
+- **Logo 语义**：层叠相片 + 外链斜线（上传图片 → 拿到外链）。全部 `var(--logo-*)`。
+- **动效**：`scanning`（dragover）扫描线 1.2s + 光环；`uploading`（drop）箭头升腾 0.9s；idle hover `scale(1.06)`。
+- **图标令牌**：`--ico-stroke` / `--ico-fill` / `--ico-soft` / `--ico-muted` / `--ico-dot`；symbol 内只挂 class（`ico-s` `ico-stroke` `ico-soft` `ico-muted` `ico-dot`），**零硬编码色**，随主题联动。
+- symbol：`i-upload` `i-folder` `i-gear` `i-search` `i-image` `i-book`。
 
 ## 5. 与 picbed 能力映射（契约不改）
 
