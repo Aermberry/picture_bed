@@ -9,7 +9,7 @@
 > - **transfer** 模块（F6/F7 上传与 URL）→ [`design/module-transfer.md`](design/module-transfer.md)
 > - **rewrite** 模块（F8/F9 回写与 revert）→ [`design/module-rewrite.md`](design/module-rewrite.md)
 > - **cliops** 模块（F1/F2/F10/F11 配置、doctor、Agent 契约）→ [`design/module-cliops.md`](design/module-cliops.md)
-> - **webui** 模块（F16–F22 本地 Web 控制台，含拖拽工作台）→ [`design/module-webui.md`](design/module-webui.md)
+> - **webui** 模块（F16–F23 本地 Web 控制台，含拖拽工作台与壳层视觉）→ [`design/module-webui.md`](design/module-webui.md)
 > - 横切约定 / 退出码 / JSON → [`design/cross-cutting.md`](design/cross-cutting.md)
 >
 > 模块文档内有「功能点映射」节链回本文件，形成相向链接。
@@ -41,6 +41,7 @@
 | F20 | 配置与自检面板 | P1→**done** | webui | config 掩码编辑；doctor 报告可见 |
 | F21 | 审计与报告 | P2→**done** | webui | run 记录/失败明细；JSON 与契约对齐 |
 | F22 | 监听控制台 | P2→**done** | webui | watch 启停与事件日志；无常驻特权 |
+| F23 | 控制台壳层与视觉重设计 | P0→**done** | webui | 72px 侧栏四视图「上传/管理/设置/规范」；晨雾蓝×落日暖令牌；F17–F22 可达且契约不变 |
 
 ---
 
@@ -176,11 +177,17 @@
 - 实现（域）：[module-webui · F22](design/module-webui.md#f22-监听控制台)
 - AC：可对目录启停 watch（等价 F12 语义）；变更批次在界面可见；**默认 `preview` 仅预览**，可选「确认后同步」；`auto` 须显式打开；停止后进程/监听退出，**无**常驻特权；忽略规则与 F12 一致（`node_modules`/`.git`/`.picbed`）。
 
+## F23 Web 控制台壳层与视觉重设计
+
+- 优先级：P0（已实现）· 模块：**webui**
+- 实现（域）：[module-webui · F23](design/module-webui.md#f23-web-控制台壳层与视觉重设计) · 视格：[wireframes/ui-shell.md](design/wireframes/ui-shell.md)（权威：用户《图床工具-UI方案》）
+- AC：界面为 **72px 侧栏 + 顶栏 + 内容区**；侧栏**四视图**均可直达且文案为「上传 / 管理 / 设置 / 规范」；默认进入**上传/文件放置**（DropZone 英雄区 + 根绑定 + 工作集 + plan/sync）；管理页含统计、manifest 网格、回滚、审计、监听；设置页含配置/doctor 与 Toggle；规范页含令牌与 Logo 切换；主题令牌与组件规格（晨雾蓝×落日暖、Toggle 36×20、Logo 三态）与交付规范一致；**token 不得出现在 DOM 可读文本**；API/`confirm`/掩码/策略 A 契约**无回归**。
+
 ---
 
 ## 优先级说明
 
-- **P0**：最小可用闭环（配置→抽取→计划→上传→回写→Agent JSON）；Web 控制台最小闭环（F16–F18）。
+- **P0**：最小可用闭环（配置→抽取→计划→上传→回写→Agent JSON）；Web 控制台最小闭环（F16–F18）；**UI 壳层与视觉重设计（F23，已实现）**。
 - **P1**：revert/manifest 完备、单文件上传；Web 回滚与配置/doctor（F19–F20）。
 - **P2**：Web 审计报告与 watch 控制台（F21–F22）；更丰富 report 增强。
 - **P3**：原 backlog（watch、多图床、IDE 集成）——**均已实现**，保留编号仅作交付史。

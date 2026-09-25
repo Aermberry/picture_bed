@@ -58,3 +58,11 @@
 2026-09-24T13:40:00Z | mimo:ses_ffe5f2e49c257ffeN1IR0yE1vr | create | docs/openspec @ 236ad43+5f66a40 | User reversed: keep OpenSpec on dedicated docs/openspec (from develop); config.yaml grounded in F/P/AC; reinstall CLI dep | User: 2（保留 OpenSpec）
 2026-09-24T14:05:00Z | mimo:ses_ffe5f2e49c257ffeN1IR0yE1vr | merge | docs/openspec → develop @ 43fc1bc; push docs/openspec + develop | Landed OpenSpec tooling on develop via commit-tree merge (worktree blocks git merge) | User: 合并并推送
 2026-09-25T00:50:00Z | mimo:ses_ffe5f2e49c257ffeN1IR0yE1vr | create | release/0.3.2 | Bump package.json 0.3.2 (OIDC npm publish + OpenSpec tooling + npx docs); 39/39 tests | User: 发布吧
+2026-09-25T00:58:00Z | mimo:ses_ffe5f2e49c257ffeN1IR0yE1vr | create | tag v0.3.2 + GitHub Release | main@1116467; assets picbed-0.3.2.tgz + picbed.tgz OK; **npm publish OIDC E404** (Trusted Publisher 未就绪/包名未建立) | User: 发布吧
+2026-09-25 | create | docs/design/wireframes/ui-shell.md + F23 design pack | UI 壳层重设计：双栏「管理/设置」+「文件放置」；主题令牌；更新 features-index/module-webui/architecture/reading-guide/html | User: UI 草图 + /project-design；validate-design.ps1 PASS
+2026-09-25 | update | src/ui/static.ts + F23 design pack | 按用户《图床工具-UI方案》实现四视图壳层（晨雾蓝×落日暖、Logo 三态、DropZone、FileCard、Toggle）；接线 session/plan/sync/manifest/runs/watch/config/doctor；40/40 tests | User: 请阅读UI设计方案，并实现UI界面
+2026-09-25 | update | .agents/rules/delivery.md + memory | Standing rule: auto-push after every commit; release requires user review | User instruction
+2026-09-25 | create | .githooks/post-commit + pre-push + README | Auto-push after commit; pre-push blocks release/tags/main unless PICBED_RELEASE_OK=1; core.hooksPath=.githooks | User: git hook automation
+2026-09-25 | update | src/ui/static.ts + ui-shell.md + ui.test.ts | UI polish: 3 themes (morning-mist/klein/cream), tokenized Logo, quota bar, theme pills, file detail modal | User: 改进UI界面 per updated UI spec
+2026-09-25 | update | src/ui/static.ts + ui-shell.md + ui.test.ts | UI: KyoAni soft palette 晴空蓝×夕照金 — chroma shadows, air gradient, colored soft shadow, larger radii | User: 参照文档做改进
+2026-09-25 | update | src/ui/static.ts + ui-shell.md + ui.test.ts | Polish: icon tokens (--ico-*), multi-format copy (url/md/html), workset remove | User: 继续打磨

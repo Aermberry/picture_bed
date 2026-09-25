@@ -1,0 +1,32 @@
+#!/bin/sh
+# Block release-class pushes unless explicitly approved (user rule 2026-09-25).
+# Approval: set env PICBED_RELEASE_OK=1 for that one push.
+# Covers: tags, release/*, hotfix/*, main.
+
+set -u
+
+allow="${PICBED_RELEASE_OK:-}"
+
+reject() {
+  echo "pre-push: RELEASE blocked — $1" >&2
+  echo "pre-push: release needs user review; retry with PICBED_RELEASE_OK=1 after approval" >&2
+  exit 1
+}
+
+# stdin: <local ref> <local sha> <remote ref> <remote sha>
+while read -r local_ref local_sha remote_ref remote_sha; do
+  # tag push
+  case "$local_ref" in
+    refs/tags/*)
+      [ "$allow" = "1" ] || reject "tag $local_ref"
+      ;;
+  esac
+
+  case "$local_ref" in
+    refs/heads/main|refs/heads/release/*|refs/heads/hotfix/*)
+      [ "$allow" = "1" ] || reject "branch $local_ref"
+      ;;
+  esac
+done
+
+exit 0
