@@ -5,67 +5,87 @@ export const INDEX_HTML = `<!DOCTYPE html>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>picbed 本地控制台</title>
   <style>
-    /* ========== Design Tokens · 晨雾蓝（默认） ========== */
+    /* ========== Design Tokens · 晴空蓝 × 夕照金（京阿尼柔光水彩） ========== */
     :root{
-      --c-primary:#4E86AD;
-      --c-primary-hover:#3D6F94;
-      --c-primary-soft:#EAF2F8;
-      --c-accent:#E39A6B;
-      --c-success:#4C9A82;
-      --c-danger:#C46B5C;
-      --c-bg:#F3F7FA;
+      --c-primary:#4E93C0;
+      --c-primary-hover:#3C7BA6;
+      --c-primary-soft:#E8F4FB;
+      --c-primary-mist:#F3F9FD;
+      --c-primary-vivid:#8ACFEE;
+      --c-accent:#FFC978;
+      --c-success:#6BD9B4;
+      --c-danger:#FF8B96;
+      --c-bg:#EDF4FA;
+      --c-bg-2:#E4EEF8;
       --c-surface:#FFFFFF;
-      --c-border:#DDE7EF;
-      --c-text:#25384A;
-      --c-text-2:#64798C;
-      --c-text-3:#9AABBC;
-      /* Logo 专属令牌（组件级，随主题/候选位覆盖） */
-      --logo-bg:#4E86AD;
+      --c-border:#DCE9F5;
+      --c-text:#3E5670;
+      --c-text-2:#6B85A2;
+      --c-text-3:#93B1CC;
+      --c-shadow:90,130,170;
+      /* Logo 专属令牌（组件级） */
+      --logo-bg:#4E93C0;
       --logo-ink:#FFFFFF;
-      --logo-accent:#85B7EB;
-      --logo-line:#EF9F27;
-      --logo-ring:78,134,173;
-      --logo-bg-v2:#4B5563;   --logo-accent-v2:#C3CBD4; --logo-line-v2:#EF9F27; --logo-ring-v2:75,85,99;
-      --logo-bg-v3:#BA7517;   --logo-accent-v3:#FAC775; --logo-line-v3:#854F0B; --logo-ring-v3:186,117,23;
-      --r-sm:6px; --r-md:10px; --r-lg:16px; --r-full:999px;
+      --logo-accent:#A9DDF3;
+      --logo-line:#FFC978;
+      --logo-ring:78,147,192;
+      --logo-bg-v2:#8A7EB4;   --logo-accent-v2:#C4BBE4; --logo-line-v2:#FFC978; --logo-ring-v2:138,126,180;
+      --logo-bg-v3:#FFC978;   --logo-accent-v3:#FFE3B3; --logo-line-v3:#8A6A3A; --logo-ring-v3:255,201,120;
+      --r-sm:8px; --r-md:14px; --r-lg:20px; --r-full:999px;
       --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px;
       --sp-5:20px; --sp-6:24px; --sp-8:32px;
-      --shadow-1:0 1px 3px rgba(0,0,0,.06);
-      --shadow-2:0 4px 12px rgba(0,0,0,.08);
+      --shadow-1:0 2px 8px rgba(90,130,170,.10);
+      --shadow-2:0 8px 24px rgba(90,130,170,.14);
       font-family:"PingFang SC","Microsoft YaHei",-apple-system,sans-serif;
     }
-    /* A 橙窗蓝调 · 降脏底 #F1F3F6 */
+    /* A 柔群青 × 夕橙奶油 */
     body[data-theme="klein"]{
-      --c-primary:#1D50A2; --c-primary-hover:#173F80; --c-primary-soft:#E8EEF9;
-      --c-accent:#E8641B; --c-bg:#F1F3F6; --c-border:#E2E6EB;
-      --c-text:#1C1C1C; --c-text-2:#5C5952; --c-text-3:#9B968B;
-      --logo-bg:#1D50A2; --logo-accent:#8FA9E8; --logo-line:#E8641B; --logo-ring:29,80,162;
-      --logo-bg-v2:#5C5952; --logo-accent-v2:#B4B2A9; --logo-line-v2:#E8641B; --logo-ring-v2:92,89,82;
-      --logo-bg-v3:#E8641B; --logo-accent-v3:#F0997B; --logo-line-v3:#FFFFFF; --logo-ring-v3:232,100,27;
+      --c-primary:#6484CE; --c-primary-hover:#5573BC; --c-primary-soft:#E9EFFB;
+      --c-primary-mist:#F4F8FD; --c-primary-vivid:#8FB0EF;
+      --c-accent:#FFA978; --c-success:#6FD4AA; --c-danger:#F4836F;
+      --c-bg:#EDF2F9; --c-bg-2:#E5EBF5; --c-border:#DEE5F0;
+      --c-text:#3E4A63; --c-text-2:#66748F; --c-text-3:#9FAEC6;
+      --c-shadow:100,120,165;
+      --logo-bg:#6484CE; --logo-accent:#A9C0F2; --logo-line:#FFA978; --logo-ring:100,132,206;
+      --logo-bg-v2:#78739F; --logo-accent-v2:#B4AEE0; --logo-line-v2:#FFA978; --logo-ring-v2:120,115,159;
+      --logo-bg-v3:#FFA978; --logo-accent-v3:#FFD0AF; --logo-line-v3:#FFFFFF; --logo-ring-v3:255,169,120;
     }
-    /* B 奶油花园 · 降脏底 #F5F2F2 */
+    /* B 柔樱粉 × 若叶 */
     body[data-theme="cream"]{
-      --c-primary:#E58BA6; --c-primary-hover:#D0708F; --c-primary-soft:#FBEEF2;
-      --c-accent:#7FA86B; --c-bg:#F5F2F2; --c-border:#E9E0E0;
-      --c-text:#4A423B; --c-text-2:#8A7F74; --c-text-3:#B8AEA3;
-      --logo-bg:#E58BA6; --logo-accent:#F5C6D4; --logo-line:#FFFFFF; --logo-ring:229,139,166;
-      --logo-bg-v2:#4A423B; --logo-accent-v2:#B8AEA3; --logo-line-v2:#F5C6D4; --logo-ring-v2:74,66,59;
-      --logo-bg-v3:#7FA86B; --logo-accent-v3:#C0DCAE; --logo-line-v3:#FFFFFF; --logo-ring-v3:127,168,107;
+      --c-primary:#D37493; --c-primary-hover:#BE6280; --c-primary-soft:#FBEDF2;
+      --c-primary-mist:#FDF7F9; --c-primary-vivid:#F5B3CC;
+      --c-accent:#86D9B4; --c-success:#86D9B4; --c-danger:#F58B8E;
+      --c-bg:#FAF1F4; --c-bg-2:#F6E9EF; --c-border:#F7E1E9;
+      --c-text:#63495E; --c-text-2:#8E718A; --c-text-3:#C6AAC0;
+      --c-shadow:175,120,145;
+      --logo-bg:#D37493; --logo-accent:#F8C9DC; --logo-line:#FFFFFF; --logo-ring:211,116,147;
+      --logo-bg-v2:#6E5468; --logo-accent-v2:#C6A5CE; --logo-line-v2:#F8C9DC; --logo-ring-v2:110,84,104;
+      --logo-bg-v3:#86D9B4; --logo-accent-v3:#C2EBDC; --logo-line-v3:#FFFFFF; --logo-ring-v3:134,217,180;
     }
-    /* Logo 候选位提升：必须带 [data-theme] 才能盖过主题块 */
+    /* Logo 候选位提升（回退到当前主题生效值，不写死 hex） */
     body[data-logo="v2"], body[data-theme][data-logo="v2"]{
-      --logo-bg:var(--logo-bg-v2,#4E86AD);       --logo-accent:var(--logo-accent-v2,#85B7EB);
-      --logo-line:var(--logo-line-v2,#EF9F27);   --logo-ring:var(--logo-ring-v2,78,134,173);
+      --logo-bg:var(--logo-bg-v2, var(--logo-bg));
+      --logo-accent:var(--logo-accent-v2, var(--logo-accent));
+      --logo-line:var(--logo-line-v2, var(--logo-line));
+      --logo-ring:var(--logo-ring-v2, var(--logo-ring));
     }
     body[data-logo="v3"], body[data-theme][data-logo="v3"]{
-      --logo-bg:var(--logo-bg-v3,#4E86AD);       --logo-accent:var(--logo-accent-v3,#85B7EB);
-      --logo-line:var(--logo-line-v3,#EF9F27);   --logo-ring:var(--logo-ring-v3,78,134,173);
+      --logo-bg:var(--logo-bg-v3, var(--logo-bg));
+      --logo-accent:var(--logo-accent-v3, var(--logo-accent));
+      --logo-line:var(--logo-line-v3, var(--logo-line));
+      --logo-ring:var(--logo-ring-v3, var(--logo-ring));
     }
 
     *{margin:0;padding:0;box-sizing:border-box}
     body{
-      background:var(--c-bg); color:var(--c-text);
+      background:
+        radial-gradient(1100px 460px at 16% -8%, rgba(255,255,255,.85), rgba(255,255,255,0) 68%),
+        linear-gradient(180deg, var(--c-bg) 0%, var(--c-bg-2) 100%);
+      background-attachment:fixed;
+      color:var(--c-text);
       font-size:14px; line-height:1.5; min-width:860px;
+      --shadow-1:0 2px 8px rgba(var(--c-shadow,90,130,170),.10);
+      --shadow-2:0 8px 24px rgba(var(--c-shadow,90,130,170),.14);
     }
     .app{display:flex; height:100vh}
     .sidebar{
@@ -80,13 +100,13 @@ export const INDEX_HTML = `<!DOCTYPE html>
       width:44px;height:44px;border-radius:14px;
       margin-bottom:var(--sp-6); position:relative; overflow:hidden;
       cursor:pointer; flex-shrink:0; transition:transform .15s, box-shadow .2s;
-      box-shadow:0 2px 6px rgba(var(--logo-ring,78,134,173),.28);
+      box-shadow:0 2px 6px rgba(var(--logo-ring,78,147,192),.28);
     }
-    .logo .bg{fill:var(--logo-bg,#4E86AD)}
+    .logo .bg{fill:var(--logo-bg,#4E93C0)}
     .logo .ink-f{fill:var(--logo-ink,#FFFFFF)}
-    .logo .accent{fill:var(--logo-accent,#85B7EB)}
-    .logo .link{stroke:var(--logo-line,#EF9F27)}
-    .logo .g-scan rect{fill:var(--logo-line,#EF9F27)}
+    .logo .accent{fill:var(--logo-accent,#A9DDF3)}
+    .logo .link{stroke:var(--logo-line,#FFC978)}
+    .logo .g-scan rect{fill:var(--logo-line,#FFC978)}
     .logo .g-up path{stroke:var(--logo-ink,#FFFFFF)}
     .logo:hover{transform:scale(1.06)}
     .logo svg{width:100%;height:100%;display:block}
@@ -95,8 +115,8 @@ export const INDEX_HTML = `<!DOCTYPE html>
     .logo.scanning .g-scan{opacity:1; animation:scanMove 1.2s ease-in-out infinite}
     @keyframes scanMove{0%,100%{transform:translateY(13px)}50%{transform:translateY(24px)}}
     @keyframes ringPulse{
-      0%{box-shadow:0 0 0 0 rgba(var(--logo-ring,78,134,173),.45)}
-      100%{box-shadow:0 0 0 12px rgba(var(--logo-ring,78,134,173),0)}
+      0%{box-shadow:0 0 0 0 rgba(var(--logo-ring,78,147,192),.45)}
+      100%{box-shadow:0 0 0 12px rgba(var(--logo-ring,78,147,192),0)}
     }
     .logo .g-up{opacity:0}
     .logo.uploading .g-up{opacity:1; animation:rise 0.9s ease-in-out infinite}
@@ -247,18 +267,18 @@ export const INDEX_HTML = `<!DOCTYPE html>
       height:110px; display:flex;align-items:center;justify-content:center;
       font-size:34px; color:#fff;
     }
-    .file-thumb.th1{background:linear-gradient(135deg,#7FA8C9,#4E86AD)}
-    .file-thumb.th2{background:linear-gradient(135deg,#8FBFAD,#4C9A82)}
-    .file-thumb.th3{background:linear-gradient(135deg,#EFC08C,#D9985E)}
-    .file-thumb.th4{background:linear-gradient(135deg,#E39A8B,#C46B5C)}
-    body[data-theme="klein"] .th1{background:linear-gradient(135deg,#3E76C9,#1D50A2)}
-    body[data-theme="klein"] .th2{background:linear-gradient(135deg,#F0997B,#D85A30)}
-    body[data-theme="klein"] .th3{background:linear-gradient(135deg,#B4B2A9,#888780)}
-    body[data-theme="klein"] .th4{background:linear-gradient(135deg,#5F5E5A,#2C2C2A)}
-    body[data-theme="cream"] .th1{background:linear-gradient(135deg,#F2B8C6,#E58BA6)}
-    body[data-theme="cream"] .th2{background:linear-gradient(135deg,#A8C68F,#7FA86B)}
-    body[data-theme="cream"] .th3{background:linear-gradient(135deg,#F5E3C8,#E8C99B)}
-    body[data-theme="cream"] .th4{background:linear-gradient(135deg,#C9D2C0,#A3B295)}
+    .file-thumb.th1{background:linear-gradient(135deg,#A9DDF3,#4E93C0)}
+    .file-thumb.th2{background:linear-gradient(135deg,#FFE3B3,#FFC978)}
+    .file-thumb.th3{background:linear-gradient(135deg,#C4BBE4,#8A7EB4)}
+    .file-thumb.th4{background:linear-gradient(135deg,#B8E8D8,#6BD9B4)}
+    body[data-theme="klein"] .th1{background:linear-gradient(135deg,#A9C0F2,#6484CE)}
+    body[data-theme="klein"] .th2{background:linear-gradient(135deg,#FFD0AF,#FFA978)}
+    body[data-theme="klein"] .th3{background:linear-gradient(135deg,#CBD3E8,#8D99B8)}
+    body[data-theme="klein"] .th4{background:linear-gradient(135deg,#9A95C4,#6E6A9E)}
+    body[data-theme="cream"] .th1{background:linear-gradient(135deg,#F8C9DC,#D37493)}
+    body[data-theme="cream"] .th2{background:linear-gradient(135deg,#C2EBDC,#86D9B4)}
+    body[data-theme="cream"] .th3{background:linear-gradient(135deg,#FFE4EE,#F5B3CC)}
+    body[data-theme="cream"] .th4{background:linear-gradient(135deg,#D6EEF4,#A8D4DE)}
     .file-thumb img{width:100%;height:100%;object-fit:cover}
     .file-meta{padding:var(--sp-3)}
     .file-meta .name{font-size:13px; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
@@ -308,18 +328,19 @@ export const INDEX_HTML = `<!DOCTYPE html>
     }
 
     .toast{
-      position:fixed; right:24px; bottom:24px;
+      position:fixed; left:50%; bottom:32px; transform:translate(-50%,12px);
       background:var(--c-surface); color:var(--c-text);
       padding:12px 18px; border:1px solid var(--c-border);
       border-radius:var(--r-md); box-shadow:var(--shadow-2);
-      opacity:0; pointer-events:none; transition:opacity .2s, transform .2s;
-      transform:translateY(8px); z-index:50;
+      opacity:0; pointer-events:none; transition:all .25s;
+      z-index:50;
       display:flex; align-items:center; gap:10px;
     }
-    .toast.show{opacity:1; transform:translateY(0)}
-    .toast .ico-dot{
-      width:8px;height:8px;border-radius:50%;
-      background:var(--c-accent); flex-shrink:0;
+    .toast.show{opacity:1; transform:translate(-50%,0)}
+    .toast .mark{
+      width:22px;height:22px;border-radius:var(--r-full); flex-shrink:0;
+      background:var(--c-accent); color:#fff; font-size:12px;
+      display:flex; align-items:center; justify-content:center;
     }
 
     .modal{
@@ -418,9 +439,9 @@ export const INDEX_HTML = `<!DOCTYPE html>
           <span class="val" id="quotaVal">0 / 200</span>
         </div>
         <div class="theme-pills" id="themePills">
-          <button type="button" class="pill active" data-theme-btn="">晨雾蓝</button>
-          <button type="button" class="pill" data-theme-btn="klein">橙窗蓝调</button>
-          <button type="button" class="pill" data-theme-btn="cream">奶油花园</button>
+          <button type="button" class="pill active" data-theme-btn="">晴空蓝</button>
+          <button type="button" class="pill" data-theme-btn="klein">柔群青</button>
+          <button type="button" class="pill" data-theme-btn="cream">柔樱粉</button>
         </div>
         <span class="hint" id="health">…</span>
       </div>
@@ -551,9 +572,9 @@ export const INDEX_HTML = `<!DOCTYPE html>
           <h3>外观主题</h3>
           <div class="form-row"><label>界面主题</label>
             <select id="themeSelect">
-              <option value="">晨雾蓝 × 落日暖</option>
-              <option value="klein">A 橙窗蓝调</option>
-              <option value="cream">B 奶油花园</option>
+              <option value="">晴空蓝 × 夕照金</option>
+              <option value="klein">A 柔群青 × 夕橙</option>
+              <option value="cream">B 柔樱粉 × 若叶</option>
             </select>
           </div>
           <div class="hint">主题切换即时生效并记忆在本机 localStorage；Logo 候选随主题联动。</div>
@@ -574,16 +595,17 @@ export const INDEX_HTML = `<!DOCTYPE html>
     <!-- 规范 -->
     <section class="content doc" id="view-doc" style="display:none">
       <p class="hint" style="margin-bottom:16px">💡 顶栏可切换三套主题；Logo 候选随主题联动；点击左上角 Logo 预览扫描 / 上传动效。</p>
-      <h2>🎨 主题配色（三套 · 令牌换肤）</h2>
+      <h2>🎨 主题配色（京阿尼柔光 · 三套令牌换肤）</h2>
       <div class="token-row" id="themeSwitchRow">
-        <button type="button" class="chip chip-btn active" data-theme-btn="">默认 · 晨雾蓝</button>
-        <button type="button" class="chip chip-btn" data-theme-btn="klein">A · 橙窗蓝调</button>
-        <button type="button" class="chip chip-btn" data-theme-btn="cream">B · 奶油花园</button>
+        <button type="button" class="chip chip-btn active" data-theme-btn="">默认 · 晴空蓝</button>
+        <button type="button" class="chip chip-btn" data-theme-btn="klein">A · 柔群青</button>
+        <button type="button" class="chip chip-btn" data-theme-btn="cream">B · 柔樱粉</button>
       </div>
       <div class="token-row" id="tokenSwatches"></div>
       <ul class="spec-list">
-        <li><b>60-30-10</b>：中性铺底 · 主色块面 · 辅助色只点睛（同屏 ≤3）</li>
-        <li>底色降脏：A 用冷灰白 <code>#F1F3F6</code>，B 用微暖中性 <code>#F5F2F2</code>（与纯白差 10+）</li>
+        <li><b>京阿尼七原则</b>：去浊提纯 · 彩度阴影 · 高光留白 · 空气透视 · 亮色分离 · 柔化降饱和 · 彩色柔影</li>
+        <li>底色：A <code>#EDF2F9</code> · B <code>#FAF1F4</code> · 默认 <code>#EDF4FA</code>（与纯白差 10+）</li>
+        <li>页面空气渐变 + 顶部白雾；投影用 <code>--c-shadow</code> 彩色柔影，不用死黑</li>
         <li>换肤原理：<code>body[data-theme]</code> 覆盖 <code>--c-*</code> 与 <code>--logo-*</code>，组件结构零改动</li>
       </ul>
       <h2>✨ Logo 令牌与候选位</h2>
@@ -614,7 +636,7 @@ export const INDEX_HTML = `<!DOCTYPE html>
   </main>
 </div>
 
-<div class="toast" id="toast"><span class="ico-dot"></span><span id="toastText"></span></div>
+<div class="toast" id="toast"><span class="mark">✓</span><span id="toastText"></span></div>
 <div class="modal" id="modal">
   <div class="panel">
     <h3 id="modalTitle">确认</h3>
@@ -636,25 +658,25 @@ export const INDEX_HTML = `<!DOCTYPE html>
   const THEME_WHITELIST = ["", "klein", "cream"];
   const LOGO_VARIANTS = {
     "": [
-      { key: "", label: "D1 丹宁雾蓝" },
-      { key: "v2", label: "D2 石墨中性" },
-      { key: "v3", label: "D3 落日琥珀" },
+      { key: "", label: "D1 晴空蓝" },
+      { key: "v2", label: "D2 暮紫" },
+      { key: "v3", label: "D3 夕照金" },
     ],
     klein: [
-      { key: "", label: "A1 克莱因蓝" },
-      { key: "v2", label: "A2 砖地灰" },
-      { key: "v3", label: "A3 窗框橙" },
+      { key: "", label: "A1 柔群青" },
+      { key: "v2", label: "A2 暮蓝" },
+      { key: "v3", label: "A3 夕橙" },
     ],
     cream: [
-      { key: "", label: "B1 绣球粉" },
-      { key: "v2", label: "B2 暖褐" },
-      { key: "v3", label: "B3 花园绿" },
+      { key: "", label: "B1 柔樱粉" },
+      { key: "v2", label: "B2 深紫影" },
+      { key: "v3", label: "B3 若叶绿" },
     ],
   };
   const THEME_TOKENS = {
-    "": { name: "晨雾蓝", primary: "#4E86AD", accent: "#E39A6B", bg: "#F3F7FA", text: "#25384A", soft: "#EAF2F8", border: "#DDE7EF" },
-    klein: { name: "橙窗蓝调", primary: "#1D50A2", accent: "#E8641B", bg: "#F1F3F6", text: "#1C1C1C", soft: "#E8EEF9", border: "#E2E6EB" },
-    cream: { name: "奶油花园", primary: "#E58BA6", accent: "#7FA86B", bg: "#F5F2F2", text: "#4A423B", soft: "#FBEEF2", border: "#E9E0E0" },
+    "": { name: "晴空蓝", primary: "#4E93C0", accent: "#FFC978", bg: "#EDF4FA", text: "#3E5670", soft: "#E8F4FB", border: "#DCE9F5" },
+    klein: { name: "柔群青", primary: "#6484CE", accent: "#FFA978", bg: "#EDF2F9", text: "#3E4A63", soft: "#E9EFFB", border: "#DEE5F0" },
+    cream: { name: "柔樱粉", primary: "#D37493", accent: "#86D9B4", bg: "#FAF1F4", text: "#63495E", soft: "#FBEDF2", border: "#F7E1E9" },
   };
 
   let curTheme = "";
