@@ -155,4 +155,18 @@ describe('ui server F16–F18', () => {
     expect(html).toContain('picbed 本地控制台');
     expect(html).toContain('拖拽');
   });
+
+  it('F23 shell: four nav views, theme tokens, logo and dropzone', async () => {
+    const html = await (await fetch(base + '/')).text();
+    for (const label of ['上传', '管理', '设置', '规范']) {
+      expect(html).toContain('>' + label + '</button>');
+    }
+    expect(html).toContain('#4E86AD');
+    expect(html).toContain('#E39A6B');
+    expect(html).toContain('#F3F7FA');
+    expect(html).toContain('dropzone');
+    expect(html).toContain('g-scan');
+    expect(html).toContain('g-up');
+    expect(html).toContain('文件放置');
+  });
 });
