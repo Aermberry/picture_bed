@@ -1,6 +1,6 @@
 {
   "name": "picbed",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "Local CLI + Web console: extract images from markdown/html, upload to PicX-style GitHub image host, rewrite links",
   "type": "module",
   "repository": {
