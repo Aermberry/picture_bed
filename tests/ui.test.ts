@@ -161,9 +161,9 @@ describe('ui server F16–F18', () => {
     for (const label of ['上传', '管理', '设置', '规范']) {
       expect(html).toContain('>' + label + '</button>');
     }
-    expect(html).toContain('#4E86AD');
-    expect(html).toContain('#E39A6B');
-    expect(html).toContain('#F3F7FA');
+    expect(html).toContain('#4E93C0');
+    expect(html).toContain('#FFC978');
+    expect(html).toContain('#EDF4FA');
     expect(html).toContain('dropzone');
     expect(html).toContain('g-scan');
     expect(html).toContain('g-up');
@@ -172,10 +172,16 @@ describe('ui server F16–F18', () => {
 
   it('F23 theme system: three themes, logo tokens, no JS color inject', async () => {
     const html = await (await fetch(base + '/')).text();
-    // three themes
+    // three themes (KyoAni palette)
     expect(html).toContain('data-theme="klein"');
     expect(html).toContain('data-theme="cream"');
     expect(html).toContain('THEME_WHITELIST');
+    expect(html).toContain('#6484CE');
+    expect(html).toContain('#D37493');
+    // air gradient + colored soft shadow
+    expect(html).toContain('--c-shadow');
+    expect(html).toContain('--c-bg-2');
+    expect(html).toContain('radial-gradient');
     // logo tokenized (consumed via CSS vars, fallbacks present)
     expect(html).toContain('--logo-bg');
     expect(html).toContain('--logo-line');
