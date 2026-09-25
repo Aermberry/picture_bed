@@ -70,3 +70,4 @@
 2026-09-25 | update | package.json + release.yml | npm pkg fix (bin paths); npm publish continue-on-error so Release assets always ship | User: pasted npm publish E404 log
 2026-09-25 | update | release.yml | Root-cause npm E404: v0.3.1 never used CI publish (manual 0.3.1); OIDC needs npm>=11.5 and must clear empty NODE_AUTH_TOKEN; add workflow_dispatch republish | User: 之前发布成功过
 2026-09-26 | create | .mimocode/skills/npm-oidc-release/ | Project skill: GitHub Release + npm OIDC publish pitfalls and checklist | User: 总结经验为项目内 skill
+2026-09-26 | create | .mimocode/skills/ui-spec-impl/ | Project skill: UI spec to impl (4-view shell, theme tokens, logo/icon tokens) | User: today also did UI design

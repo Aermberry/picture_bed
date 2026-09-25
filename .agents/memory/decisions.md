@@ -24,3 +24,4 @@
 | 2026-09-25 | **Commit 后自动 push；release 才需审核** | User: 「每次执行git-commit后，自动执行推送；只有在执行release时，才需要我的审核」；写入 `.agents/rules/delivery.md` | active |
 | 2026-09-26 | 发版经验沉淀为项目 skill 
 pm-oidc-release（非全局） | User 要求项目内可复用；含 OIDC/npm11.5/NODE_AUTH_TOKEN 分层排障 | active |
+| 2026-09-26 | UI design/impl skill ui-spec-impl (project only) | pairs with npm-oidc-release | active |
