@@ -10,6 +10,7 @@
 > - **rewrite** 模块（F8/F9 回写与 revert）→ [`design/module-rewrite.md`](design/module-rewrite.md)
 > - **cliops** 模块（F1/F2/F10/F11 配置、doctor、Agent 契约）→ [`design/module-cliops.md`](design/module-cliops.md)
 > - **webui** 模块（F16–F23 本地 Web 控制台，含拖拽工作台与壳层视觉）→ [`design/module-webui.md`](design/module-webui.md)
+> - **desktop** 模块（F24 桌面应用壳与安装包）→ [`design/module-desktop.md`](design/module-desktop.md)
 > - 横切约定 / 退出码 / JSON → [`design/cross-cutting.md`](design/cross-cutting.md)
 >
 > 模块文档内有「功能点映射」节链回本文件，形成相向链接。
@@ -42,6 +43,7 @@
 | F21 | 审计与报告 | P2→**done** | webui | run 记录/失败明细；JSON 与契约对齐 |
 | F22 | 监听控制台 | P2→**done** | webui | watch 启停与事件日志；无常驻特权 |
 | F23 | 控制台壳层与视觉重设计 | P0→**done** | webui | 72px 侧栏四视图「上传/管理/设置/规范」；晨雾蓝×落日暖令牌；F17–F22 可达且契约不变 |
+| F24 | 桌面应用壳与安装包 | P0 | desktop | Electron 壳加载完整控制台；原生目录对话框；Windows NSIS 安装包；npm 形态不受影响 |
 
 ---
 
@@ -183,11 +185,17 @@
 - 实现（域）：[module-webui · F23](design/module-webui.md#f23-web-控制台壳层与视觉重设计) · 视格：[wireframes/ui-shell.md](design/wireframes/ui-shell.md)（权威：用户《图床工具-UI方案》）
 - AC：界面为 **72px 侧栏 + 顶栏 + 内容区**；侧栏**四视图**均可直达且文案为「上传 / 管理 / 设置 / 规范」；默认进入**上传/文件放置**（DropZone 英雄区 + 根绑定 + 工作集 + plan/sync）；管理页含统计、manifest 网格、回滚、审计、监听；设置页含配置/doctor 与 Toggle；规范页含令牌与 Logo 切换；主题令牌与组件规格（晨雾蓝×落日暖、Toggle 36×20、Logo 三态）与交付规范一致；**token 不得出现在 DOM 可读文本**；API/`confirm`/掩码/策略 A 契约**无回归**。
 
+## F24 桌面应用壳与安装包
+
+- 优先级：P0 · 模块：**desktop**
+- 实现（域）：[module-desktop · F24](design/module-desktop.md#f24-桌面应用壳与安装包)
+- AC：双形态并存——**npm**（`picbed`/`picbed-mcp`/`picbed ui`，供本地开发测试与 Agent）与**桌面安装包**（下载安装即用）互不破坏。桌面端启动原生窗口并加载**完整 Web 控制台**（F16–F23 四视图，契约不变）；UI 服务仅绑 `127.0.0.1`；提供**原生目录选择**（策略 A 仍强制先绑 root）；窗口尺寸/位置可记忆；关闭窗口释放端口并停 watch；token 不进渲染进程；`npm pack` **不含** Electron/`desktop/`；Windows NSIS 用户级安装包（`picbed-setup.exe`）可在无 Node 环境运行。
+
 ---
 
 ## 优先级说明
 
-- **P0**：最小可用闭环（配置→抽取→计划→上传→回写→Agent JSON）；Web 控制台最小闭环（F16–F18）；**UI 壳层与视觉重设计（F23，已实现）**。
+- **P0**：最小可用闭环（配置→抽取→计划→上传→回写→Agent JSON）；Web 控制台最小闭环（F16–F18）；**UI 壳层与视觉重设计（F23，已实现）**；**桌面应用壳与安装包（F24）**。
 - **P1**：revert/manifest 完备、单文件上传；Web 回滚与配置/doctor（F19–F20）。
 - **P2**：Web 审计报告与 watch 控制台（F21–F22）；更丰富 report 增强。
 - **P3**：原 backlog（watch、多图床、IDE 集成）——**均已实现**，保留编号仅作交付史。

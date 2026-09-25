@@ -81,6 +81,14 @@ WebUiFacade
 - 主题「晨雾蓝 × 落日暖」令牌、组件、Logo 动效以 [`wireframes/ui-shell.md`](wireframes/ui-shell.md) + 用户《设计交付规范》为准。
 - 壳层组件只消费既有 `/api/*`；禁止为布局新造与信封冲突的私有字段。
 
+### 桌面原生桥（F24 渐进增强，不改 HTTP 契约）
+
+WebUI SPA **同时**服务浏览器（`picbed ui`）与 Electron 壳（[`module-desktop.md`](module-desktop.md)）：
+
+- 若 `window.picbedNative` 存在（preload 注入）：root/工作目录输入旁提供「浏览…」，调用 `picbedNative.selectDirectory()`；取消不改 root。
+- 若不存在：保持拖拽 + 手输路径，**禁止**因缺桥而报错或隐藏主流程。
+- 桥只返回路径字符串；解析、越界校验、策略 A 仍由服务端 RootBinder 负责。
+
 ## F16 本地 Web 控制台服务
 
 - 输入：`--host`（默认 `127.0.0.1`）、`--port`（默认可配，如 4780）、`--open`（可选打开浏览器）。
