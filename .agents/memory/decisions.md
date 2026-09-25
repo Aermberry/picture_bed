@@ -20,3 +20,4 @@
 | 2026-09-23 | Web 前端 **轻量 Vite + 原生 SPA**；watch 默认 **`preview`** | User: 「按照你的建议即可」 | active |
 | 2026-09-23 | npm 发布用 **Trusted Publishing (OIDC)**，不用长期 token | User: 「A」；Classic Token 已移除；workflow `release.yml` + `id-token: write` | active |
 | 2026-09-24 | **保留 OpenSpec**，落在独立分支 `docs/openspec`；`config.yaml` 对齐 F/P/AC 与 design-first | User 选 2；规格权威仍是 `docs/features-index.md`，OpenSpec 只做 change 工作流 | active |
+| 2026-09-25 | **F23 UI 壳层**：72px 侧栏四视图「上传/管理/设置/规范」；主题「晨雾蓝 × 落日暖」 | 用户交付《图床工具-UI方案.html》+《设计交付规范》覆盖早前 2 项草图；已实现 `src/ui/static.ts` | active |
