@@ -1,6 +1,6 @@
 # picbed 架构设计
 
-> 状态：**F1–F22 已实现**（Web 控制台 F16–F22，2026-09-23）· Node/TS CLI + 本地 Web UI
+> 状态：**F1–F23 已实现**（Web 控制台 F16–F23，F23 壳层「晨雾蓝×落日暖」2026-09-25）· Node/TS CLI + 本地 Web UI
 > 定位：**架构总纲**（分层 / 存储 / CLI 契约 / 数据模型 / 安全 / NFR / 技术选型）。
 > 功能点的完整规格（优先级、AC、实现归属、双向链接）以 [`features-index.md`](features-index.md) 为唯一来源；本文档不重复其逐条 AC。
 > **新人阅读指南**（F 编号、模块名、文档怎么串）：[`design-reading-guide.md`](design-reading-guide.md)。
@@ -108,6 +108,7 @@
 - **ManifestStore**：读写映射，支撑幂等、revert、审计。
 - **DoctorService**：配置完整性、token 探测、API 连通与权限。
 - **WebUiFacade / UiServer / ConfirmGate / ViewMapper**（webui）：本机 HTTP 控制台、写操作确认门、拖拽工作集与视图映射；**不**重写域规则（F16–F22）。
+- **AppShell / SideNav / DropZone**（webui 呈现壳层，F23）：双栏布局、管理/设置导航、文件放置英雄区与主题令牌；只消费既有 API。
 
 ### 2.3 应用编排
 
@@ -243,6 +244,7 @@ Web API 信封与退出码语义对齐 [`design/cross-cutting.md`](design/cross-
 | M6 扩展 | F12 watch / F13 multi-host / F14 MCP / F15 token auth | P0/P3 | done |
 | M7 Web 控制台 | F16–F18 最小闭环（服务+拖拽工作台+sync） | P0 | **done** |
 | M8 Web 完备 | F19–F22 revert/config/doctor/审计/watch | P1–P2 | **done** |
+| M9 UI 壳层重设计 | F23 四视图「上传/管理/设置/规范」+ 晨雾蓝×落日暖 | P0 | **done** |
 
 具体功能点、AC 与模块归属：[`features-index.md`](features-index.md)。
 
@@ -260,6 +262,7 @@ Web API 信封与退出码语义对齐 [`design/cross-cutting.md`](design/cross-
 8. ~~Web 前端栈：原生 / 轻量 Vite / React？~~ **已冻结为轻量 Vite + 原生 SPA（不引入 React）**（2026-09-23，采纳建议）。  
 9. ~~拖拽后「无 root」时：强制先绑根，还是允许暂存预览（策略 B）？~~ **已冻结为策略 A：强制先绑根**（2026-09-23）；未绑根不得进入 scan/plan/sync；暂存预览不纳入本期。  
 10. ~~watch 在 UI 默认模式：`preview` / `confirm-each` / `auto`？~~ **已冻结为默认 `preview`**（2026-09-23，采纳建议）；`auto` 须显式打开并仍写 RunRecord。
+11. **F23 UI 壳层**：草图已锁定双栏「管理 / 设置」+ 主区「文件放置」；主题与布局细则见 [`design/wireframes/ui-shell.md`](design/wireframes/ui-shell.md)。开放：刷新后 root 自动读入策略、管理页 TOC、深色主题、侧栏图标风格（见该文件 §10）。
 
 ---
 
