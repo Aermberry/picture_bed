@@ -21,6 +21,7 @@ node_modules/
 dist/
 build/
 out/
+release/
 .next/
 .nuxt/
 .vite/
@@ -34,3 +35,13 @@ out/
 # picbed local state
 .picbed/
 coverage/
+
+# npm pack local artifacts
+*.tgz
+
+# TypeScript incremental cache
+*.tsbuildinfo
+
+# Agent workspace scratch / reports (default uncommitted)
+.agents/tmp/
+.agents/reports/

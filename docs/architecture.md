@@ -1,6 +1,6 @@
 # picbed 架构设计
 
-> 状态：**F1–F23 已实现**；**F24 桌面壳设计中**（Electron 双形态：npm + Windows 安装包）· Node/TS CLI + 本地 Web UI + Desktop 壳
+> 状态：**F1–F24 已实现**（F24 Electron 双形态：npm + Windows 安装包）· Node/TS CLI + 本地 Web UI + Desktop 壳
 > 定位：**架构总纲**（分层 / 存储 / CLI 契约 / 数据模型 / 安全 / NFR / 技术选型）。
 > 功能点的完整规格（优先级、AC、实现归属、双向链接）以 [`features-index.md`](features-index.md) 为唯一来源；本文档不重复其逐条 AC。
 > **新人阅读指南**（F 编号、模块名、文档怎么串）：[`design-reading-guide.md`](design-reading-guide.md)。
@@ -266,7 +266,7 @@ Web API 信封与退出码语义对齐 [`design/cross-cutting.md`](design/cross-
 | M7 Web 控制台 | F16–F18 最小闭环（服务+拖拽工作台+sync） | P0 | **done** |
 | M8 Web 完备 | F19–F22 revert/config/doctor/审计/watch | P1–P2 | **done** |
 | M9 UI 壳层重设计 | F23 四视图「上传/管理/设置/规范」+ 晨雾蓝×落日暖 | P0 | **done** |
-| M10 桌面壳 | F24 Electron 壳 + Windows 安装包 + 原生对话框 | P0 | **design → impl** |
+| M10 桌面壳 | F24 Electron 壳 + Windows 安装包 + 原生对话框 | P0 | **done** |
 
 具体功能点、AC 与模块归属：[`features-index.md`](features-index.md)。
 

@@ -43,7 +43,7 @@
 | F21 | 审计与报告 | P2→**done** | webui | run 记录/失败明细；JSON 与契约对齐 |
 | F22 | 监听控制台 | P2→**done** | webui | watch 启停与事件日志；无常驻特权 |
 | F23 | 控制台壳层与视觉重设计 | P0→**done** | webui | 72px 侧栏四视图「上传/管理/设置/规范」；晨雾蓝×落日暖令牌；F17–F22 可达且契约不变 |
-| F24 | 桌面应用壳与安装包 | P0 | desktop | Electron 壳加载完整控制台；原生目录对话框；Windows NSIS 安装包；npm 形态不受影响 |
+| F24 | 桌面应用壳与安装包 | P0→**done** | desktop | Electron 壳加载完整控制台；原生目录对话框；Windows NSIS 安装包；npm 形态不受影响 |
 
 ---
 
@@ -187,7 +187,7 @@
 
 ## F24 桌面应用壳与安装包
 
-- 优先级：P0 · 模块：**desktop**
+- 优先级：P0（已实现）· 模块：**desktop**
 - 实现（域）：[module-desktop · F24](design/module-desktop.md#f24-桌面应用壳与安装包)
 - AC：双形态并存——**npm**（`picbed`/`picbed-mcp`/`picbed ui`，供本地开发测试与 Agent）与**桌面安装包**（下载安装即用）互不破坏。桌面端启动原生窗口并加载**完整 Web 控制台**（F16–F23 四视图，契约不变）；UI 服务仅绑 `127.0.0.1`；提供**原生目录选择**（策略 A 仍强制先绑 root）；窗口尺寸/位置可记忆；关闭窗口释放端口并停 watch；token 不进渲染进程；`npm pack` **不含** Electron/`desktop/`；Windows NSIS 用户级安装包（`picbed-setup.exe`）可在无 Node 环境运行。
 

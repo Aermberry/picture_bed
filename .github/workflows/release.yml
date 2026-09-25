@@ -73,3 +73,37 @@ jobs:
         if: steps.npm_publish.outcome != 'success'
         run: |
           echo "::warning::npm publish failed. Trusted Publisher must match Aermberry/picture_bed + release.yml; npm CLI must be >= 11.5. GitHub Release assets are already published."
+
+  # F24 desktop installer (Windows NSIS). Requires windows-latest + electron-builder.
+  desktop:
+    runs-on: windows-latest
+    needs: release
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Build desktop installer
+        run: npm run desktop:dist
+        env:
+          # Avoid electron-builder code-sign prompts; unsigned is OK for v1.
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - name: Copy stable asset name
+        shell: pwsh
+        run: |
+          Copy-Item release/picbed-setup-*.exe release/picbed-setup.exe
+      - name: Upload desktop installer to GitHub Release
+        if: ${{ github.event_name == 'push' || inputs.skip_github_release != true }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ref_name="${GITHUB_REF_NAME}"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.ref }}" ]; then
+            ref_name="${{ inputs.ref }}"
+          fi
+          gh release upload "$ref_name" release/picbed-setup-*.exe release/picbed-setup.exe --clobber
