@@ -55,48 +55,53 @@ App (flex, height 100vh)
 
 色板 / 文字 / 间距 / 图标 / Logo 三态 / 组件与原型说明（可切换 Logo 配色 V1–V3）。
 
-## 2. 设计令牌（三主题 · 禁止散色）
+## 2. 设计令牌（京阿尼柔光 · 三主题 · 禁止散色）
 
-颜色全部走 CSS 变量；`body[data-theme]` 整体换肤（`""` 默认 / `klein` / `cream`）。
+色调法：**京阿尼式水彩赛璐璐**——去浊提纯 · 彩度阴影 · 高光留白 · 空气透视 · 亮色分离 · 柔化降饱和 · 彩色柔影。  
+颜色全部走 CSS 变量；`body[data-theme]` 整体换肤（`""` / `klein` / `cream`）。
 
-### 2.1 默认 · 晨雾蓝 × 落日暖
+### 2.1 默认 · 晴空蓝 × 夕照金
 
 | Token | 色值 | 用途 |
 |-------|------|------|
-| `--c-primary` | `#4E86AD` | 主按钮、导航选中、Tag |
-| `--c-primary-hover` | `#3D6F94` | hover |
-| `--c-primary-soft` | `#EAF2F8` | 选中底 |
-| `--c-accent` | `#E39A6B` | 点睛（Toast、Logo 线） |
-| `--c-success` | `#4C9A82` | 成功 |
-| `--c-danger` | `#C46B5C` | 错误/blocked/容量告警 |
-| `--c-bg` | `#F3F7FA` | 页面底 |
-| `--c-surface` | `#FFFFFF` | 卡片 |
-| `--c-border` | `#DDE7EF` | 描边 |
-| `--c-text` / `-2` / `-3` | `#25384A` / `#64798C` / `#9AABBC` | 文字三阶 |
+| `--c-primary` | `#4E93C0` | 主按钮、导航选中、Tag |
+| `--c-primary-hover` | `#3C7BA6` | hover |
+| `--c-primary-soft` / `-mist` | `#E8F4FB` / `#F3F9FD` | 选中底 / 大面积淡底 |
+| `--c-primary-vivid` | `#8ACFEE` | **仅装饰/缩略图**，不做按钮底 |
+| `--c-accent` | `#FFC978` | 夕照金点睛 |
+| `--c-success` / `--c-danger` | `#6BD9B4` / `#FF8B96` | 成功 / 错误 |
+| `--c-bg` / `--c-bg-2` | `#EDF4FA` / `#E4EEF8` | 空气渐变上下端 |
+| `--c-surface` | `#FFFFFF` | 纯白高光 |
+| `--c-border` | `#DCE9F5` | 柔雾描边 |
+| `--c-text` / `-2` / `-3` | `#3E5670` / `#6B85A2` / `#93B1CC` | 彩度阴影（非中性灰） |
+| `--c-shadow` | `90,130,170` | 彩色柔影 RGB（取代死黑） |
 
-### 2.2 变体（降脏底已定稿）
+圆角：`8 / 14 / 20 / 999`（整体 +2~4）。阴影在 `body` 用 `rgba(var(--c-shadow),…)` 现算。
 
-| Token | A 橙窗蓝调 `klein` | B 奶油花园 `cream` |
-|-------|-------------------|-------------------|
-| Primary | `#1D50A2` | `#E58BA6` |
-| Accent | `#E8641B` | `#7FA86B` |
-| BG | `#F1F3F6`（冷灰白，**勿用** `#F4F1EA`） | `#F5F2F2`（微暖，**勿用** `#FAF6F0`） |
-| Border | `#E2E6EB` | `#E9E0E0` |
-| Text 阶 | `#1C1C1C` / `#5C5952` / `#9B968B` | `#4A423B` / `#8A7F74` / `#B8AEA3` |
+### 2.2 变体
 
-### 2.3 Logo 专属令牌（组件级）
+| Token | A 柔群青 `klein` | B 柔樱粉 `cream` |
+|-------|-----------------|-----------------|
+| Primary | `#6484CE` | `#D37493` |
+| Accent | `#FFA978` | `#86D9B4` |
+| BG / BG-2 | `#EDF2F9` / `#E5EBF5` | `#FAF1F4` / `#F6E9EF` |
+| Border | `#DEE5F0` | `#F7E1E9` |
+| Text 阶 | `#3E4A63` / `#66748F` / `#9FAEC6` | `#63495E` / `#8E718A` / `#C6AAC0` |
+| Shadow | `100,120,165` | `175,120,145` |
+
+### 2.3 Logo 专属令牌
 
 | Token | 默认 | A | B |
 |-------|------|---|---|
-| `--logo-bg` | `#4E86AD` | `#1D50A2` | `#E58BA6` |
+| `--logo-bg` | `#4E93C0` | `#6484CE` | `#D37493` |
 | `--logo-ink` | `#FFFFFF`（三套统一） | 同 | 同 |
-| `--logo-accent` | `#85B7EB` | `#8FA9E8` | `#F5C6D4` |
-| `--logo-line` | `#EF9F27` | `#E8641B` | `#FFFFFF` |
-| `--logo-ring` | `78,134,173`（RGB） | `29,80,162` | `229,139,166` |
+| `--logo-accent` | `#A9DDF3` | `#A9C0F2` | `#F8C9DC` |
+| `--logo-line` | `#FFC978` | `#FFA978` | `#FFFFFF` |
+| `--logo-ring` | `78,147,192` | `100,132,206` | `211,116,147` |
 
-候选位 `-v2` / `-v3` 由主题声明，`body[data-logo="v2|v3"]`（须带 `[data-theme]` 提升）覆盖生效值。SVG **零硬编码色**；JS 只写 `data-theme` / `data-logo`，**禁止** `setAttribute("fill",…)`。
+候选位提升：`var(--logo-*-vN, var(--logo-*-生效))`，**不写死 hex**。SVG 零硬编码；JS 只写 `data-theme` / `data-logo`。
 
-**60-30-10**：中性铺底 · 主色块面 · 辅助色点睛（同屏 ≤3）。
+**60-30-10**：晨光白/纯白铺底 · 晴空蓝块面 · 夕照金点睛（同屏 ≤3）。
 
 ### 2.1 文字
 
