@@ -169,4 +169,25 @@ describe('ui server F16–F18', () => {
     expect(html).toContain('g-up');
     expect(html).toContain('文件放置');
   });
+
+  it('F23 theme system: three themes, logo tokens, no JS color inject', async () => {
+    const html = await (await fetch(base + '/')).text();
+    // three themes
+    expect(html).toContain('data-theme="klein"');
+    expect(html).toContain('data-theme="cream"');
+    expect(html).toContain('THEME_WHITELIST');
+    // logo tokenized (consumed via CSS vars, fallbacks present)
+    expect(html).toContain('--logo-bg');
+    expect(html).toContain('--logo-line');
+    expect(html).toContain('--logo-ring');
+    expect(html).toContain('var(--logo-bg');
+    // candidate lift + RGB ring
+    expect(html).toContain('data-logo="v2"');
+    expect(html).toContain('rgba(var(--logo-ring');
+    // topbar quota + theme pills
+    expect(html).toContain('quota');
+    expect(html).toContain('data-theme-btn');
+    // fill must NOT be injected by JS setAttribute on logo parts
+    expect(html).not.toMatch(/querySelector\\(\\\"\\.bg\\\"\\)\\.setAttribute/);
+  });
 });
