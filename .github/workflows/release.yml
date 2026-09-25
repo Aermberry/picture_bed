@@ -33,8 +33,15 @@ jobs:
             --title "$GITHUB_REF_NAME" \
             --generate-notes
       - name: Publish to npm (trusted publishing / OIDC)
+        id: npm_publish
+        continue-on-error: true
         run: |
           # No long-lived NPM_TOKEN. Requires npm Trusted Publisher
           # bound to Aermberry/picture_bed + workflow file release.yml.
           # Provenance is generated automatically by npm for OIDC publishes.
           npm publish --access public
+      - name: npm publish status
+        if: steps.npm_publish.outcome != 'success'
+        run: |
+          echo "::warning::npm publish failed (often E404 until Trusted Publisher is configured on npmjs.com for package 'picbed' + workflow release.yml). GitHub Release assets are already published."
+          echo "Re-run this job after configuring Trusted Publisher, or publish manually once to claim the name."
