@@ -6,7 +6,13 @@
 
 ## 安装
 
-**方式 1 · Release 包（推荐，永远装最新）**
+**方式 0 · Windows 桌面应用（终端用户推荐，F24）**
+
+到 [Releases](https://github.com/Aermberry/picture_bed/releases) 下载 **`picbed-setup.exe`**（稳定名，始终指向最新版），双击安装后从开始菜单启动。内置完整 Web 控制台（上传/管理/设置/规范），可「浏览…」选择扫描根目录，**无需安装 Node.js**。
+
+> 说明：安装包暂未代码签名，Windows SmartScreen 可能提示「未知发布者」— 选「仍要运行」即可。开发调试：`npm install && npm run desktop:dev`；出安装包：`npm run desktop:dist`。
+
+**方式 1 · Release 包（CLI / 开发者，永远装最新）**
 
 ```powershell
 npm install -g https://github.com/Aermberry/picture_bed/releases/latest/download/picbed.tgz
@@ -167,9 +173,9 @@ picbed sync ./docs --json --yes
 
 ## 功能点
 
-见 [`docs/features-index.md`](docs/features-index.md)：F1–F22 全部已实现。
+见 [`docs/features-index.md`](docs/features-index.md)：F1–F24（F24 = 桌面应用壳与安装包）。
 
-## 本地 Web 控制台（F16–F22）
+## 本地 Web 控制台（F16–F23）
 
 ```bash
 picbed ui
@@ -177,6 +183,17 @@ picbed ui
 ```
 
 浏览器打开后：**先绑定扫描根目录** → 拖入 md/html 文档 → plan 预览 → 确认后 sync。另含回滚、配置/doctor、run 审计、watch 控制台。默认只监听本机；token 不会出现在页面里。
+
+## 桌面应用（F24 · 双形态）
+
+| 形态 | 命令 / 安装 | 适用 |
+|------|-------------|------|
+| **npm** | `npm i -g picbed` / `picbed ui` | 本地开发、测试、Agent、CLI |
+| **桌面** | 安装包 `picbed-setup.exe` | 终端用户下载安装即用 |
+
+- 桌面端复用**同一**核心与 Web 控制台（契约、confirm、token 掩码不变）。
+- 额外原生能力：系统目录选择对话框（「浏览…」）、窗口尺寸记忆。
+- Electron 仅在 `devDependencies`，**不会**随 `npm i -g picbed` 安装。
 
 ### 多图床（F13）
 
