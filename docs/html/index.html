@@ -43,14 +43,16 @@
           写法对齐 <code>my_gallery/docs</code>：<strong>先用 F/P/模块/AC 标识体系</strong>写 Markdown 设计族谱，
           本页仅作 <strong>HTML 呈现层</strong>，便于浏览器浏览与评审。权威定义在 <code>docs/features-index.md</code>。
           <strong>F1–F22 已实现</strong>（CLI + 本地 Web 控制台，含拖拽工作台）。
+          <strong>F23 壳层与视觉重设计</strong>（双栏「管理/设置」+「文件放置」）已进设计包，待实现。
         </p>
         <div class="meta-row">
           <span class="pill">CLI + 本地 Web UI</span>
           <span class="pill">拖拽文档工作台</span>
           <span class="pill">GitHub Contents API（PicX 同源）</span>
           <span class="pill">F1–F22 done</span>
+          <span class="pill">F23 design</span>
           <span class="pill">v0.3.0</span>
-          <span class="pill">2026-09-23</span>
+          <span class="pill">2026-09-25</span>
         </div>
       </header>
 
@@ -142,6 +144,7 @@
               <tr><td>F20</td><td>配置与自检面板</td><td>P1</td><td>webui</td><td>config 掩码；doctor 报告</td></tr>
               <tr><td>F21</td><td>审计与报告</td><td>P2</td><td>webui</td><td>run 记录；失败明细；JSON 对齐</td></tr>
               <tr><td>F22</td><td>监听控制台</td><td>P2</td><td>webui</td><td>watch 启停与事件；无常驻特权</td></tr>
+              <tr><td>F23</td><td>控制台壳层与视觉重设计</td><td>P0</td><td>webui</td><td>双栏「管理/设置」+「文件放置」主区；主题令牌；契约不变</td></tr>
             </tbody>
           </table>
         </div>
@@ -161,7 +164,7 @@
             <text x="340" y="46" text-anchor="middle" dominant-baseline="central" font-size="13" fill="#0F172A">CLI · init/doctor/scan/plan/sync/upload/revert/watch/config/ui</text>
 
             <rect x="40" y="88" width="600" height="52" rx="8" fill="#FEF3C7" stroke="#D97706" stroke-width="0.5"/>
-            <text x="340" y="110" text-anchor="middle" font-size="13" fill="#0F172A">WebUI 本地控制台（F16–F22）</text>
+            <text x="340" y="110" text-anchor="middle" font-size="13" fill="#0F172A">WebUI 本地控制台（F16–F23）</text>
             <text x="340" y="128" text-anchor="middle" font-size="11" fill="#78350F">拖拽文档/目录工作台 · ConfirmGate · 127.0.0.1 · token 不进浏览器</text>
 
             <rect x="40" y="168" width="600" height="48" rx="8" fill="#F8FAFC" stroke="#94A3B8" stroke-width="0.5"/>
@@ -222,7 +225,7 @@
               <tr>
                 <td><code>webui</code></td>
                 <td>本地 Web 控制台：拖拽工作台、确认门、审计</td>
-                <td>F16–F22</td>
+                <td>F16–F23</td>
                 <td><code>docs/design/module-webui.md</code></td>
               </tr>
             </tbody>
@@ -304,12 +307,14 @@ https://cdn.jsdelivr.net/gh/{owner}/{repo}@{branch}/{path}
           <li><strong>已冻结：</strong>命令/包名 <code>picbed</code>；栈 Node/TS；F1–F15 已实现；OAuth 登录已移除</li>
           <li><strong>已发布：</strong>GitHub Release（<code>picbed.tgz</code> 跟随 latest；本版 v0.3.0）</li>
           <li><strong>已实现：</strong>F1–F22 全量（CLI + <code>picbed ui</code> Web 控制台）</li>
+          <li><strong>设计中：</strong>F23 壳层与视觉重设计（视格 <code>docs/design/wireframes/ui-shell.md</code>）</li>
         </ul>
         <ul>
           <li>URL 默认风格是否在文档示例中再收紧？</li>
           <li>是否增加更多 HostAdapter 后端（对象存储等）？</li>
           <li>npm 官方源发布？（当前仅 GitHub Release tarball）</li>
           <li>开放问题均已冻结：<code>ui</code> · 轻量 Vite+原生 · 拖拽强制绑根 · watch 默认 <code>preview</code></li>
+          <li>F23 开放：刷新后 root 读入策略 · 管理页 TOC · 深色主题 · 侧栏图标风格</li>
         </ul>
       </section>
 
