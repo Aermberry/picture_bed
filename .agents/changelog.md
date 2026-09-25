@@ -62,3 +62,4 @@
 2026-09-25 | create | docs/design/wireframes/ui-shell.md + F23 design pack | UI 壳层重设计：双栏「管理/设置」+「文件放置」；主题令牌；更新 features-index/module-webui/architecture/reading-guide/html | User: UI 草图 + /project-design；validate-design.ps1 PASS
 2026-09-25 | update | src/ui/static.ts + F23 design pack | 按用户《图床工具-UI方案》实现四视图壳层（晨雾蓝×落日暖、Logo 三态、DropZone、FileCard、Toggle）；接线 session/plan/sync/manifest/runs/watch/config/doctor；40/40 tests | User: 请阅读UI设计方案，并实现UI界面
 2026-09-25 | update | .agents/rules/delivery.md + memory | Standing rule: auto-push after every commit; release requires user review | User instruction
+2026-09-25 | create | .githooks/post-commit + pre-push + README | Auto-push after commit; pre-push blocks release/tags/main unless PICBED_RELEASE_OK=1; core.hooksPath=.githooks | User: git hook automation
