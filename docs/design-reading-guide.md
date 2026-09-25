@@ -70,7 +70,7 @@
 | **不是什么** | 不是难度分、故事点、缺陷级别 |
 | **读法** | P0 精读；P1–P2 读 AC+归属；P3 知道为何延后即可 |
 
-本项目刻度：**P0**=MVP 最小闭环（含 Web F16–F18），**P1**=第二批，**P2**=增强，**P3**=原 backlog（CLI 扩展已全部实现）。
+本项目刻度：**P0**=MVP 最小闭环（含 Web F16–F18、UI 壳层 F23），**P1**=第二批，**P2**=增强，**P3**=原 backlog（CLI 扩展已全部实现）。
 
 ### 3.3 模块名 —— 归属标签
 
@@ -128,7 +128,7 @@
 | **transfer** | 计划、上传、URL | F6–F7, F11 |
 | **rewrite** | 回写、manifest、revert | F8–F9 |
 | **cliops** | 配置、doctor、Agent 契约 | F1–F2, F10 |
-| **webui** | 本地 Web 控制台（拖拽工作台、确认门） | F16–F22 |
+| **webui** | 本地 Web 控制台（拖拽工作台、确认门、壳层视觉） | F16–F23 |
 
 文档分层：
 
@@ -138,6 +138,7 @@
 | 功能定义权威 | [`features-index.md`](features-index.md) |
 | 模块详设 | `design/module-*.md` |
 | 横切约定 | [`design/cross-cutting.md`](design/cross-cutting.md) |
+| UI 视格（F23） | [`design/wireframes/ui-shell.md`](design/wireframes/ui-shell.md) |
 | 阅读指南 | 本文 |
 
 ---
