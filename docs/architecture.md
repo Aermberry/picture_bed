@@ -1,17 +1,18 @@
 # picbed 架构设计
 
-> 状态：**F1–F23 已实现**（Web 控制台 F16–F23，F23 壳层「晨雾蓝×落日暖」2026-09-25）· Node/TS CLI + 本地 Web UI
+> 状态：**F1–F23 已实现**；**F24 桌面壳设计中**（Electron 双形态：npm + Windows 安装包）· Node/TS CLI + 本地 Web UI + Desktop 壳
 > 定位：**架构总纲**（分层 / 存储 / CLI 契约 / 数据模型 / 安全 / NFR / 技术选型）。
 > 功能点的完整规格（优先级、AC、实现归属、双向链接）以 [`features-index.md`](features-index.md) 为唯一来源；本文档不重复其逐条 AC。
 > **新人阅读指南**（F 编号、模块名、文档怎么串）：[`design-reading-guide.md`](design-reading-guide.md)。
-> 范围：本地工具 **picbed**——扫描目录中 Markdown / HTML 等文档内嵌图片，经 PicX 同源 **GitHub 图床通道**上传，自动回写稳定公开链接；**CLI 供人与 Agent**，**本地 Web 控制台**供人拖拽/点选操作。
-> 约束输入（用户确认 2026-09-23）：
-> - 形态：**CLI + 本地 Web UI**（非公网、非多用户、不做 Tauri/桌面壳）
-> - 痛点：CLI 对人类不友好；希望**拖拽文档**即可工作；Agent 仍走 CLI 契约
+> 范围：本地工具 **picbed**——扫描目录中 Markdown / HTML 等文档内嵌图片，经 PicX 同源 **GitHub 图床通道**上传，自动回写稳定公开链接；**CLI 供人与 Agent**，**本地 Web 控制台**供人拖拽/点选操作，**桌面应用**供终端用户安装即用。
+> 约束输入：
+> - 形态（2026-09-23）：**CLI + 本地 Web UI**（非公网、非多用户）
+> - 形态（2026-09-26 用户确认）：**双形态**——npm 保留本地开发测试与 Agent 通道；发布后提供 **Windows 桌面安装包**（Electron）供用户下载安装使用
+> - 痛点：CLI 对人类不友好；希望**拖拽文档**即可工作；Agent 仍走 CLI 契约；终端用户不应被要求装 Node
 > - 图床：对齐 PicX 模型 = **GitHub Contents API + URL 风格约定**；另支持 `local` 后端（F13）
-> - 交付：F1–F22 已实现（含 `picbed ui`）
+> - 交付：F1–F23 已实现；F24 桌面壳见 [`design/module-desktop.md`](design/module-desktop.md)
 >
-> 技术选型已采用 **Node/TS**（§7）；UI 栈见 §7.1（可改）。
+> 技术选型已采用 **Node/TS**（§7）；UI 栈见 §7.1；桌面壳见 §7.2。
 
 ---
 
@@ -28,16 +29,17 @@
 
 ### 非目标
 - 公网部署、多用户/账号体系、云端托管 UI。
-- Tauri / Electron 桌面壳（若需再单列设计）。
 - 完整图床资产管理 GUI（picx-app 已覆盖）：不做相册/批量改图工具箱。
 - GitHub OAuth 登录（已移除；用 PAT / `gh auth token`）。
 - 图片压缩、水印、裁剪工具箱。
 - 非图片二进制托管（PDF / 视频等）。
+- macOS/Linux 安装包首发（链路预留，见 F24；Windows 优先）。
 
 ### 已超出原 v1 划界但已实现
 - 多图床：`HostAdapter` 工厂（**github | local**，F13）。
 - watch 监听、MCP 包装（F12 / F14）。
-- 本地 Web 控制台（F16–F22）——原「CLI only」非目标已按用户确认收窄为「不做公网/桌面壳」。
+- 本地 Web 控制台（F16–F23）——原「CLI only」非目标已按用户确认收窄。
+- **桌面壳（F24）**——原「不做 Tauri/桌面壳」已于 2026-09-26 按用户双形态需求打开；设计见 [`design/module-desktop.md`](design/module-desktop.md)。
 
 ---
 
@@ -47,15 +49,22 @@
 
 ```
 ┌──────────────────────────────────────────────────────────┐
+│  分发形态                                                 │
+│   npm：picbed / picbed-mcp / picbed ui                    │
+│   桌面：Electron 壳 + Windows NSIS 安装包（F24）            │
+└───────────────▲──────────────────────────────────────────┘
+                │
+┌───────────────┴──────────────────────────────────────────┐
 │  CLI 层 picbed                                           │
 │   init · doctor · scan · plan · sync · upload · revert · watch · config · ui │
 │   退出码 / --json / --yes / --dry-run / --quiet             │
 └───────────────▲──────────────────────────────────────────┘
                 │  命令 DTO / 结果 DTO
 ┌───────────────┴──────────────────────────────────────────┐
-│  WebUI 呈现层（本地控制台 F16–F22）                        │
+│  WebUI 呈现层（本地控制台 F16–F23）                        │
 │   静态页 + HTTP API · 拖拽/路径工作台 · ConfirmGate        │
 │   仅 127.0.0.1 · token 不进浏览器                         │
+│   Desktop 壳（F24）加载同一 SPA；picbedNative 可选桥        │
 └───────────────▲──────────────────────────────────────────┘
                 │  同一应用 DTO / JSON 信封
 ┌───────────────┴──────────────────────────────────────────┐
@@ -109,6 +118,7 @@
 - **DoctorService**：配置完整性、token 探测、API 连通与权限。
 - **WebUiFacade / UiServer / ConfirmGate / ViewMapper**（webui）：本机 HTTP 控制台、写操作确认门、拖拽工作集与视图映射；**不**重写域规则（F16–F22）。
 - **AppShell / SideNav / DropZone**（webui 呈现壳层，F23）：双栏布局、管理/设置导航、文件放置英雄区与主题令牌；只消费既有 API。
+- **DesktopShell / NativeBridge**（desktop，F24）：Electron 主进程宿主 UI 服务与窗口；preload 暴露目录/文件对话框；打包 NSIS。**不**承载业务规则。
 
 ### 2.3 应用编排
 
@@ -184,6 +194,7 @@ Web API 信封与退出码语义对齐 [`design/cross-cutting.md`](design/cross-
 - 日志/JSON 错误禁止回显 secret；`config list` 掩码。
 - `.picbed/backup`、`manifest`、`.picbed/runs` 建议 gitignore（manifest 无 secret 仍建议本地）。
 - **Web 控制台**：默认只监听 `127.0.0.1`；token **永不**进入 HTTP 响应/页面；写操作需页面确认 + 服务端 `confirm`；同源静态 + API，不做跨站开放；非回环绑定须显式且告警。
+- **桌面壳**：继承 WebUI 安全模型；`contextIsolation: true`、`nodeIntegration: false`；preload 仅暴露对话框/窗口状态，不暴露 token 或任意 FS 写。
 
 ---
 
@@ -207,6 +218,16 @@ Web API 信封与退出码语义对齐 [`design/cross-cutting.md`](design/cross-
 | 前端 | 轻量 Vite + 原生 SPA（**已冻结**；不引入 React） | React | 拖拽 + 列表工作台足够；避免重依赖 |
 | 实时进度 | SSE | 轮询 | sync/watch 推送简单 |
 | 拖拽路径 | 根绑定 + 相对路径解析（**策略 A，已冻结**） | File System Access 预览暂存（不纳入） | 浏览器不给绝对路径；原地回写必须服务端可解析真实路径 |
+
+### 7.2 桌面壳（F24，2026-09-26 用户确认）
+
+| 项 | 选型 | 备选 | 理由 |
+|----|------|------|------|
+| 桌面框架 | **Electron + electron-builder** | Tauri + Node sidecar | 复用 Node 核心与现有 WebUI，改动最小；Tauri 需 sidecar 重打包，链路更复杂 |
+| 首发平台 | **Windows NSIS `.exe`** | macOS DMG / Linux AppImage | 用户确认 Windows 优先；同一 builder 可后扩 |
+| 壳能力 | 完整控制台 + 原生目录对话框 + 窗口状态记忆 | 仅包一层窗口 | 用户确认要原生体验 |
+| 依赖归属 | `electron`/`electron-builder` 仅 devDependencies | 进 dependencies | `npm i -g picbed` 不应携带桌面运行时 |
+| 运行模型 | 内嵌 `createUiServer` → `127.0.0.1` 随机端口 → BrowserWindow | 自定义 protocol | 复用既有 HTTP API，契约零改动 |
 
 ---
 
@@ -245,6 +266,7 @@ Web API 信封与退出码语义对齐 [`design/cross-cutting.md`](design/cross-
 | M7 Web 控制台 | F16–F18 最小闭环（服务+拖拽工作台+sync） | P0 | **done** |
 | M8 Web 完备 | F19–F22 revert/config/doctor/审计/watch | P1–P2 | **done** |
 | M9 UI 壳层重设计 | F23 四视图「上传/管理/设置/规范」+ 晨雾蓝×落日暖 | P0 | **done** |
+| M10 桌面壳 | F24 Electron 壳 + Windows 安装包 + 原生对话框 | P0 | **design → impl** |
 
 具体功能点、AC 与模块归属：[`features-index.md`](features-index.md)。
 
@@ -263,6 +285,7 @@ Web API 信封与退出码语义对齐 [`design/cross-cutting.md`](design/cross-
 9. ~~拖拽后「无 root」时：强制先绑根，还是允许暂存预览（策略 B）？~~ **已冻结为策略 A：强制先绑根**（2026-09-23）；未绑根不得进入 scan/plan/sync；暂存预览不纳入本期。  
 10. ~~watch 在 UI 默认模式：`preview` / `confirm-each` / `auto`？~~ **已冻结为默认 `preview`**（2026-09-23，采纳建议）；`auto` 须显式打开并仍写 RunRecord。
 11. **F23 UI 壳层**：草图已锁定双栏「管理 / 设置」+ 主区「文件放置」；主题与布局细则见 [`design/wireframes/ui-shell.md`](design/wireframes/ui-shell.md)。开放：刷新后 root 自动读入策略、管理页 TOC、深色主题、侧栏图标风格（见该文件 §10）。
+12. **F24 桌面壳**：Electron + Windows NSIS + 完整原生体验已冻结（2026-09-26）。开放：代码签名（SmartScreen）、macOS/Linux 产物、自动更新（electron-updater）——均不阻塞首发。
 
 ---
 
