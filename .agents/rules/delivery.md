@@ -52,6 +52,16 @@ Evidence: user standing instruction, 2026-09-22（「每次在改动代码的实
 
 After each completed modification, create a corresponding Git commit so work can be tracked and rolled back.
 
+## Push after every commit (MANDATORY)
+
+After each `git commit` (including commit-tree landing), **immediately push** the affected branch(es) to `origin`. Do not wait for a separate user request.
+
+- Push scope: the branch(es) just committed/merged (`docs/design`, `feature/*`, `develop`, etc.).
+- **Exception — Release**: creating tags, GitHub Releases, `npm publish`, or `release/*` shipping **requires explicit user review/approval first**. Auto-push does **not** authorize release actions.
+- Isolated worktree: `git push origin <branch>` or `git push origin <sha>:refs/heads/<branch>` after `git fetch .` landing.
+
+Evidence: user standing instruction 2026-09-25（「每次执行 git-commit 后，自动执行推送；只有在执行 release 时，才需要我的审核」）.
+
 ## Tests before delivery
 
 After each change, write or update related tests. Before delivering results to the user, ensure all tests and validation pass. If no test runner exists yet, state the validation actually run and do not claim untested success.
