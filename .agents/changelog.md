@@ -82,3 +82,5 @@
 2026-09-26 | fix(ui) | 图片拖入无预览 | accept image files on drop; /api/session/images lists root+dropped images for preview | User: 拖图片无扫描结果
 2026-09-26 | update | desktop:dev 热更新 + 图片路径解析 | tsc -w + app.relaunch; dataTransfer.files + getPathForFile/file.path; immediate previewPaths | User: 拖图仍无结果/要热更新
 2026-09-26 | fix(ui) | 拖图预览 | blob URL preview from dropped Files; preload.cjs webUtils; merge blob+path previews | User: 拖图仍无预览
+2026-09-27 | fix(ui) | 拖图预览根因 | fad7660 的 \' 转义在模板字符串中被吞→线上 JS SyntaxError 整页脚本死亡（前三次修复均未触及）；改为 \' 并新增内联脚本语法守卫测试；drop 时同步渲染 blob 预览不再等服务器；blob/previewPath 按 abs 去重 | User: 拖入图片无法即时显示预览
+2026-09-27 | update | 工具链: fnm 可用 | node/npm 不在 Git Bash PATH；fnm (Scoop E:\CommandUtility\Scoop\shims\fnm.exe) 提供 v24.21.0/npm 11.19.0；eval "$(fnm.exe env --shell bash)" 后 tsc OK + vitest 51/51 | User: 请查看fnm

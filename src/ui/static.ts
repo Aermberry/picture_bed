@@ -914,32 +914,29 @@ export const INDEX_HTML = `<!DOCTYPE html>
     return /\.(png|jpe?g|gif|webp|svg|bmp|ico|avif)$/i.test(String(n || ""));
   }
 
-  async function ingestDrop(dt) {
+  // DataTransfer 仅在 drop 事件派发期间可读，必须同步收集
+  function collectDropItems(dt) {
     const items = [];
     const seen = {};
     const blobPreviews = [];
-    function pushItem(it) {
-      const key = it.abs || it.rel || it.name || "";
-      if (!key || seen[key]) return;
-      seen[key] = 1;
-      items.push(it);
-    }
-
     function takeFile(f, isDir) {
       const abs = filePathOf(f);
       const name = f.name || "file";
-      const mime = f.type || "";
-      if (!isDir && (isImageName(name) || mime.indexOf("image/") === 0)) {
+      const rel = f.webkitRelativePath || name;
+      const key = abs || rel;
+      if (!key || seen[key]) return;
+      seen[key] = 1;
+      if (!isDir && (isImageName(name) || (f.type || "").indexOf("image/") === 0)) {
         try {
           blobPreviews.push({ src: URL.createObjectURL(f), name, abs });
         } catch (_) {}
       }
-      pushItem({
-        name,
-        rel: f.webkitRelativePath || name,
-        type: isDir ? "dir" : "file",
-        abs,
-      });
+      items.push({ name, rel, type: isDir ? "dir" : "file", abs });
+    }
+    function pushDir(name) {
+      if (!name || seen[name]) return;
+      seen[name] = 1;
+      items.push({ name, rel: name, type: "dir", abs: "" });
     }
 
     if (dt.files && dt.files.length) {
@@ -952,17 +949,19 @@ export const INDEX_HTML = `<!DOCTYPE html>
         const f = item.getAsFile && item.getAsFile();
         const isDir = !!(entry && entry.isDirectory);
         if (f) takeFile(f, isDir);
-        else if (isDir) pushItem({ name: entry.name, rel: entry.name, type: "dir", abs: "" });
+        else if (isDir) pushDir(entry.name);
       }
     }
 
     items.sort((a, b) => (a.type === b.type ? 0 : a.type === "dir" ? -1 : 1));
+    return { items, blobPreviews };
+  }
+
+  async function submitDrop(items) {
     let dropped = 0;
     let err = "";
     const previewPaths = [];
-    let absCount = 0;
     for (const it of items) {
-      if (it.abs) absCount += 1;
       const { data } = await api("/api/session/drop", {
         name: it.name,
         relativePath: it.rel,
@@ -978,7 +977,7 @@ export const INDEX_HTML = `<!DOCTYPE html>
         err = (data.error && data.error.message) || "drop failed";
       }
     }
-    return { dropped, err, count: items.length, previewPaths, absCount, blobPreviews };
+    return { dropped, err, previewPaths };
   }
 
   function setPreviewIdle() {
@@ -1009,7 +1008,7 @@ export const INDEX_HTML = `<!DOCTYPE html>
         else if (typeof p === "string" && p.indexOf("blob:") === 0) src = p;
         else if (typeof p === "string" && p.indexOf("data:") === 0) src = p;
         else if (typeof p === "string") src = "/api/preview?path=" + encodeURIComponent(p);
-        return '<img alt="" loading="lazy" src="' + src + '" onerror="this.classList.add(\'miss\');this.removeAttribute(\'src\')" />';
+        return '<img alt="" loading="lazy" src="' + src + '" onerror="this.remove()" />';
       })
       .join("");
     g.hidden = false;
@@ -1032,7 +1031,11 @@ export const INDEX_HTML = `<!DOCTYPE html>
       for (const b of dropInfo.blobPreviews) addPath(b);
     }
     if (dropInfo && dropInfo.previewPaths) {
-      for (const p of dropInfo.previewPaths) addPath(p);
+      for (const p of dropInfo.previewPaths) {
+        // blob 预览已覆盖同一文件，跳过服务器副本避免重复
+        if (dropInfo.blobPreviews && dropInfo.blobPreviews.some((b) => b.abs && b.abs === p)) continue;
+        addPath(p);
+      }
     }
 
     // 1) images under scan root + dropped image files
@@ -1102,14 +1105,17 @@ export const INDEX_HTML = `<!DOCTYPE html>
   );
   dz.addEventListener("drop", async (e) => {
     $("dropTitle").textContent = "正在扫描…";
-    const r = await ingestDrop(e.dataTransfer);
+    // 即时本地预览：blob URL 无需等待服务器往返
+    const { items, blobPreviews } = collectDropItems(e.dataTransfer);
+    if (blobPreviews.length) setPreviewImages(blobPreviews);
+    const r = await submitDrop(items);
     if (r && r.err && !r.dropped) {
       toast(r.err);
-      setPreviewIdle();
+      if (!blobPreviews.length) setPreviewIdle();
       return;
     }
     logoState("scanning");
-    await scanIntoPreview(r);
+    await scanIntoPreview({ previewPaths: r.previewPaths, blobPreviews });
     logoState(null);
   });
 
