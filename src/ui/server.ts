@@ -42,6 +42,43 @@ function renderIndexHtml(dev: boolean): string {
   return INDEX_HTML.replace('__PICBED_UI_DEV_FLAG__', dev ? 'true' : 'false');
 }
 
+const IMAGE_EXTS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp', 'ico', 'avif']);
+
+function isImagePath(p: string): boolean {
+  const ext = path.extname(p).replace(/^\./, '').toLowerCase();
+  return IMAGE_EXTS.has(ext);
+}
+
+const SKIP_DIRS = new Set(['node_modules', '.git', '.picbed', 'dist', 'release', 'coverage']);
+
+function listImagesUnder(root: string, limit = 200): string[] {
+  const out: string[] = [];
+  const walk = (dir: string) => {
+    if (out.length >= limit) return;
+    let names: string[];
+    try {
+      names = fs.readdirSync(dir);
+    } catch {
+      return;
+    }
+    for (const name of names) {
+      if (out.length >= limit) return;
+      if (SKIP_DIRS.has(name)) continue;
+      const abs = path.join(dir, name);
+      let st: fs.Stats;
+      try {
+        st = fs.statSync(abs);
+      } catch {
+        continue;
+      }
+      if (st.isDirectory()) walk(abs);
+      else if (st.isFile() && isImagePath(abs)) out.push(abs);
+    }
+  };
+  walk(root);
+  return out;
+}
+
 export interface UiServerHandle {
   url: string;
   port: number;
@@ -131,6 +168,30 @@ export function createUiServer(opts: UiServerOptions): {
       if (req.method === 'POST' && url.pathname === '/api/session/reset') {
         workset.length = 0;
         send(200, envelope(true, 'api.session.reset', { ok: true }));
+        return;
+      }
+
+      if (req.method === 'GET' && url.pathname === '/api/session/images') {
+        const droppedImgs: string[] = [];
+        for (const w of workset) {
+          const p = w.resolvedPath || '';
+          if (p && isImagePath(p)) droppedImgs.push(p);
+        }
+        let underRoot: string[] = [];
+        if (binder.root) {
+          underRoot = listImagesUnder(binder.root, 200);
+        }
+        const seen = new Set<string>();
+        const images = [...droppedImgs, ...underRoot].filter((p) => {
+          if (seen.has(p)) return false;
+          seen.add(p);
+          return true;
+        });
+        send(200, envelope(true, 'api.session.images', {
+          root: binder.root,
+          count: images.length,
+          images,
+        }));
         return;
       }
 
@@ -261,11 +322,12 @@ export function createUiServer(opts: UiServerOptions): {
             return;
           }
           const cfgAbs = loadCfg();
-          if (!ensureDocExt(absPath, cfgAbs.scan.extensions)) {
+          const isImg = isImagePath(absPath);
+          if (!isImg && !ensureDocExt(absPath, cfgAbs.scan.extensions)) {
             workset.push({ name: body.name ?? rel, relativePath: rel, type: 'file', status: 'blocked' });
             send(400, envelope(false, 'api.session.drop', { item: workset.at(-1) }, {
               code: 'E_DOC_EXT',
-              message: 'not a scanned document extension',
+              message: 'not a scanned document or image',
               path: absPath,
             }));
             return;
@@ -277,11 +339,13 @@ export function createUiServer(opts: UiServerOptions): {
             relativePath: relFromRoot || path.basename(absPath),
             type: 'file',
             resolvedPath: absPath,
-            status: 'in-root',
+            status: isImg ? 'image' : 'in-root',
           });
           send(200, envelope(true, 'api.session.drop', {
-            action: 'in-root',
+            action: isImg ? 'image' : 'in-root',
             boundRoot: rootNow,
+            image: isImg,
+            previewPath: absPath,
             item: workset.at(-1),
           }));
           return;

@@ -81,6 +81,7 @@ idle（拖放提示）
 ```
 
 - 预览：`GET /api/preview?path=` 仅允许扫描根内图片扩展名；预览不上传。
+- **扫描来源**：拖入的图片文件 + 扫描根下图片文件（`GET /api/session/images`）+ md/html 内图片引用（`/api/plan`）。
 - 「上传」= 原 sync（`confirm: true`）；「重置」丢弃本次扫描，不写文档、不传图床。
 
 静态 SPA 视图（hash 或 JS 切换）：
