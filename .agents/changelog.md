@@ -73,3 +73,4 @@
 2026-09-26 | create | .mimocode/skills/ui-spec-impl/ | Project skill: UI spec to impl (4-view shell, theme tokens, logo/icon tokens) | User: today also did UI design
 2026-09-26 | create | F24 desktop shell | Electron main/preload + electron-builder NSIS + picbedNative browse + release.yml desktop job + tests 45/45 | User dual-form distribution request
 2026-09-26 | update | delivery.md + standing corrections | Release order MANDATORY feature→develop→main→tag; user corrected v0.4.0 out-of-order release | User: 发布包应先合并 develop/main
+2026-09-26 | create | .agents/rules/git-workflow.md | Distilled netresearch/git-workflow-skill: no direct main, conventional commits, no squash, evidence for tests, no editorializing, force-with-lease, release order | User: 学习 https://github.com/netresearch/git-workflow-skill

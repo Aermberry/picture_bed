@@ -1,8 +1,9 @@
 # Delivery rules
 
 status=active
-reviewed_at=2026-09-23
-source: user standing instruction (picture_bed session, 2026-09-22/23)
+reviewed_at=2026-09-26
+source: user standing instruction (picture_bed session, 2026-09-22/23/26)
+related: `.agents/rules/git-workflow.md`（自 netresearch/git-workflow-skill 学习的 Git 操作细则）
 
 ## Git Flow (MANDATORY)
 
