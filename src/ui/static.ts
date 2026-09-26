@@ -473,44 +473,8 @@ export const INDEX_HTML = `<!DOCTYPE html>
       <div class="dropzone" id="dropzone">
         <div class="big-ico"><svg><use href="#i-image"/></svg></div>
         <h2 id="dropTitle">将文件拖放到此处</h2>
-        <p>拖拽 md / html 文档或文件夹即可 · 自动识别扫描目录</p>
-        <span class="hint">支持 JPG / PNG / GIF / WebP；上传后可复制 Markdown / HTML / URL</span>
-      </div>
-
-      <div class="card" id="rootCard">
-        <h3>扫描目录（自动）</h3>
-        <div class="row">
-          <input id="root" type="text" placeholder="拖入文件夹后自动填充；也可手动填写路径" />
-          <button class="btn btn-ghost" id="browseRoot" type="button" hidden>浏览…</button>
-          <button class="btn btn-primary" id="bind" type="button">使用</button>
-        </div>
-        <div class="status" id="rootStatus">拖拽文档或文件夹后自动识别目录</div>
-      </div>
-
-      <div class="card">
-        <h3>工作集</h3>
-        <table>
-          <thead><tr><th>名称</th><th>相对路径</th><th>类型</th><th>状态</th></tr></thead>
-          <tbody id="workset"></tbody>
-        </table>
-      </div>
-
-      <div class="card">
-        <h3>计划 / 同步</h3>
-        <div class="row">
-          <button class="btn btn-ghost" id="scan" type="button">scan</button>
-          <button class="btn btn-ghost" id="plan" type="button">plan</button>
-          <button class="btn btn-ghost" id="syncDry" type="button">sync --dry-run</button>
-          <button class="btn btn-primary" id="sync" type="button">确认并 sync</button>
-        </div>
-        <div class="status" id="opStatus"></div>
-        <h3 style="margin-top:16px">计划分组</h3>
-        <table>
-          <thead><tr><th>action</th><th>raw / local</th><th>doc</th><th>reason</th></tr></thead>
-          <tbody id="planBody"></tbody>
-        </table>
-        <h3 style="margin-top:16px">结果</h3>
-        <pre id="result">（尚无）</pre>
+        <p>拖拽 md / html 文档或文件夹 · 自动上传</p>
+        <span class="hint">支持 JPG / PNG / GIF / WebP · 写入前会再次确认</span>
       </div>
     </section>
 
@@ -669,7 +633,6 @@ export const INDEX_HTML = `<!DOCTYPE html>
 
 <script>
   const $ = (id) => document.getElementById(id);
-  const workset = [];
   let manifestEntries = [];
   let sortDesc = true;
 
@@ -915,59 +878,6 @@ export const INDEX_HTML = `<!DOCTYPE html>
     else setHealth("服务异常", "bad");
   }
 
-  function renderWorkset() {
-    $("workset").innerHTML =
-      workset
-        .map(
-          (w, i) =>
-            "<tr><td>" + esc(w.name) + "</td><td>" + esc(w.rel || "—") +
-            '</td><td><span class="tag ' + esc(w.type) + '">' + esc(w.type) +
-            "</span></td><td>" + esc(w.status) +
-            ' <button type="button" class="linkish" data-rm="' + i + '">移出</button></td></tr>'
-        )
-        .join("") || '<tr><td colspan="4" class="muted">空 · 请拖拽文档/文件夹</td></tr>';
-    $("workset").querySelectorAll("[data-rm]").forEach((b) => {
-      b.addEventListener("click", () => {
-        workset.splice(Number(b.dataset.rm) || 0, 1);
-        renderWorkset();
-        toast("已移出工作集");
-      });
-    });
-  }
-
-  $("bind").onclick = async () => {
-    const root = $("root").value.trim();
-    if (!root) return;
-    const { data } = await api("/api/session/bind-root", { root });
-    if (data.ok) {
-      $("rootStatus").textContent = "已绑定：" + data.data.root;
-      $("rootStatus").className = "status ok";
-      toast("根目录已绑定");
-    } else {
-      $("rootStatus").textContent = data.error?.message || "绑定失败";
-      $("rootStatus").className = "status bad";
-    }
-  };
-
-  // F24: desktop native folder picker (progressive enhancement; browser has no bridge)
-  (function setupNativeBrowse() {
-    const btn = document.getElementById("browseRoot");
-    const bridge = window.picbedNative;
-    if (!btn) return;
-    if (!bridge || typeof bridge.selectDirectory !== "function") return;
-    btn.hidden = false;
-    btn.onclick = async () => {
-      try {
-        const dir = await bridge.selectDirectory();
-        if (!dir) return;
-        $("root").value = dir;
-        toast("已选择目录，请点击绑定");
-      } catch (e) {
-        toast("选择目录失败：" + (e && e.message ? e.message : e));
-      }
-    };
-  })();
-
   const dz = $("dropzone");
   function filePathOf(f) {
     try {
@@ -998,8 +908,9 @@ export const INDEX_HTML = `<!DOCTYPE html>
         }
       }
     }
-    // Folders first so root is inferred before files
     items.sort((a, b) => (a.type === b.type ? 0 : a.type === "dir" ? -1 : 1));
+    let dropped = 0;
+    let err = "";
     for (const it of items) {
       const { data } = await api("/api/session/drop", {
         name: it.name,
@@ -1007,20 +918,22 @@ export const INDEX_HTML = `<!DOCTYPE html>
         type: it.type,
         absPath: it.abs || undefined,
       });
-      const bound = data.ok && data.data && data.data.boundRoot;
-      if (bound) {
-        $("root").value = bound;
-        $("rootStatus").textContent = "扫描目录：" + bound;
-        $("rootStatus").className = "status ok";
-      }
-      workset.push({
-        name: it.name,
-        rel: it.rel,
-        type: it.type,
-        status: data.ok ? (data.data && data.data.action) || "ok" : (data.error?.code || "E") + ": " + (data.error?.message || ""),
-      });
+      if (data.ok) dropped += 1;
+      else err = (data.error && data.error.message) || "drop failed";
     }
-    renderWorkset();
+    return { dropped, err, count: items.length };
+  }
+
+  async function autoSyncAfterDrop() {
+    if (!(await confirmAsync("将上传图片并改写文档，确认？"))) return;
+    const { status, data } = await api("/api/sync", { confirm: true, dryRun: false });
+    if (data.ok) {
+      const c = (data.data && data.data.counts) || (data.data && data.data.summary) || {};
+      const n = c.uploaded != null ? c.uploaded : c.total != null ? c.total : "";
+      toast(n === "" ? "同步完成" : "同步完成 · 上传 " + n);
+    } else {
+      toast((data.error && data.error.message) || "同步失败 " + status);
+    }
   }
 
   ["dragenter", "dragover"].forEach((ev) =>
@@ -1043,52 +956,19 @@ export const INDEX_HTML = `<!DOCTYPE html>
   );
   dz.addEventListener("drop", async (e) => {
     $("dropTitle").textContent = "正在处理…";
-    await ingestDrop(e.dataTransfer);
+    const r = await ingestDrop(e.dataTransfer);
+    if (r && r.err && !r.dropped) {
+      toast(r.err);
+      $("dropTitle").textContent = "将文件拖放到此处";
+      return;
+    }
     logoState("uploading");
     clearTimeout(upTimer);
     upTimer = setTimeout(() => { logoState(null); upTimer = null; }, 2200);
-    $("dropTitle").textContent = "已加入工作集";
-    toast("上传完成");
-    setTimeout(() => ($("dropTitle").textContent = "将文件拖放到此处"), 1800);
+    $("dropTitle").textContent = "准备上传…";
+    await autoSyncAfterDrop();
+    $("dropTitle").textContent = "将文件拖放到此处";
   });
-
-  function renderPlan(plan) {
-    $("planBody").innerHTML =
-      (plan || [])
-        .map(
-          (p) =>
-            '<tr><td><span class="tag ' + esc(p.action) + '">' + esc(p.action) +
-            "</span></td><td>" + esc(p.raw || p.localPath || "") +
-            "</td><td>" + esc(p.doc || "") +
-            "</td><td>" + esc(p.reason || "") + "</td></tr>"
-        )
-        .join("") || '<tr><td colspan="4" class="muted">无</td></tr>';
-  }
-
-  async function runOp(kind, extra) {
-    $("opStatus").textContent = "执行中…";
-    $("opStatus").className = "status";
-    const { status, data } = await api("/api/" + kind, extra || {});
-    $("result").textContent = JSON.stringify(data, null, 2);
-    if (data.ok) {
-      $("opStatus").textContent = kind + " ok";
-      $("opStatus").className = "status ok";
-      if (data.data?.plan) renderPlan(data.data.plan);
-      if (kind === "sync") toast("同步完成");
-    } else {
-      $("opStatus").textContent = (data.error?.code || "E") + ": " + (data.error?.message || status);
-      $("opStatus").className = "status bad";
-    }
-    return data;
-  }
-
-  $("scan").onclick = () => runOp("scan");
-  $("plan").onclick = () => runOp("plan");
-  $("syncDry").onclick = () => runOp("sync", { confirm: true, dryRun: true });
-  $("sync").onclick = async () => {
-    if (!(await confirmAsync("将上传图片并改写文档，确认执行 sync？"))) return;
-    await runOp("sync", { confirm: true, dryRun: false });
-  };
 
   function renderFiles(list) {
     const q = ($("fileSearch").value || "").toLowerCase();
@@ -1246,7 +1126,6 @@ export const INDEX_HTML = `<!DOCTYPE html>
   renderTokenSwatches();
   renderLogoVarRow();
   setQuota(0, 200);
-  renderWorkset();
   refreshHealth();
 </script>
 </body>

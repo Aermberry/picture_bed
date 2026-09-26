@@ -26,12 +26,15 @@ describe('F24 desktop shell', () => {
     expect(pkg.devDependencies['electron-builder']).toBeTruthy();
   });
 
-  it('web UI progressive-enhances native folder picker (browser keeps working)', () => {
-    expect(INDEX_HTML).toContain('id="browseRoot"');
+  it('upload view is drop-only; native path bridge for drag-drop', () => {
+    expect(INDEX_HTML).toContain('id="dropzone"');
+    expect(INDEX_HTML).toContain('getPathForFile');
     expect(INDEX_HTML).toContain('picbedNative');
-    expect(INDEX_HTML).toContain('selectDirectory');
-    // hidden by default so browser `picbed ui` has no dead button
-    expect(INDEX_HTML).toContain('id="browseRoot" type="button" hidden');
+    // removed panels
+    expect(INDEX_HTML).not.toContain('id="rootCard"');
+    expect(INDEX_HTML).not.toContain('id="workset"');
+    expect(INDEX_HTML).not.toContain('id="planBody"');
+    expect(INDEX_HTML).not.toContain('id="scan"');
   });
 
   it('「规范」nav is hidden by default and gated on __PICBED_UI_DEV__', () => {

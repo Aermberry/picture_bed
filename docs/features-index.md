@@ -147,13 +147,13 @@
 
 - 优先级：P0 · 模块：**webui**
 - 实现（域）：[module-webui · F17](design/module-webui.md#f17-目录拖拽与计划工作台)
-- AC：**用户拖拽 md/html 或文件夹即可**，不要求先手动绑定 root（策略 A 不再作为用户步骤；服务端仍自动推断并校验扫描根）。拖入文件夹 → 自动成为扫描根；拖入文档 → 自动推断 root 并入工作集；无法解析真实路径 → `blocked` + reason。root 表单/「浏览…」仅作兜底。不提供「选择文件」「粘贴剪贴板」。界面按 `upload|skip-cache|skip-remote|blocked` 分组；plan/dry-run 不上传不改写；与 CLI 分类语义一致。
+- AC：上传页**仅有拖放区**（无扫描目录卡片、无工作集表、无 scan/plan/sync 按钮与计划/结果表）。用户拖拽 md/html 或文件夹即可；服务端自动推断扫描根。拖入后**自动执行 sync**（写入前仍须确认）；无法解析 → 提示原因。不提供「选择文件」「粘贴剪贴板」。CLI 的 plan/dry-run 语义不变（面板移除不删 API）。
 
 ## F18 一键同步
 
 - 优先级：P0 · 模块：**webui**
 - 实现（域）：[module-webui · F18](design/module-webui.md#f18-一键同步)
-- AC：写盘/上传前界面**显式确认**（服务端写操作需 `confirm` 标志，缺省拒绝并返回需确认错误）；执行中可观察进度与逐条结果；完成后汇总 uploaded / rewritten / skipped / blocked；部分失败可区分展示，且与 CLI 退出码语义对齐（含 partial）；重复执行幂等可预期。
+- AC：**拖放完成即触发 sync**（无独立「计划/同步」面板）；写盘/上传前仍**显式确认**（服务端需 `confirm`）；完成后 toast/简要反馈 uploaded 等计数；部分失败可见；幂等可预期。原 scan/plan/sync 按钮与计划表**移除**（API 保留给 CLI/管理流）。
 
 ## F19 回滚面板
 
