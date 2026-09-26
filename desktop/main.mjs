@@ -153,6 +153,26 @@ app.whenReady().then(async () => {
   registerIpc();
   await createWindow();
 
+  // Hot-reload: relaunch when dist/ or desktop/ changes (desktop:dev only)
+  if (!app.isPackaged) {
+    const roots = [path.join(__dirname, '..', 'dist'), __dirname];
+    let timer = null;
+    const relaunch = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        app.relaunch();
+        app.exit(0);
+      }, 250);
+    };
+    for (const dir of roots) {
+      try {
+        fs.watch(dir, { recursive: true }, relaunch);
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+
   app.on('activate', async () => {
     if (BrowserWindow.getAllWindows().length === 0) await createWindow();
   });
