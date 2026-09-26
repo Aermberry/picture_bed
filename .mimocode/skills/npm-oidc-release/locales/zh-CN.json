@@ -1,0 +1,4 @@
+{
+  "displayName": "npm OIDC 发版",
+  "brief": "排查与修复 GitHub Release + npm Trusted Publishing 发版链路"
+}

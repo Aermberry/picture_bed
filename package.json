@@ -1,7 +1,8 @@
 {
   "name": "picbed",
-  "version": "0.3.3",
+  "version": "0.4.0",
   "description": "Local CLI + Web console: extract images from markdown/html, upload to PicX-style GitHub image host, rewrite links",
+  "author": "Aermberry",
   "type": "module",
   "repository": {
     "type": "git",
@@ -29,7 +30,9 @@
     "test:watch": "vitest",
     "lint": "tsc -p tsconfig.json --noEmit",
     "picbed": "node ./bin/picbed.js",
-    "openspec": "openspec"
+    "openspec": "openspec",
+    "desktop:dev": "tsc -p tsconfig.json && node scripts/desktop-dev.mjs",
+    "desktop:dist": "tsc -p tsconfig.json && node scripts/build-desktop.mjs"
   },
   "engines": {
     "node": ">=20"
@@ -49,7 +52,13 @@
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
+    "electron": "^33.4.11",
+    "electron-builder": "^25.1.8",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"
+  },
+  "allowScripts": {
+    "electron@33.4.11": true,
+    "esbuild@0.21.5": true
   }
 }

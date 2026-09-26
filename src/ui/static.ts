@@ -484,6 +484,7 @@ export const INDEX_HTML = `<!DOCTYPE html>
         <h3>绑定扫描根（root）</h3>
         <div class="row">
           <input id="root" type="text" placeholder="服务端真实路径，例如 E:/WorkSpace/docs" />
+          <button class="btn btn-ghost" id="browseRoot" type="button" hidden>浏览…</button>
           <button class="btn btn-primary" id="bind" type="button">绑定</button>
         </div>
         <div class="status" id="rootStatus">未绑定根目录时不能 scan / plan / sync</div>
@@ -937,6 +938,25 @@ export const INDEX_HTML = `<!DOCTYPE html>
       $("rootStatus").className = "status bad";
     }
   };
+
+  // F24: desktop native folder picker (progressive enhancement; browser has no bridge)
+  (function setupNativeBrowse() {
+    const btn = document.getElementById("browseRoot");
+    const bridge = window.picbedNative;
+    if (!btn) return;
+    if (!bridge || typeof bridge.selectDirectory !== "function") return;
+    btn.hidden = false;
+    btn.onclick = async () => {
+      try {
+        const dir = await bridge.selectDirectory();
+        if (!dir) return;
+        $("root").value = dir;
+        toast("已选择目录，请点击绑定");
+      } catch (e) {
+        toast("选择目录失败：" + (e && e.message ? e.message : e));
+      }
+    };
+  })();
 
   const dz = $("dropzone");
   async function ingestDrop(dt) {
