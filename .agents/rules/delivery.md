@@ -26,11 +26,12 @@ Rules:
 ## GitHub Release (MANDATORY when shipping)
 
 1. **CI ≠ Release**：`ci.yml` 只验证；出包必须 **tag `v*`** 触发 `release.yml`。
-2. 发版前：版本号与 tag 一致；测试绿；设计/实现已按 Git Flow 落地。
-3. 资产双份：`<name>-<ver>.tgz` + 稳定名 `<name>.tgz`；README 用 `/releases/latest/download/<name>.tgz`。
-4. Annotated tag 注意 GH007；隔离环境用 `git push origin <sha>:refs/tags/vX.Y.Z`。
-5. 推送 `.github/workflows/**` 需要 **`workflow`** scope。
-6. Packages/npmjs 另需 `npm publish`，不在 Release workflow 内。
+2. **发版顺序（MANDATORY，禁止颠倒）**：`feature/*` → 合入 `develop` → 合入 `main` → **再** 在 `main`（或已合入 main 的同一提交）上打 tag `v*` 发布。禁止从 feature/develop 直接 tag 发包后补分支。
+3. 发版前：版本号与 tag 一致；测试绿；设计/实现已按 Git Flow 落地（含 `docs/design`）。
+4. 资产双份：`<name>-<ver>.tgz` + 稳定名 `<name>.tgz`；README 用 `/releases/latest/download/<name>.tgz`。桌面资产：`picbed-setup-<ver>.exe` + 稳定名 `picbed-setup.exe`。
+5. Annotated tag 注意 GH007；隔离环境用 `git push origin <sha>:refs/tags/vX.Y.Z`。
+6. 推送 `.github/workflows/**` 需要 **`workflow`** scope。
+7. Packages/npmjs 另需 `npm publish`，不在 Release workflow 内。
 
 Evidence: picture_bed v0.1.0/v0.2.0 release practice; user asked for release retrospective 2026-09-23.
 
