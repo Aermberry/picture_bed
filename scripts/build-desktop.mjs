@@ -10,6 +10,9 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 const result = await build({
   projectDir: root,
+  // Build only — Release asset upload is done by `gh release upload` in CI,
+  // not by electron-builder (avoids GH_TOKEN publish path on tag builds).
+  publish: 'never',
   win: ['nsis'],
   x64: true,
   config: {

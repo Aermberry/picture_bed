@@ -10,7 +10,7 @@
 > - 形态（2026-09-26 用户确认）：**双形态**——npm 保留本地开发测试与 Agent 通道；发布后提供 **Windows 桌面安装包**（Electron）供用户下载安装使用
 > - 痛点：CLI 对人类不友好；希望**拖拽文档**即可工作；Agent 仍走 CLI 契约；终端用户不应被要求装 Node
 > - 图床：对齐 PicX 模型 = **GitHub Contents API + URL 风格约定**；另支持 `local` 后端（F13）
-> - 交付：F1–F23 已实现；F24 桌面壳见 [`design/module-desktop.md`](design/module-desktop.md)
+> - 交付：F1–F24 已实现；桌面壳见 [`design/module-desktop.md`](design/module-desktop.md)
 >
 > 技术选型已采用 **Node/TS**（§7）；UI 栈见 §7.1；桌面壳见 §7.2。
 
