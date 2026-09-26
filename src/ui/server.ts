@@ -128,6 +128,61 @@ export function createUiServer(opts: UiServerOptions): {
         return;
       }
 
+      if (req.method === 'POST' && url.pathname === '/api/session/reset') {
+        workset.length = 0;
+        send(200, envelope(true, 'api.session.reset', { ok: true }));
+        return;
+      }
+
+      if (req.method === 'GET' && url.pathname === '/api/preview') {
+        const p = url.searchParams.get('path') || '';
+        const root = binder.requireRoot();
+        let abs = p;
+        if (!path.isAbsolute(p)) abs = path.resolve(root, p);
+        const rel = path.relative(root, abs);
+        if (rel.startsWith('..') || path.isAbsolute(rel)) {
+          send(400, envelope(false, 'api.preview', undefined, {
+            code: 'E_PATH_ESCAPE',
+            message: 'path outside scan root',
+          }));
+          return;
+        }
+        const ext = path.extname(abs).replace(/^\./, '').toLowerCase();
+        const imageExt = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp', 'ico', 'avif']);
+        if (!imageExt.has(ext)) {
+          send(400, envelope(false, 'api.preview', undefined, {
+            code: 'E_DOC_EXT',
+            message: 'not an image',
+          }));
+          return;
+        }
+        if (!fs.existsSync(abs) || !fs.statSync(abs).isFile()) {
+          send(404, envelope(false, 'api.preview', undefined, {
+            code: 'E_PATH_MISSING',
+            message: 'image not found',
+          }));
+          return;
+        }
+        const types: Record<string, string> = {
+          png: 'image/png',
+          jpg: 'image/jpeg',
+          jpeg: 'image/jpeg',
+          gif: 'image/gif',
+          webp: 'image/webp',
+          svg: 'image/svg+xml',
+          bmp: 'image/bmp',
+          ico: 'image/x-icon',
+          avif: 'image/avif',
+        };
+        const buf = fs.readFileSync(abs);
+        res.writeHead(200, {
+          'Content-Type': types[ext] || 'application/octet-stream',
+          'Cache-Control': 'no-store',
+        });
+        res.end(buf);
+        return;
+      }
+
       if (req.method === 'POST' && url.pathname === '/api/session/bind-root') {
         const body = JSON.parse((await readBody(req)) || '{}') as { root?: string };
         if (!body.root) {
