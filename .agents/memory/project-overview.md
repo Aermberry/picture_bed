@@ -39,6 +39,7 @@ Current project artifacts win over this memory. `AGENTS.md` (AgentGo v1.15.1) is
 - **`docs/design` 每次提交后必须合入 `develop`**：`4300de0` 曾只在 `docs/design` 上、未进 `develop`（用户 2026-09-23 指出）；已用 merge commit `b513fb7` 合入并 FF `main`。禁止设计分支长期悬空。
 - **Git Flow：实现一 `feature/<topic>`，纯文档一 `docs/<topic>`**：F12–F14 曾堆在单支；`docs/html` 迁移误用 `feature/design-html-path`（应用 `docs/html-layout`）。禁止长期单支堆功能，禁止文档主题进 `feature/`。
 - **Commit 后必须自动 push**：每次 git commit / commit-tree 落地后立即推送对应分支到 origin，无需再问；**仅 release（tag / GitHub Release / npm publish）需用户审核**（2026-09-25）。
+- **发版顺序禁止颠倒**：必须 `feature/*` → `develop` → `main` → 再 tag 发布。v0.4.0 曾从 feature 直接 tag 发包、事后才合 develop（用户 2026-09-26 指出）；见 `.agents/rules/delivery.md`。
 
 ## Notes
 
