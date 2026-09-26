@@ -974,22 +974,39 @@ export const INDEX_HTML = `<!DOCTYPE html>
   }
 
   async function scanIntoPreview() {
-    const { data } = await api("/api/plan", {});
-    if (!data.ok) {
-      toast((data.error && data.error.message) || "扫描失败");
-      setPreviewIdle();
-      return;
-    }
-    const plan = (data.data && data.data.plan) || [];
     const paths = [];
     const seen = {};
-    for (const p of plan) {
-      const lp = p.localPath;
-      if (!lp || seen[lp]) continue;
-      if (p.action === "blocked" || p.action === "skip-remote") continue;
-      seen[lp] = 1;
-      paths.push(lp);
+    function addPath(p) {
+      if (!p || seen[p]) return;
+      seen[p] = 1;
+      paths.push(p);
     }
+
+    // 1) images under scan root + dropped image files
+    try {
+      const { data } = await api("/api/session/images");
+      if (data.ok && data.data && data.data.images) {
+        for (const p of data.data.images) addPath(p);
+      }
+    } catch (_) {}
+
+    // 2) image refs inside md/html under root
+    try {
+      const { data } = await api("/api/plan", {});
+      if (data.ok) {
+        const plan = (data.data && data.data.plan) || [];
+        for (const p of plan) {
+          if (!p.localPath) continue;
+          if (p.action === "blocked" || p.action === "skip-remote") continue;
+          addPath(p.localPath);
+        }
+      } else if (!paths.length) {
+        toast((data.error && data.error.message) || "扫描失败");
+      }
+    } catch (_) {
+      if (!paths.length) toast("扫描失败");
+    }
+
     setPreviewImages(paths);
     if (!paths.length) toast("未扫描到本地图片");
   }
