@@ -11,6 +11,7 @@ webui 是**本地 Web 控制台**限界上下文：在**仅本机**的 HTTP 界�
 
 边界原则：
 - **不重写**抽取/上传/回写/去重业务规则（属 ingest/transfer/rewrite/cliops）；只做会话编排、HTTP API、静态资源与确认门。
+- **编排委托 `src/app/` 共享层**（collect/plan/sync/revert/doctor/config/runs，见 [`module-app.md`](module-app.md)）：Web API 与 CLI 使用同一份应用服务实现与同一份 `AppError` 错误码表，不各自复制逻辑。
 - **Token 仅存在于服务进程内存**；HTTP 响应、页面、run 记录、日志一律掩码或省略。
 - **默认只绑 `127.0.0.1`**；不做多用户、不做公网部署、不做反向代理鉴权。
 - 写操作（sync / revert / config set / watch 自动同步）必须经**显式确认**（页面确认 + 服务端 `confirm`）。
@@ -22,8 +23,8 @@ webui 是**本地 Web 控制台**限界上下文：在**仅本机**的 HTTP 界�
 webui/
 ├─ domain/
 │  ├─ cqe/           # ServeUiQuery、PlanViewQuery、SyncConfirmCommand、RevertConfirmCommand…
-│  ├─ entity/        # UiSession、RunRecord、PlanView、DoctorView、ManifestView
-│  ├─ service/       # UiServer、RunRecorder、ConfirmGate、ViewMapper
+│  ├─ entity/        # UiSession、PlanView、DoctorView、ManifestView（RunRecord 由 app 共享层提供）
+│  ├─ service/       # UiServer、ConfirmGate、ViewMapper（RunRecorder 在 app 共享层）
 │  └─ facade/        # WebUiFacade
 ├─ packages/
 │  ├─ http/          # 路由、静态资源、localhost 绑定、优雅退出
@@ -36,7 +37,7 @@ webui/
 
 ```text
 UiSession   { rootDir, startedAt, watchActive }
-RunRecord   { id, command, startedAt, finishedAt, ok, counts, items[], errorCode? }
+RunRecord   { id, command, startedAt, finishedAt, ok, counts, items[], errorCode? }   # app 共享层实体，CLI/Web 共用
 PlanView    { rootDir, generatedAt, groups: { upload[], skip-cache[], skip-remote[], blocked[] } }
 DoctorView  { ok, checks[], failures[] }
 ManifestView{ version, entries[] }   # 无 token
@@ -161,7 +162,7 @@ WebUI SPA **同时**服务浏览器（`picbed ui`）与 Electron 壳（[`module-
 - 输入：`root`、`confirm: true`（缺省 → `ConfirmRequiredError`，HTTP 409 或信封 error，对齐退出码 7）、可选 `dryRun`。
 - 规则：
   - `dryRun` 等价 `plan`/`sync --dry-run`：不 `putFile`、不改文档。
-  - 非 dry-run：经 SyncOrchestrator；进度经事件通道推送（若启用）。
+  - 非 dry-run：经 app 共享层 `runSync`（SyncOrchestrator）；进度经事件通道推送（若启用）。
   - 结果 counts：`uploaded/rewritten/skipped/blocked/failed`；partial → `ok:false` 或 `ok:true`+`data.partial`（与 CLI 退出码 6 对齐，信封 error.code 保持稳定）。
 - 失败：单文件失败隔离；汇总 partial；远端 429/403 退避后失败映射退出码 5 语义。
 
@@ -180,7 +181,7 @@ WebUI SPA **同时**服务浏览器（`picbed ui`）与 Electron 壳（[`module-
 
 ## F21 审计与报告
 
-- RunRecord 由各写/批命令成功或结束后追加（存储建议 `./.picbed/runs/`，路径进 `.gitignore` 建议）。
+- RunRecord 由 app 共享层 `RunRecorder` 在各写/批命令成功或结束后追加（存储建议 `./.picbed/runs/`，路径进 `.gitignore` 建议）；CLI 的 `sync`/`revert` 也写同一份记录（Web 命令名为 `api.*`）。
 - 报告字段对齐 JSON 信封 `data`；**无 token**。
 - 导出：`GET /api/runs/:id` 或导出按钮得到单一 JSON。
 

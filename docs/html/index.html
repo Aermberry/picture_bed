@@ -81,7 +81,7 @@
           </article>
           <article class="card">
             <h3>模块 · 归属</h3>
-            <p>主责限界上下文：<code>ingest</code> / <code>transfer</code> / <code>rewrite</code> / <code>cliops</code> / <code>webui</code> / <code>desktop</code>。</p>
+            <p>主责限界上下文：<code>ingest</code> / <code>transfer</code> / <code>rewrite</code> / <code>cliops</code> / <code>webui</code> / <code>desktop</code>；另加 <code>app</code> 共享应用编排层（CLI/Web 共用实现）。</p>
           </article>
           <article class="card">
             <h3>AC · 验收</h3>
@@ -173,7 +173,8 @@
             <text x="340" y="196" text-anchor="middle" font-size="11" fill="#78350F">拖拽工作台 · ConfirmGate · 127.0.0.1 · picbedNative 目录桥 · token 不进浏览器</text>
 
             <rect x="40" y="232" width="600" height="48" rx="8" fill="#F8FAFC" stroke="#94A3B8" stroke-width="0.5"/>
-            <text x="340" y="260" text-anchor="middle" dominant-baseline="central" font-size="13" fill="#0F172A">应用编排 · SyncOrchestrator / PlanBuilder / DoctorService</text>
+            <text x="340" y="254" text-anchor="middle" font-size="13" fill="#0F172A">应用编排 · app 共享层（src/app/）：collect/plan/sync/revert/doctor</text>
+            <text x="340" y="272" text-anchor="middle" font-size="11" fill="#475569">CLI 与 WebUI 只做协议适配与确认门，不各自复制编排</text>
 
             <rect x="40" y="310" width="600" height="64" rx="8" fill="#EEF2FF" stroke="#818CF8" stroke-width="0.5"/>
             <text x="340" y="336" text-anchor="middle" font-size="13" fill="#0F172A">领域核心（无 I/O）</text>
@@ -239,6 +240,12 @@
                 <td>Electron 桌面壳、原生对话框、Windows 安装包</td>
                 <td>F24</td>
                 <td><code>docs/design/module-desktop.md</code></td>
+              </tr>
+              <tr>
+                <td><code>app</code> <span class="muted">（共享层，非限界上下文）</span></td>
+                <td>CLI/Web 共用应用编排：collect/plan/sync/revert/doctor/config/runs、AppError 错误码表、RunRecord</td>
+                <td>服务 cliops/webui 路径（F1–F2, F6–F9, F18–F21）</td>
+                <td><code>docs/design/module-app.md</code></td>
               </tr>
             </tbody>
           </table>
@@ -306,7 +313,7 @@ https://cdn.jsdelivr.net/gh/{owner}/{repo}@{branch}/{path}
               <tr><td>阅读指南</td><td><code>docs/design-reading-guide.md</code></td></tr>
               <tr><td>架构总纲</td><td><code>docs/architecture.md</code></td></tr>
               <tr><td>功能点总表（F 权威）</td><td><code>docs/features-index.md</code></td></tr>
-              <tr><td>模块详设</td><td><code>docs/design/module-{ingest,transfer,rewrite,cliops,webui,desktop}.md</code></td></tr>
+              <tr><td>模块详设</td><td><code>docs/design/module-{ingest,transfer,rewrite,cliops,webui,desktop,app}.md</code></td></tr>
               <tr><td>横切约定</td><td><code>docs/design/cross-cutting.md</code></td></tr>
               <tr><td>HTML 呈现（本页）</td><td><code>docs/html/index.html</code> + <code>styles.css</code> + <code>app.js</code></td></tr>
             </tbody>

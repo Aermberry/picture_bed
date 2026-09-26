@@ -11,6 +11,7 @@ cliops 负责 **配置生命周期、健康检查、命令编排入口与机器�
 - Token **只**从 ENV / `gh`（GitHub CLI）读取；输出一律掩码。  
 - 非 TTY **禁止**交互阻塞；写文件类命令无 `--yes` 时退出码 7。  
 - `--json` 时 stdout 仅 JSON，诊断走 stderr。
+- **编排唯一实现在 `src/app/`**（见 [`module-app.md`](module-app.md)）：CLI 只做 argv 解析、确认门（`--yes`）、JSON 信封与退出码映射；collect/plan/sync/revert/doctor/config/runs 均调用 app 共享层，不复制业务编排。
 
 ## 模块文件夹结构（栈无关）
 
@@ -19,7 +20,7 @@ cliops/
 ├─ domain/
 │  ├─ cqe/           # InitConfigCommand、DoctorQuery、GlobalFlags
 │  ├─ entity/        # ResolvedConfig、DoctorReport、JsonEnvelope
-│  ├─ service/       # ConfigLoader、DoctorService、OutputFormatter、Orchestrators(编排调用)
+│  ├─ service/       # ConfigLoader、OutputFormatter；编排与 DoctorService 调用 app 共享层
 │  └─ facade/        # CliFacade
 ├─ exceptions/       # ConfigInvalidError、UsageError、AuthError
 └─ cli/              # argv 解析、子命令注册、进程退出码映射
@@ -43,7 +44,7 @@ rewrite:{ backup: boolean }
 ## F1 项目初始化与配置
 
 - `init`：写出 `picbed.toml` 模板（无 secret）；已存在需 `--force`。  
-- `config get|set|list`：枚举校验（如 `url.style`）；`list` 对 secret 掩码 `****`。  
+- `config get|set|list`：枚举校验（如 `url.style`）由 app 层 `writeConfigKey` 单点执行；`list` 对 secret 掩码 `****`。  
 - 非法配置：退出码 2（用法）或 3（缺鉴权类），消息含键名。
 
 ## F14 VS Code / MCP 包装
@@ -61,13 +62,17 @@ rewrite:{ backup: boolean }
 
 ## F2 环境与鉴权自检
 
-Doctor 检查项：
-1. 必需配置键存在且类型正确  
+Doctor 实现于 app 共享层 `doctorService`（[`module-app.md`](module-app.md)），**按 `host.type` 分派**：
+
+github 主机：
+1. 必需配置键存在且类型正确（owner/repo/branch）  
 2. token 存在（不回显）  
 3. GitHub API 可达  
 4. 对 `owner/repo` 具备 Contents 读写（最小探测）  
 
-输出 `DoctorReport { ok, checks[] , failures[] }`；任一 hard 失败 → 退出码 3。
+local 主机：仅检查 `host.type`，**不**要求 token，也**不**做 API 探测。
+
+输出 `DoctorReport { ok, checks[], failures[] }`；github 主机任一 hard 失败 → 退出码 3；local 主机无 token 亦 `ok=true`。
 
 ## F10 Agent 机器接口
 

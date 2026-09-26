@@ -11,6 +11,7 @@
 > - **cliops** 模块（F1/F2/F10/F11 配置、doctor、Agent 契约）→ [`design/module-cliops.md`](design/module-cliops.md)
 > - **webui** 模块（F16–F23 本地 Web 控制台，含拖拽工作台与壳层视觉）→ [`design/module-webui.md`](design/module-webui.md)
 > - **desktop** 模块（F24 桌面应用壳与安装包）→ [`design/module-desktop.md`](design/module-desktop.md)
+> - **app** 共享应用编排层（CLI 与 Web 共用 collect/plan/sync/revert/doctor/config/runs，非限界上下文）→ [`design/module-app.md`](design/module-app.md)
 > - 横切约定 / 退出码 / JSON → [`design/cross-cutting.md`](design/cross-cutting.md)
 >
 > 模块文档内有「功能点映射」节链回本文件，形成相向链接。
