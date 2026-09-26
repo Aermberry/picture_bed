@@ -4,11 +4,22 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { getToken, loadConfig } from '../config.js';
 import type { JsonEnvelope, ResolvedConfig } from '../types.js';
-import { applyConfigSet, doctorView, publicConfig } from './doctor.js';
-import { publicPlanItem, runPlan, runSync } from './ops.js';
-import { listManifestView, runRevert } from './revert.js';
+import {
+  asAppError,
+  doctorService,
+  getRun,
+  githubProbe,
+  httpStatusForCode,
+  listManifestView,
+  listRuns,
+  publicConfig,
+  publicPlanItem,
+  runPlan,
+  runRevert,
+  runSync,
+  writeConfigKey,
+} from '../app/index.js';
 import { RootBinder, ensureDocExt } from './root.js';
-import { getRun, listRuns } from './runs.js';
 import { INDEX_HTML } from './static.js';
 import { WatchController } from './watch.js';
 
@@ -94,15 +105,6 @@ function envelope<T>(
   warnings?: string[],
 ): JsonEnvelope<T> {
   return { schemaVersion: 1, ok, command, data, warnings, error: error ?? null };
-}
-
-function httpStatusFor(code: string | undefined): number {
-  if (code === 'E_CONFIRM') return 409;
-  if (code === 'E_TOKEN' || code === 'E_AUTH') return 401;
-  if (code === 'E_NO_ROOT' || code === 'E_ROOT') return 400;
-  if (code === 'E_PATH' || code === 'E_PATH_ABS' || code === 'E_PATH_ESCAPE' || code === 'E_PATH_MISSING') return 400;
-  if (code === 'E_USAGE' || code === 'E_STYLE') return 400;
-  return 500;
 }
 
 function readBody(req: http.IncomingMessage): Promise<string> {
@@ -288,7 +290,7 @@ export function createUiServer(opts: UiServerOptions): {
               type: 'dir',
               status: 'blocked',
             });
-            send(httpStatusFor(e.code), envelope(false, 'api.session.drop', { item: workset.at(-1) }, {
+            send(httpStatusForCode(e.code), envelope(false, 'api.session.drop', { item: workset.at(-1) }, {
               code: e.code ?? 'E_ROOT',
               message: e.message,
             }));
@@ -305,7 +307,7 @@ export function createUiServer(opts: UiServerOptions): {
             } catch (err) {
               const e = err as Error & { code?: string };
               workset.push({ name: body.name ?? rel, relativePath: rel, type: 'file', status: 'blocked' });
-              send(httpStatusFor(e.code), envelope(false, 'api.session.drop', { item: workset.at(-1) }, {
+              send(httpStatusForCode(e.code), envelope(false, 'api.session.drop', { item: workset.at(-1) }, {
                 code: e.code ?? 'E_ROOT',
                 message: e.message,
               }));
@@ -375,7 +377,7 @@ export function createUiServer(opts: UiServerOptions): {
                   type: 'dir',
                   status: 'blocked',
                 });
-                send(httpStatusFor(e.code), envelope(false, 'api.session.drop', { item: workset.at(-1) }, {
+                send(httpStatusForCode(e.code), envelope(false, 'api.session.drop', { item: workset.at(-1) }, {
                   code: e.code ?? 'E_ROOT',
                   message: e.message,
                 }));
@@ -386,7 +388,7 @@ export function createUiServer(opts: UiServerOptions): {
           const resolved = binder.resolveUnderRoot(rel);
           if (!resolved.ok) {
             workset.push({ name: body.name ?? rel, relativePath: rel, type: 'dir', status: 'blocked' });
-            send(httpStatusFor(resolved.code), envelope(false, 'api.session.drop', { item: workset.at(-1) }, {
+            send(httpStatusForCode(resolved.code), envelope(false, 'api.session.drop', { item: workset.at(-1) }, {
               code: resolved.code,
               message: resolved.reason,
             }));
@@ -406,7 +408,7 @@ export function createUiServer(opts: UiServerOptions): {
         const resolved = binder.resolveUnderRoot(rel);
         if (!resolved.ok) {
           workset.push({ name: body.name ?? rel, relativePath: rel, type: 'file', status: 'blocked' });
-          send(httpStatusFor(resolved.code), envelope(false, 'api.session.drop', { item: workset.at(-1) }, {
+          send(httpStatusForCode(resolved.code), envelope(false, 'api.session.drop', { item: workset.at(-1) }, {
             code: resolved.code,
             message: resolved.reason,
             hint: 'Drop a folder first, or set root path (auto-bind when desktop paths are available)',
@@ -516,9 +518,11 @@ export function createUiServer(opts: UiServerOptions): {
           cfg,
           cwd,
           getToken,
+          command: 'api.sync',
         });
+        const errorCode = result.errorCode ?? 'E_PARTIAL';
         send(
-          result.ok ? 200 : 207,
+          result.ok ? 200 : httpStatusForCode(errorCode),
           envelope(result.ok, 'api.sync', {
             dryRun: false,
             uploaded: result.uploaded,
@@ -526,8 +530,8 @@ export function createUiServer(opts: UiServerOptions): {
             summary: result.summary,
             items: result.items,
             errors: result.errors,
-            partial: !result.ok && result.uploaded + result.rewrittenDocs.length > 0,
-          }, result.ok ? null : { code: 'E_PARTIAL', message: result.errors.join('; ') }, result.warnings),
+            partial: result.partial,
+          }, result.ok ? null : { code: errorCode, message: result.errors.join('; ') }, result.warnings),
         );
         return;
       }
@@ -553,14 +557,14 @@ export function createUiServer(opts: UiServerOptions): {
           return;
         }
         const cfg = loadCfg();
-        const out = applyConfigSet(cfg, body.key ?? '', body.value ?? '', Boolean(body.dryRun));
+        const out = writeConfigKey(cfg, body.key ?? '', body.value ?? '', Boolean(body.dryRun));
         send(200, envelope(true, 'api.config', out));
         return;
       }
 
       if (req.method === 'POST' && url.pathname === '/api/doctor') {
         const cfg = loadCfg();
-        const view = doctorView(cfg);
+        const view = await doctorService({ cfg, getToken, probeApi: githubProbe });
         send(view.ok ? 200 : 400, envelope(view.ok, 'api.doctor', view, view.ok ? null : {
           code: 'E_DOCTOR',
           message: 'doctor failed: ' + view.failures.join(','),
@@ -593,16 +597,16 @@ export function createUiServer(opts: UiServerOptions): {
           }));
           return;
         }
-        const result = runRevert({ root, cfg, cwd, dryRun: Boolean(body.dryRun) });
-        if (!result.ok && result.errors.some((e) => e.includes('manifest corrupt'))) {
+        const result = runRevert({ root, cfg, cwd, dryRun: Boolean(body.dryRun), command: 'api.revert' });
+        if (!result.ok && result.errorCode === 'E_MANIFEST_CORRUPT') {
           send(400, envelope(false, 'api.revert', result, {
             code: 'E_MANIFEST_CORRUPT',
             message: result.errors.join('; '),
           }));
           return;
         }
-        send(result.ok ? 200 : 207, envelope(result.ok, 'api.revert', result, result.ok ? null : {
-          code: 'E_PARTIAL',
+        send(result.ok ? 200 : httpStatusForCode(result.errorCode), envelope(result.ok, 'api.revert', result, result.ok ? null : {
+          code: result.errorCode ?? 'E_PARTIAL',
           message: result.errors.join('; '),
         }));
         return;
@@ -659,7 +663,7 @@ export function createUiServer(opts: UiServerOptions): {
               return;
             }
             if (m === 'auto') {
-              await runSync({ root, cfg, cwd, getToken });
+              await runSync({ root, cfg, cwd, getToken, command: 'api.sync' });
             }
           },
         });
@@ -674,9 +678,9 @@ export function createUiServer(opts: UiServerOptions): {
 
       send(404, envelope(false, 'api.unknown', undefined, { code: 'E_USAGE', message: `no route ${req.method} ${url.pathname}` }));
     } catch (err) {
-      const e = err as Error & { code?: string; hint?: string; path?: string };
-      send(httpStatusFor(e.code), envelope(false, 'api.error', undefined, {
-        code: e.code ?? 'E_GENERAL',
+      const e = asAppError(err);
+      send(httpStatusForCode(e.code), envelope(false, 'api.error', undefined, {
+        code: e.code,
         message: e.message,
         path: e.path,
         hint: e.hint,

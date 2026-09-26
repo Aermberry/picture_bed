@@ -21,6 +21,46 @@ export function composeGithubUrls(
   return { publicUrl, rawUrl, cdnUrl };
 }
 
+export interface GithubProbeResult {
+  api: { ok: boolean; detail: string };
+  contents: { ok: boolean; detail: string };
+}
+
+/** F20 doctor probe: repo API reachability, then contents (dir may legitimately be absent). */
+export async function probeGithubAccess(
+  cfg: GithubConfig,
+  token: string,
+): Promise<GithubProbeResult> {
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${token}`,
+    Accept: 'application/vnd.github+json',
+    'X-GitHub-Api-Version': '2022-11-28',
+    'User-Agent': 'picbed',
+  };
+  let api: GithubProbeResult['api'];
+  try {
+    const res = await fetch(`https://api.github.com/repos/${cfg.owner}/${cfg.repo}`, { headers });
+    api = { ok: res.ok, detail: `HTTP ${res.status}` };
+  } catch (err) {
+    api = { ok: false, detail: String(err) };
+  }
+  if (!api.ok) {
+    return { api, contents: { ok: false, detail: 'skipped (repo API failed)' } };
+  }
+  const dir = cfg.dir.replace(/^\/+|\/+$/g, '');
+  const probePath = dir.split('/').map(encodeURIComponent).join('/');
+  const url = `https://api.github.com/repos/${cfg.owner}/${cfg.repo}/contents/${probePath}?ref=${cfg.branch}`;
+  try {
+    const res = await fetch(url, { headers });
+    return {
+      api,
+      contents: { ok: res.ok || res.status === 404, detail: `HTTP ${res.status}` },
+    };
+  } catch (err) {
+    return { api, contents: { ok: false, detail: String(err) } };
+  }
+}
+
 export function githubRemotePath(
   dir: string,
   sha256: string,

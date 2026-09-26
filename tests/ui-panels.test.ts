@@ -4,7 +4,7 @@ import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createUiServer, type UiServerHandle } from '../src/ui/server.js';
 import { loadConfig } from '../src/config.js';
-import { runSync } from '../src/ui/ops.js';
+import { runSync } from '../src/app/sync.js';
 
 function tmp(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'picbed-ui2-'));
@@ -91,6 +91,7 @@ describe('ui F19–F22', () => {
       cfg,
       cwd,
       getToken: () => undefined,
+      command: 'api.sync',
     });
     expect(result.ok).toBe(true);
     const runs = await api('/api/runs');
