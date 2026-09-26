@@ -46,6 +46,9 @@ export async function runSync(opts: {
       hint: TOKEN_HINT,
     });
   }
+  if (cfg.host.type === 'github' && (!cfg.github.owner || !cfg.github.repo)) {
+    throw new AppError('E_CONFIG', 'github.owner/repo required');
+  }
 
   const host = createHostAdapter(cfg, token);
   const errors: string[] = [];
