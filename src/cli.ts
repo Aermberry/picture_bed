@@ -406,7 +406,7 @@ export async function run(argv: string[]): Promise<ExitCode> {
         },
         () => {
           console.log(`picbed ui → ${handle.url}`);
-          console.log('drag docs after binding a scan root (policy A). Ctrl+C to stop.');
+          console.log('drag docs or a folder to set the scan directory. Ctrl+C to stop.');
         },
       );
       const stop = async () => {

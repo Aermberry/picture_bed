@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-/** Bind scan root and map drag-drop relative clues to real FS paths (policy A). */
+/** Bind scan root and map drag-drop relative clues to real FS paths. */
 export class RootBinder {
   constructor(public root: string | null = null) {}
 
@@ -19,9 +19,9 @@ export class RootBinder {
 
   requireRoot(): string {
     if (!this.root) {
-      throw Object.assign(new Error('bind a scan root first (drag a folder or set root)'), {
+      throw Object.assign(new Error('no scan directory yet (drop a folder or files first)'), {
         code: 'E_NO_ROOT',
-        hint: 'Policy A: root must be bound before scan/plan/sync',
+        hint: 'Drop docs/folder to auto-detect the scan directory',
       });
     }
     return this.root;

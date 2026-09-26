@@ -144,12 +144,95 @@ export function createUiServer(opts: UiServerOptions): {
           name?: string;
           relativePath?: string;
           type?: 'file' | 'dir';
+          absPath?: string;
         };
         const rel = (body.relativePath || body.name || '').trim();
         const type = body.type === 'dir' ? 'dir' : 'file';
+        const absRaw = (body.absPath || '').trim();
+        const absPath = absRaw && path.isAbsolute(absRaw) ? absRaw : '';
 
-        // Policy A: dir drop may bind root by its resolved path under cwd if absolute not allowed —
-        // for dir we accept relative name as root subpath OR bind if it exists under cwd.
+        // Desktop drops carry absolute paths → auto-infer root (no manual bind step).
+        if (absPath && type === 'dir') {
+          try {
+            const bound = binder.bind(absPath, path.dirname(absPath));
+            workset.push({
+              name: body.name ?? path.basename(absPath),
+              relativePath: rel || path.basename(absPath),
+              type: 'dir',
+              resolvedPath: bound,
+              status: 'bound-root',
+            });
+            send(200, envelope(true, 'api.session.drop', { action: 'bound-root', boundRoot: bound, item: workset.at(-1) }));
+            return;
+          } catch (err) {
+            const e = err as Error & { code?: string };
+            workset.push({
+              name: body.name ?? rel,
+              relativePath: rel,
+              type: 'dir',
+              status: 'blocked',
+            });
+            send(httpStatusFor(e.code), envelope(false, 'api.session.drop', { item: workset.at(-1) }, {
+              code: e.code ?? 'E_ROOT',
+              message: e.message,
+            }));
+            return;
+          }
+        }
+
+        if (absPath && type === 'file') {
+          // Infer root from the file's directory when none bound yet.
+          if (!binder.root) {
+            try {
+              const dir = path.dirname(absPath);
+              binder.bind(dir, dir);
+            } catch (err) {
+              const e = err as Error & { code?: string };
+              workset.push({ name: body.name ?? rel, relativePath: rel, type: 'file', status: 'blocked' });
+              send(httpStatusFor(e.code), envelope(false, 'api.session.drop', { item: workset.at(-1) }, {
+                code: e.code ?? 'E_ROOT',
+                message: e.message,
+              }));
+              return;
+            }
+          }
+          if (!fs.existsSync(absPath)) {
+            workset.push({ name: body.name ?? rel, relativePath: rel, type: 'file', status: 'blocked' });
+            send(400, envelope(false, 'api.session.drop', { item: workset.at(-1) }, {
+              code: 'E_PATH_MISSING',
+              message: 'dropped file not found',
+              path: absPath,
+            }));
+            return;
+          }
+          const cfgAbs = loadCfg();
+          if (!ensureDocExt(absPath, cfgAbs.scan.extensions)) {
+            workset.push({ name: body.name ?? rel, relativePath: rel, type: 'file', status: 'blocked' });
+            send(400, envelope(false, 'api.session.drop', { item: workset.at(-1) }, {
+              code: 'E_DOC_EXT',
+              message: 'not a scanned document extension',
+              path: absPath,
+            }));
+            return;
+          }
+          const rootNow = binder.requireRoot();
+          const relFromRoot = path.relative(rootNow, absPath);
+          workset.push({
+            name: body.name ?? path.basename(absPath),
+            relativePath: relFromRoot || path.basename(absPath),
+            type: 'file',
+            resolvedPath: absPath,
+            status: 'in-root',
+          });
+          send(200, envelope(true, 'api.session.drop', {
+            action: 'in-root',
+            boundRoot: rootNow,
+            item: workset.at(-1),
+          }));
+          return;
+        }
+
+        // Fallback (browser): folder name under cwd may bind root; files need a root.
         if (type === 'dir') {
           if (!binder.root) {
             const candidate = path.resolve(cwd, rel);
@@ -201,14 +284,13 @@ export function createUiServer(opts: UiServerOptions): {
           return;
         }
 
-        // file drop — policy A requires bound root
         const resolved = binder.resolveUnderRoot(rel);
         if (!resolved.ok) {
           workset.push({ name: body.name ?? rel, relativePath: rel, type: 'file', status: 'blocked' });
           send(httpStatusFor(resolved.code), envelope(false, 'api.session.drop', { item: workset.at(-1) }, {
             code: resolved.code,
             message: resolved.reason,
-            hint: 'Bind root first (policy A), then drop files under that root',
+            hint: 'Drop a folder first, or set root path (auto-bind when desktop paths are available)',
           }));
           return;
         }

@@ -473,18 +473,18 @@ export const INDEX_HTML = `<!DOCTYPE html>
       <div class="dropzone" id="dropzone">
         <div class="big-ico"><svg><use href="#i-image"/></svg></div>
         <h2 id="dropTitle">将文件拖放到此处</h2>
-        <p>拖拽 md / html 文档或文件夹 · 策略 A 强制绑根 · 支持 JPG / PNG / GIF / WebP</p>
-        <span class="hint">上传后自动生成外链，可复制 Markdown / HTML / URL；先绑定扫描根再 scan / plan / sync</span>
+        <p>拖拽 md / html 文档或文件夹即可 · 自动识别扫描目录</p>
+        <span class="hint">支持 JPG / PNG / GIF / WebP；上传后可复制 Markdown / HTML / URL</span>
       </div>
 
-      <div class="card">
-        <h3>绑定扫描根（root）</h3>
+      <div class="card" id="rootCard">
+        <h3>扫描目录（自动）</h3>
         <div class="row">
-          <input id="root" type="text" placeholder="服务端真实路径，例如 E:/WorkSpace/docs" />
+          <input id="root" type="text" placeholder="拖入文件夹后自动填充；也可手动填写路径" />
           <button class="btn btn-ghost" id="browseRoot" type="button" hidden>浏览…</button>
-          <button class="btn btn-primary" id="bind" type="button">绑定</button>
+          <button class="btn btn-primary" id="bind" type="button">使用</button>
         </div>
-        <div class="status" id="rootStatus">未绑定根目录时不能 scan / plan / sync</div>
+        <div class="status" id="rootStatus">拖拽文档或文件夹后自动识别目录</div>
       </div>
 
       <div class="card">
@@ -969,33 +969,55 @@ export const INDEX_HTML = `<!DOCTYPE html>
   })();
 
   const dz = $("dropzone");
+  function filePathOf(f) {
+    try {
+      if (window.picbedNative && typeof window.picbedNative.getPathForFile === "function") {
+        return window.picbedNative.getPathForFile(f) || "";
+      }
+    } catch (_) { /* browser */ }
+    return "";
+  }
+
   async function ingestDrop(dt) {
     const items = [];
     if (dt.items) {
       for (const item of dt.items) {
         if (item.kind !== "file") continue;
         const entry = item.webkitGetAsEntry && item.webkitGetAsEntry();
+        const f = item.getAsFile && item.getAsFile();
+        const abs = f ? filePathOf(f) : "";
         if (entry && entry.isDirectory) {
-          items.push({ name: entry.name, rel: entry.name, type: "dir" });
-        } else {
-          const f = item.getAsFile();
-          if (!f) continue;
-          items.push({ name: f.name, rel: f.webkitRelativePath || f.name, type: "file" });
+          items.push({ name: entry.name, rel: entry.name, type: "dir", abs });
+        } else if (f) {
+          items.push({
+            name: f.name,
+            rel: f.webkitRelativePath || f.name,
+            type: "file",
+            abs,
+          });
         }
       }
     }
+    // Folders first so root is inferred before files
+    items.sort((a, b) => (a.type === b.type ? 0 : a.type === "dir" ? -1 : 1));
     for (const it of items) {
       const { data } = await api("/api/session/drop", {
-        name: it.name, relativePath: it.rel, type: it.type,
+        name: it.name,
+        relativePath: it.rel,
+        type: it.type,
+        absPath: it.abs || undefined,
       });
-      if (data.ok && data.data.boundRoot) {
-        $("root").value = data.data.boundRoot;
-        $("rootStatus").textContent = "已绑定：" + data.data.boundRoot;
+      const bound = data.ok && data.data && data.data.boundRoot;
+      if (bound) {
+        $("root").value = bound;
+        $("rootStatus").textContent = "扫描目录：" + bound;
         $("rootStatus").className = "status ok";
       }
       workset.push({
-        name: it.name, rel: it.rel, type: it.type,
-        status: data.ok ? data.data.action || "ok" : (data.error?.code || "E") + ": " + (data.error?.message || ""),
+        name: it.name,
+        rel: it.rel,
+        type: it.type,
+        status: data.ok ? (data.data && data.data.action) || "ok" : (data.error?.code || "E") + ": " + (data.error?.message || ""),
       });
     }
     renderWorkset();
