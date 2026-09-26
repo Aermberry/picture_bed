@@ -147,7 +147,7 @@
 
 - 优先级：P0 · 模块：**webui**
 - 实现（域）：[module-webui · F17](design/module-webui.md#f17-目录拖拽与计划工作台)
-- AC：支持**拖拽**导入（单个/多个文档、文件夹）与路径指定两种入口；**必须先绑定扫描根 `root`（策略 A）**：拖入文件夹可绑定为扫描根，拖入文档在已绑根下按相对路径解析并参与 scan/plan，**未绑根不进入 scan/plan**；无法映射到服务端真实路径的拖拽项报 `blocked` 且含可诊断原因；界面按 `upload|skip-cache|skip-remote|blocked` 分组展示 reason 与路径；预览/计划模式**不**上传、**不**改写文档；与 CLI `plan` / `sync --dry-run` 分类语义一致。
+- AC：入口仅两种：**拖拽**导入（单个/多个文档、文件夹）与 **root 路径表单**（桌面端可「浏览…」）。**不提供**「选择文件」按钮与「粘贴剪贴板」按钮。**必须先绑定扫描根 `root`（策略 A）**：拖入文件夹可绑定为扫描根，拖入文档在已绑根下按相对路径解析并参与 scan/plan，**未绑根不进入 scan/plan**；无法映射到服务端真实路径的拖拽项报 `blocked` 且含可诊断原因；界面按 `upload|skip-cache|skip-remote|blocked` 分组展示 reason 与路径；预览/计划模式**不**上传、**不**改写文档；与 CLI `plan` / `sync --dry-run` 分类语义一致。
 
 ## F18 一键同步
 
