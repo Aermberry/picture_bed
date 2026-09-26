@@ -1,5 +1,18 @@
 # Review Findings
 
+## 2026-09-27 architecture review (read-only, F16–F24)
+
+Scope: `src/` layering, duplication/drift, UI-server security, docs-vs-code. Evidence: full reads of cli.ts, ui/*.ts, mcp/server.ts, types.ts, docs/architecture.md; package.json; CI.
+
+1. **Orchestration duplicated with live drift** — `src/cli.ts:605-690` vs `src/ui/ops.ts:93-226`: UI path records RunRecord (`ops.ts:198-214`), pushes `skip-cache` rewrite items (`ops.ts:129`), throws `{code:'E_TOKEN', exitCode:3}` (`ops.ts:107`) vs CLI `fail()` (`cli.ts:591-596`). `doctor` gating differs: `ui/doctor.ts:12,22,26` handles `host.type==='local'`; `cli.ts:311-365` always demands a token. Consequence: MCP (spawns CLI) and CLI users get no run history. Direction: extract the application layer promised by `docs/architecture.md` §2.3 (SyncOrchestrator/PlanBuilder/DoctorService); one implementation, two callers.
+2. **`applyConfigSet` duplicated + drift** — `cli.ts:817-856` vs `ui/doctor.ts:60-102`; UI validates `url.style` (`doctor.ts:66-67`), CLI does not. Regex TOML rewrite breaks on values containing quotes/newlines. Direction: single implementation, ideally a real TOML lib.
+3. **1282-line inline SPA template literal** — `src/ui/static.ts` holds the entire SPA inside a TS template literal; the 2026-09-27 prod incident (consumed `\'` → whole served script SyntaxError → zero listeners) is structural. `docs/architecture.md` §7.1 froze "Vite + native SPA" but `vite` is absent from package.json. Direction: move SPA out of the TS string (min: standalone `app.js` served statically); string-assert tests (`tests/desktop.test.ts`) can't catch real DOM behavior.
+4. **Local HTTP write API lacks origin checks** — `src/ui/server.ts`: no `Origin`/`Host` validation anywhere; ConfirmGate is only `body.confirm !== true` (506, 548, 589, 640). A malicious page can POST `text/plain {"confirm":true}` to the loopback port (simple request, no preflight) to trigger sync/revert writes. `readBody` (`108-115`) is unbounded → memory DoS. Direction: Origin allowlist + required custom header + body size cap + Content-Type check.
+5. **commander declared but bypassed** — `cli.ts:188-195`: `program.args` dead; hand-rolled `argv.slice(2).filter(!startsWith('-'))`; subcommand options re-parsed (`367-381`, `433-445`). Dash-leading positionals break. Direction: either use commander actions fully or drop it.
+6. Minor: `IMAGE_EXTS` (`server.ts:45`) vs inline `imageExt` (`212`); `httpStatusFor` (`99-106`) defaults unknown codes to 500 (misleading for new codes); UI tests are string-match only (fold into #3).
+
+Positives: domain modules have no UI imports (scan→plan→upload→rewrite→manifest); MCP is a thin CLI `--json` wrapper; token never persisted, masked in output; RootBinder path-escape guards (`root.ts`); Electron contextIsolation + no nodeIntegration + `webUtils.getPathForFile` preload; CI node 20/22 matrix, release via OIDC trusted publishing; uniform EXIT + JSON envelope contract.
+
 ## 2026-09-22 status after MVP (memory sync)
 
 Bootstrap gaps 1–4 below are **resolved** by later commits (`cc628a8`–`88e7c32`): TypeScript stack, vitest+tsc validation (15/15 pass), full README, and stack ignore rules. Residual: no CI; merge to develop/main still open. This section supersedes the bootstrap gap list for current state.
