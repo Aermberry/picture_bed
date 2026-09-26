@@ -23,7 +23,7 @@ desktop 是**桌面应用壳**限界上下文：在保留 npm CLI 本地开发/�
 ```
 desktop/
 ├─ main.mjs          # Electron 主进程：起 UI 服务、开窗、菜单、生命周期
-├─ preload.mjs       # contextBridge：picbedNative.*（目录/文件对话框、窗口信息）
+├─ preload.cjs       # contextBridge：picbedNative.*（目录/文件对话框、getPathForFile）
 ├─ icon.png          # 应用图标（打包资源）
 └─ (无业务逻辑；调用 ../dist 的 createUiServer)
 ```
@@ -64,7 +64,7 @@ app.on('window-all-closed') → app.quit()   # 与多数 Windows 应用一致
 app.on('before-quit') → uiHandle.close()   # 端口释放；级联停 watch
 ```
 
-### Preload 桥 `desktop/preload.mjs`
+### Preload 桥 `desktop/preload.cjs`
 
 ```
 window.picbedNative = {
