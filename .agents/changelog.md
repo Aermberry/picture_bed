@@ -77,3 +77,4 @@
 2026-09-26 | update | UI 规范 nav 调试门 | hide 规范 unless PICBED_UI_DEV/src-tree/desktop:dev; packaged ships without src | User: 规范仅本地调试显示
 2026-09-26 | update | DropZone 入口收窄 | remove 选择文件/粘贴剪贴板 buttons+handlers; F17 AC updated | User: 不需要选择文件、粘贴剪贴板
 2026-09-26 | update | 拖拽自动识别 root | drop absPath (Electron getPathForFile) auto-binds; no user-facing 策略 A | User: 只需拖拽即可
+2026-09-26 | update | 上传页收窄 | remove root/workset/plan-sync panels; drop → confirm → auto sync | User: 表栏不需要

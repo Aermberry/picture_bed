@@ -66,7 +66,9 @@ WebUiFacade
 
 `ViewMapper` 把应用结果 DTO 映射为视图模型；**禁止**在 mapper 中改变 action 分类或退出码语义。
 
-### 呈现壳层（F23，不改 HTTP 契约）
+### 上传页布局（2026-09-26 收窄）
+
+`#/upload` **仅保留 DropZone**。移除：扫描目录卡片、工作集表、scan/plan/sync 按钮、计划分组表、结果 `<pre>`。拖放完成后自动调用 `POST /api/sync`（`confirm: true`，先弹确认）。root 状态不单独成栏；失败用 toast。
 
 静态 SPA 视图（hash 或 JS 切换）：
 
