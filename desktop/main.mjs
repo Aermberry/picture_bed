@@ -7,6 +7,13 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+// 「规范」入口：打包安装版必须关闭；desktop:dev 显示（F24 调试门）
+if (app.isPackaged) {
+  process.env.PICBED_UI_DEV = '0';
+} else if (process.env.PICBED_UI_DEV === undefined) {
+  process.env.PICBED_UI_DEV = '1';
+}
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 /** @type {BrowserWindow | null} */

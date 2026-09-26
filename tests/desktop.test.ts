@@ -3,6 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { INDEX_HTML } from '../src/ui/static.js';
+import { detectUiDevMode } from '../src/ui/server.js';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -31,6 +32,39 @@ describe('F24 desktop shell', () => {
     expect(INDEX_HTML).toContain('selectDirectory');
     // hidden by default so browser `picbed ui` has no dead button
     expect(INDEX_HTML).toContain('id="browseRoot" type="button" hidden');
+  });
+
+  it('「规范」nav is hidden by default and gated on __PICBED_UI_DEV__', () => {
+    expect(INDEX_HTML).toContain('id="navDoc"');
+    expect(INDEX_HTML).toMatch(/id="navDoc"[^>]*\bhidden\b/);
+    expect(INDEX_HTML).toContain('__PICBED_UI_DEV_FLAG__');
+    expect(INDEX_HTML).toContain('__PICBED_UI_DEV__');
+    // packaged installs must not reveal via source-only tree marker in HTML
+    expect(INDEX_HTML).not.toContain('src/ui/static.ts');
+  });
+
+  it('detectUiDevMode: env override wins; source tree is dev; no src is not', () => {
+    expect(detectUiDevMode(true)).toBe(true);
+    expect(detectUiDevMode(false)).toBe(false);
+    const prev = process.env.PICBED_UI_DEV;
+    try {
+      process.env.PICBED_UI_DEV = '1';
+      expect(detectUiDevMode()).toBe(true);
+      process.env.PICBED_UI_DEV = '0';
+      expect(detectUiDevMode()).toBe(false);
+      delete process.env.PICBED_UI_DEV;
+      // repo checkout has src/ui/static.ts → local debug
+      expect(detectUiDevMode()).toBe(true);
+    } finally {
+      if (prev === undefined) delete process.env.PICBED_UI_DEV;
+      else process.env.PICBED_UI_DEV = prev;
+    }
+  });
+
+  it('desktop main forces PICBED_UI_DEV off when packaged', () => {
+    const main = fs.readFileSync(path.join(repoRoot, 'desktop/main.mjs'), 'utf8');
+    expect(main).toContain('app.isPackaged');
+    expect(main).toContain('PICBED_UI_DEV');
   });
 
   it('desktop main hosts same createUiServer contract on loopback', () => {

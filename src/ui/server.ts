@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { getToken, loadConfig } from '../config.js';
 import type { JsonEnvelope, ResolvedConfig } from '../types.js';
 import { applyConfigSet, doctorView, publicConfig } from './doctor.js';
@@ -16,6 +17,29 @@ export interface UiServerOptions {
   configPath?: string;
   host?: string;
   port?: number;
+  /** Show design-spec nav (local debug only). Auto-detected when omitted. */
+  uiDev?: boolean;
+}
+
+/**
+ * 「规范」入口仅本地调试可见（F23/F24）。
+ * PICBED_UI_DEV=1/0 优先；否则源码树（包根有 src/ui/static.ts）视为 dev。
+ */
+export function detectUiDevMode(explicit?: boolean): boolean {
+  if (typeof explicit === 'boolean') return explicit;
+  const env = process.env.PICBED_UI_DEV;
+  if (env === '1') return true;
+  if (env === '0') return false;
+  try {
+    const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+    return fs.existsSync(path.join(root, 'src', 'ui', 'static.ts'));
+  } catch {
+    return false;
+  }
+}
+
+function renderIndexHtml(dev: boolean): string {
+  return INDEX_HTML.replace('__PICBED_UI_DEV_FLAG__', dev ? 'true' : 'false');
 }
 
 export interface UiServerHandle {
@@ -84,7 +108,7 @@ export function createUiServer(opts: UiServerOptions): {
 
     try {
       if (req.method === 'GET' && (url.pathname === '/' || url.pathname === '/index.html')) {
-        send(200, INDEX_HTML);
+        send(200, renderIndexHtml(detectUiDevMode(opts.uiDev)));
         return;
       }
 

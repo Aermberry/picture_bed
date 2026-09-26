@@ -4,6 +4,7 @@ export const INDEX_HTML = `<!DOCTYPE html>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>picbed 本地控制台</title>
+  <script>window.__PICBED_UI_DEV__ = __PICBED_UI_DEV_FLAG__;</script>
   <style>
     /* ========== Design Tokens · 晴空蓝 × 夕照金（京阿尼柔光水彩） ========== */
     :root{
@@ -443,7 +444,7 @@ export const INDEX_HTML = `<!DOCTYPE html>
     <button class="nav-item active" data-view="upload"><svg class="ico"><use href="#i-upload"/></svg>上传</button>
     <button class="nav-item" data-view="manage"><svg class="ico"><use href="#i-folder"/></svg>管理</button>
     <button class="nav-item" data-view="settings"><svg class="ico"><use href="#i-gear"/></svg>设置</button>
-    <button class="nav-item" data-view="doc"><svg class="ico"><use href="#i-book"/></svg>规范</button>
+    <button class="nav-item" id="navDoc" data-view="doc" hidden><svg class="ico"><use href="#i-book"/></svg>规范</button>
     <div class="spacer"></div>
     <div class="avatar">P</div>
   </nav>
@@ -871,7 +872,20 @@ export const INDEX_HTML = `<!DOCTYPE html>
   }
 
   /* ── 导航 ── */
+  // 「规范」仅本地调试显示（server 注入 __PICBED_UI_DEV__）
+  (function showSpecNavIfDev() {
+    try {
+      if (window.__PICBED_UI_DEV__) {
+        const el = document.getElementById("navDoc");
+        if (el) el.hidden = false;
+      }
+    } catch (_) { /* keep hidden */ }
+  })();
+
   function switchView(v) {
+    if (v === "doc" && !window.__PICBED_UI_DEV__) {
+      v = "upload";
+    }
     document.querySelectorAll(".nav-item").forEach((b) => b.classList.toggle("active", b.dataset.view === v));
     ["upload", "manage", "settings", "doc"].forEach((k) => {
       $("view-" + k).style.display = k === v ? "" : "none";

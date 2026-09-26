@@ -74,3 +74,4 @@
 2026-09-26 | create | F24 desktop shell | Electron main/preload + electron-builder NSIS + picbedNative browse + release.yml desktop job + tests 45/45 | User dual-form distribution request
 2026-09-26 | update | delivery.md + standing corrections | Release order MANDATORY feature→develop→main→tag; user corrected v0.4.0 out-of-order release | User: 发布包应先合并 develop/main
 2026-09-26 | create | .agents/rules/git-workflow.md | Distilled netresearch/git-workflow-skill: no direct main, conventional commits, no squash, evidence for tests, no editorializing, force-with-lease, release order | User: 学习 https://github.com/netresearch/git-workflow-skill
+2026-09-26 | update | UI 规范 nav 调试门 | hide 规范 unless PICBED_UI_DEV/src-tree/desktop:dev; packaged ships without src | User: 规范仅本地调试显示

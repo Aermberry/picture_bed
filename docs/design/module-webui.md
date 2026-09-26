@@ -89,6 +89,19 @@ WebUI SPA **同时**服务浏览器（`picbed ui`）与 Electron 壳（[`module-
 - 若不存在：保持拖拽 + 手输路径，**禁止**因缺桥而报错或隐藏主流程。
 - 桥只返回路径字符串；解析、越界校验、策略 A 仍由服务端 RootBinder 负责。
 
+### 「规范」视图可见性（调试门，不改 HTTP 契约）
+
+侧栏第四项**「规范」**（设计令牌/Logo 页）**仅本地调试显示**：
+
+| 场景 | 显示？ | 判定 |
+|------|--------|------|
+| 源码树 `picbed ui` / `npm run desktop:dev` | 是 | 包根存在 `src/ui/static.ts`，或 Electron `!app.isPackaged` |
+| `PICBED_UI_DEV=1` | 是 | 环境变量强制开 |
+| `npm i -g picbed` / `picbed-setup.exe` | **否** | 无 `src/`；打包 `app.isPackaged` |
+| `PICBED_UI_DEV=0` | **否** | 环境变量强制关（优先于自动探测） |
+
+服务端在 HTML 注入 `window.__PICBED_UI_DEV__`；SPA **默认隐藏**该 nav，仅标志为 true 时移除 `hidden`。发包版不得通过 UI 进入规范页。
+
 ## F16 本地 Web 控制台服务
 
 - 输入：`--host`（默认 `127.0.0.1`）、`--port`（默认可配，如 4780）、`--open`（可选打开浏览器）。
