@@ -897,16 +897,39 @@ export const INDEX_HTML = `<!DOCTYPE html>
 
   const dz = $("dropzone");
   function filePathOf(f) {
+    if (!f) return "";
     try {
       if (window.picbedNative && typeof window.picbedNative.getPathForFile === "function") {
-        return window.picbedNative.getPathForFile(f) || "";
+        const p = window.picbedNative.getPathForFile(f);
+        if (p) return p;
       }
-    } catch (_) { /* browser */ }
+    } catch (_) {}
+    // Electron legacy File.path (older builds)
+    if (typeof f.path === "string" && f.path) return f.path;
     return "";
   }
 
   async function ingestDrop(dt) {
     const items = [];
+    const seen = {};
+    function pushItem(it) {
+      const key = it.abs || it.rel || it.name || "";
+      if (!key || seen[key]) return;
+      seen[key] = 1;
+      items.push(it);
+    }
+
+    // Prefer dataTransfer.files (reliable File objects for getPathForFile)
+    if (dt.files && dt.files.length) {
+      for (const f of dt.files) {
+        pushItem({
+          name: f.name,
+          rel: f.webkitRelativePath || f.name,
+          type: "file",
+          abs: filePathOf(f),
+        });
+      }
+    }
     if (dt.items) {
       for (const item of dt.items) {
         if (item.kind !== "file") continue;
@@ -914,9 +937,9 @@ export const INDEX_HTML = `<!DOCTYPE html>
         const f = item.getAsFile && item.getAsFile();
         const abs = f ? filePathOf(f) : "";
         if (entry && entry.isDirectory) {
-          items.push({ name: entry.name, rel: entry.name, type: "dir", abs });
+          pushItem({ name: entry.name, rel: entry.name, type: "dir", abs });
         } else if (f) {
-          items.push({
+          pushItem({
             name: f.name,
             rel: f.webkitRelativePath || f.name,
             type: "file",
@@ -928,17 +951,28 @@ export const INDEX_HTML = `<!DOCTYPE html>
     items.sort((a, b) => (a.type === b.type ? 0 : a.type === "dir" ? -1 : 1));
     let dropped = 0;
     let err = "";
+    const previewPaths = [];
+    let absCount = 0;
     for (const it of items) {
+      if (it.abs) absCount += 1;
       const { data } = await api("/api/session/drop", {
         name: it.name,
         relativePath: it.rel,
         type: it.type,
         absPath: it.abs || undefined,
       });
-      if (data.ok) dropped += 1;
-      else err = (data.error && data.error.message) || "drop failed";
+      if (data.ok) {
+        dropped += 1;
+        const pp = data.data && data.data.previewPath;
+        if (pp) previewPaths.push(pp);
+        else if (it.abs && /\.(png|jpe?g|gif|webp|svg|bmp|ico|avif)$/i.test(it.abs)) {
+          previewPaths.push(it.abs);
+        }
+      } else {
+        err = (data.error && data.error.message) || "drop failed";
+      }
     }
-    return { dropped, err, count: items.length };
+    return { dropped, err, count: items.length, previewPaths, absCount };
   }
 
   function setPreviewIdle() {
@@ -973,13 +1007,17 @@ export const INDEX_HTML = `<!DOCTYPE html>
     $("dropTitle").textContent = "扫描到 " + items.length + " 张图片";
   }
 
-  async function scanIntoPreview() {
+  async function scanIntoPreview(dropInfo) {
     const paths = [];
     const seen = {};
     function addPath(p) {
       if (!p || seen[p]) return;
       seen[p] = 1;
       paths.push(p);
+    }
+
+    if (dropInfo && dropInfo.previewPaths) {
+      for (const p of dropInfo.previewPaths) addPath(p);
     }
 
     // 1) images under scan root + dropped image files
@@ -1008,7 +1046,12 @@ export const INDEX_HTML = `<!DOCTYPE html>
     }
 
     setPreviewImages(paths);
-    if (!paths.length) toast("未扫描到本地图片");
+    if (!paths.length) {
+      const hint = dropInfo && dropInfo.absCount === 0
+        ? "未能解析文件路径（请用桌面端拖拽）"
+        : "未扫描到本地图片";
+      toast(hint);
+    }
   }
 
   $("btnReset").onclick = async () => {
@@ -1056,7 +1099,7 @@ export const INDEX_HTML = `<!DOCTYPE html>
       return;
     }
     logoState("scanning");
-    await scanIntoPreview();
+    await scanIntoPreview(r);
     logoState(null);
   });
 
