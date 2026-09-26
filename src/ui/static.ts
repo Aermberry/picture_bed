@@ -211,6 +211,18 @@ export const INDEX_HTML = `<!DOCTYPE html>
     .dropzone .big-ico svg{width:52px;height:52px}
     .dropzone h2{font-size:18px}
     .dropzone p{color:var(--c-text-2)}
+    .preview-grid{
+      display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));
+      gap:10px;margin:18px 0 12px;max-height:280px;overflow:auto;
+    }
+    .preview-grid img{
+      width:100%;height:88px;object-fit:cover;border-radius:10px;
+      border:1px solid var(--c-border);background:var(--c-surface);
+    }
+    .preview-grid .miss{
+      height:88px;border-radius:10px;border:1px dashed var(--c-border);
+      display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--c-text-3);
+    }
 
     .btn{
       padding:10px 24px; border-radius:var(--r-md); border:none;
@@ -473,8 +485,13 @@ export const INDEX_HTML = `<!DOCTYPE html>
       <div class="dropzone" id="dropzone">
         <div class="big-ico"><svg><use href="#i-image"/></svg></div>
         <h2 id="dropTitle">将文件拖放到此处</h2>
-        <p>拖拽 md / html 文档或文件夹 · 自动上传</p>
-        <span class="hint">支持 JPG / PNG / GIF / WebP · 写入前会再次确认</span>
+        <p>拖拽 md / html 文档或文件夹 · 自动扫描图片</p>
+        <span class="hint">支持 JPG / PNG / GIF / WebP · 扫描成功后可上传或重置</span>
+        <div class="preview-grid" id="previewGrid" hidden></div>
+        <div class="row" id="previewActions" style="justify-content:center" hidden>
+          <button class="btn btn-ghost" id="btnReset" type="button">重置</button>
+          <button class="btn btn-primary" id="btnUpload" type="button">上传</button>
+        </div>
       </div>
     </section>
 
@@ -924,17 +941,76 @@ export const INDEX_HTML = `<!DOCTYPE html>
     return { dropped, err, count: items.length };
   }
 
-  async function autoSyncAfterDrop() {
-    if (!(await confirmAsync("将上传图片并改写文档，确认？"))) return;
+  function setPreviewIdle() {
+    const g = $("previewGrid");
+    const a = $("previewActions");
+    if (g) {
+      g.hidden = true;
+      g.innerHTML = "";
+    }
+    if (a) a.hidden = true;
+    $("dropTitle").textContent = "将文件拖放到此处";
+  }
+
+  function setPreviewImages(items) {
+    const g = $("previewGrid");
+    const a = $("previewActions");
+    if (!g || !a) return;
+    if (!items || !items.length) {
+      g.hidden = true;
+      g.innerHTML = "";
+      a.hidden = true;
+      return;
+    }
+    g.innerHTML = items
+      .map((p) => {
+        const src = "/api/preview?path=" + encodeURIComponent(p);
+        return '<img alt="" loading="lazy" src="' + src + '" onerror="this.classList.add(\'miss\');this.removeAttribute(\'src\')" />';
+      })
+      .join("");
+    g.hidden = false;
+    a.hidden = false;
+    $("dropTitle").textContent = "扫描到 " + items.length + " 张图片";
+  }
+
+  async function scanIntoPreview() {
+    const { data } = await api("/api/plan", {});
+    if (!data.ok) {
+      toast((data.error && data.error.message) || "扫描失败");
+      setPreviewIdle();
+      return;
+    }
+    const plan = (data.data && data.data.plan) || [];
+    const paths = [];
+    const seen = {};
+    for (const p of plan) {
+      const lp = p.localPath;
+      if (!lp || seen[lp]) continue;
+      if (p.action === "blocked" || p.action === "skip-remote") continue;
+      seen[lp] = 1;
+      paths.push(lp);
+    }
+    setPreviewImages(paths);
+    if (!paths.length) toast("未扫描到本地图片");
+  }
+
+  $("btnReset").onclick = async () => {
+    await api("/api/session/reset", {});
+    setPreviewIdle();
+    toast("已重置");
+  };
+
+  $("btnUpload").onclick = async () => {
+    if (!(await confirmAsync("将上传图片并改写文档，确认上传？"))) return;
     const { status, data } = await api("/api/sync", { confirm: true, dryRun: false });
     if (data.ok) {
-      const c = (data.data && data.data.counts) || (data.data && data.data.summary) || {};
-      const n = c.uploaded != null ? c.uploaded : c.total != null ? c.total : "";
-      toast(n === "" ? "同步完成" : "同步完成 · 上传 " + n);
+      const c = (data.data && data.data.counts) || {};
+      toast(c.uploaded != null ? "上传完成 · " + c.uploaded : "上传完成");
+      setPreviewIdle();
     } else {
-      toast((data.error && data.error.message) || "同步失败 " + status);
+      toast((data.error && data.error.message) || "上传失败 " + status);
     }
-  }
+  };
 
   ["dragenter", "dragover"].forEach((ev) =>
     dz.addEventListener(ev, (e) => {
@@ -955,19 +1031,16 @@ export const INDEX_HTML = `<!DOCTYPE html>
     })
   );
   dz.addEventListener("drop", async (e) => {
-    $("dropTitle").textContent = "正在处理…";
+    $("dropTitle").textContent = "正在扫描…";
     const r = await ingestDrop(e.dataTransfer);
     if (r && r.err && !r.dropped) {
       toast(r.err);
-      $("dropTitle").textContent = "将文件拖放到此处";
+      setPreviewIdle();
       return;
     }
-    logoState("uploading");
-    clearTimeout(upTimer);
-    upTimer = setTimeout(() => { logoState(null); upTimer = null; }, 2200);
-    $("dropTitle").textContent = "准备上传…";
-    await autoSyncAfterDrop();
-    $("dropTitle").textContent = "将文件拖放到此处";
+    logoState("scanning");
+    await scanIntoPreview();
+    logoState(null);
   });
 
   function renderFiles(list) {

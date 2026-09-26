@@ -78,3 +78,4 @@
 2026-09-26 | update | DropZone 入口收窄 | remove 选择文件/粘贴剪贴板 buttons+handlers; F17 AC updated | User: 不需要选择文件、粘贴剪贴板
 2026-09-26 | update | 拖拽自动识别 root | drop absPath (Electron getPathForFile) auto-binds; no user-facing 策略 A | User: 只需拖拽即可
 2026-09-26 | update | 上传页收窄 | remove root/workset/plan-sync panels; drop → confirm → auto sync | User: 表栏不需要
+2026-09-26 | update | 扫描预览+上传/重置 | drop→plan preview thumbs + btnUpload/btnReset; /api/preview + /api/session/reset | User: 预览并选择上传或重置

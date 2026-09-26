@@ -66,9 +66,22 @@ WebUiFacade
 
 `ViewMapper` 把应用结果 DTO 映射为视图模型；**禁止**在 mapper 中改变 action 分类或退出码语义。
 
-### 上传页布局（2026-09-26 收窄）
+### 上传页布局（2026-09-26 收窄 + 扫描预览）
 
-`#/upload` **仅保留 DropZone**。移除：扫描目录卡片、工作集表、scan/plan/sync 按钮、计划分组表、结果 `<pre>`。拖放完成后自动调用 `POST /api/sync`（`confirm: true`，先弹确认）。root 状态不单独成栏；失败用 toast。
+`#/upload` **仅保留 DropZone**。移除：扫描目录卡片、工作集表、scan/plan/sync 按钮组、计划分组表、结果 `<pre>`。
+
+状态流：
+
+```
+idle（拖放提示）
+  → drop → session/drop + plan/scan
+  → scanned（图片缩略图 +「上传」「重置」）
+       ├─ 上传 → confirm → POST /api/sync → 完成回 idle
+       └─ 重置 → POST /api/session/reset → 回 idle
+```
+
+- 预览：`GET /api/preview?path=` 仅允许扫描根内图片扩展名；预览不上传。
+- 「上传」= 原 sync（`confirm: true`）；「重置」丢弃本次扫描，不写文档、不传图床。
 
 静态 SPA 视图（hash 或 JS 切换）：
 
