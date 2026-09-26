@@ -37,6 +37,29 @@ describe('F24 desktop shell', () => {
     expect(INDEX_HTML).not.toContain('id="scan"');
   });
 
+  it('drop renders local blob previews before awaiting the server', () => {
+    const handler = INDEX_HTML.slice(INDEX_HTML.indexOf('dz.addEventListener("drop"'));
+    expect(handler).not.toBe('');
+    const collect = handler.indexOf('collectDropItems(e.dataTransfer)');
+    const render = handler.indexOf('setPreviewImages(blobPreviews)');
+    const submit = handler.indexOf('await submitDrop(items)');
+    expect(collect).toBeGreaterThan(-1);
+    expect(render).toBeGreaterThan(collect);
+    expect(submit).toBeGreaterThan(render);
+  });
+
+  it('server previewPath already covered by a dropped blob (same abs) is skipped', () => {
+    expect(INDEX_HTML).toContain('b.abs && b.abs === p');
+  });
+
+  it('served inline scripts are syntactically valid (escapes survive the template literal)', () => {
+    const scripts = [...INDEX_HTML.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
+    expect(scripts.length).toBeGreaterThan(0);
+    for (const s of scripts) {
+      expect(() => new Function(s)).not.toThrow();
+    }
+  });
+
   it('「规范」nav is hidden by default and gated on __PICBED_UI_DEV__', () => {
     expect(INDEX_HTML).toContain('id="navDoc"');
     expect(INDEX_HTML).toMatch(/id="navDoc"[^>]*\bhidden\b/);
