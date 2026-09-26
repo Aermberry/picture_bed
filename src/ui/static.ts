@@ -474,10 +474,6 @@ export const INDEX_HTML = `<!DOCTYPE html>
         <div class="big-ico"><svg><use href="#i-image"/></svg></div>
         <h2 id="dropTitle">将文件拖放到此处</h2>
         <p>拖拽 md / html 文档或文件夹 · 策略 A 强制绑根 · 支持 JPG / PNG / GIF / WebP</p>
-        <div class="row" style="justify-content:center">
-          <button class="btn btn-primary" id="btnPick" type="button">选择文件</button>
-          <button class="btn btn-ghost" id="btnPaste" type="button">粘贴剪贴板</button>
-        </div>
         <span class="hint">上传后自动生成外链，可复制 Markdown / HTML / URL；先绑定扫描根再 scan / plan / sync</span>
       </div>
 
@@ -1033,36 +1029,6 @@ export const INDEX_HTML = `<!DOCTYPE html>
     toast("上传完成");
     setTimeout(() => ($("dropTitle").textContent = "将文件拖放到此处"), 1800);
   });
-
-  $("btnPick").onclick = () => {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.multiple = true;
-    input.onchange = () => {
-      const files = Array.from(input.files || []);
-      for (const f of files) {
-        workset.push({ name: f.name, rel: f.webkitRelativePath || f.name, type: "file", status: "pending-drop" });
-      }
-      if (files.length) {
-        toast("已加入本地列表，请绑定 root 后拖拽或填写路径");
-        renderWorkset();
-        logoState("uploading");
-        setTimeout(() => logoState(null), 2200);
-      }
-    };
-    input.click();
-  };
-  $("btnPaste").onclick = async () => {
-    try {
-      const text = await navigator.clipboard.readText();
-      if (text && text.trim()) {
-        $("root").value = text.trim();
-        toast("已粘贴路径，请点击绑定");
-      } else toast("剪贴板为空");
-    } catch {
-      toast("无法读取剪贴板");
-    }
-  };
 
   function renderPlan(plan) {
     $("planBody").innerHTML =
