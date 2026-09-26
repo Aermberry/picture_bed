@@ -66,3 +66,9 @@
 2026-09-25 | update | src/ui/static.ts + ui-shell.md + ui.test.ts | UI polish: 3 themes (morning-mist/klein/cream), tokenized Logo, quota bar, theme pills, file detail modal | User: 改进UI界面 per updated UI spec
 2026-09-25 | update | src/ui/static.ts + ui-shell.md + ui.test.ts | UI: KyoAni soft palette 晴空蓝×夕照金 — chroma shadows, air gradient, colored soft shadow, larger radii | User: 参照文档做改进
 2026-09-25 | update | src/ui/static.ts + ui-shell.md + ui.test.ts | Polish: icon tokens (--ico-*), multi-format copy (url/md/html), workset remove | User: 继续打磨
+2026-09-25 | create | tag v0.3.3 + GitHub Release | merge release/0.3.3 into main; assets picbed-0.3.3.tgz+picbed.tgz contain new UI (晴空蓝); npx latest fixed. npm publish still E404 (Trusted Publisher) | User: ok (approved release)
+2026-09-25 | update | package.json + release.yml | npm pkg fix (bin paths); npm publish continue-on-error so Release assets always ship | User: pasted npm publish E404 log
+2026-09-25 | update | release.yml | Root-cause npm E404: v0.3.1 never used CI publish (manual 0.3.1); OIDC needs npm>=11.5 and must clear empty NODE_AUTH_TOKEN; add workflow_dispatch republish | User: 之前发布成功过
+2026-09-26 | create | .mimocode/skills/npm-oidc-release/ | Project skill: GitHub Release + npm OIDC publish pitfalls and checklist | User: 总结经验为项目内 skill
+2026-09-26 | create | .mimocode/skills/ui-spec-impl/ | Project skill: UI spec to impl (4-view shell, theme tokens, logo/icon tokens) | User: today also did UI design
+2026-09-26 | create | F24 desktop shell | Electron main/preload + electron-builder NSIS + picbedNative browse + release.yml desktop job + tests 45/45 | User dual-form distribution request

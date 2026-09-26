@@ -37,28 +37,28 @@
 
     <main class="content">
       <header class="hero">
-        <p class="eyebrow">picture_bed · 设计总览 + 实现状态 · v0.3.0</p>
+        <p class="eyebrow">picture_bed · 设计总览 + 实现状态 · v0.4.0</p>
         <h1>picbed 工程架构与功能详细设计</h1>
         <p class="lede">
           写法对齐 <code>my_gallery/docs</code>：<strong>先用 F/P/模块/AC 标识体系</strong>写 Markdown 设计族谱，
           本页仅作 <strong>HTML 呈现层</strong>，便于浏览器浏览与评审。权威定义在 <code>docs/features-index.md</code>。
-          <strong>F1–F22 已实现</strong>（CLI + 本地 Web 控制台，含拖拽工作台）。
-          <strong>F23 壳层与视觉重设计</strong>（双栏「管理/设置」+「文件放置」）已进设计包，待实现。
+          <strong>F1–F24 已实现</strong>：CLI + 本地 Web 控制台 + <strong>桌面双形态</strong>（npm 本地开发 / Windows 安装包）。
         </p>
         <div class="meta-row">
-          <span class="pill">CLI + 本地 Web UI</span>
+          <span class="pill">CLI + Web UI + Desktop</span>
           <span class="pill">拖拽文档工作台</span>
           <span class="pill">GitHub Contents API（PicX 同源）</span>
-          <span class="pill">F1–F22 done</span>
-          <span class="pill">F23 design</span>
-          <span class="pill">v0.3.0</span>
-          <span class="pill">2026-09-25</span>
+          <span class="pill">F1–F24 done</span>
+          <span class="pill">npm + picbed-setup.exe</span>
+          <span class="pill">v0.4.0</span>
+          <span class="pill">2026-09-26</span>
         </div>
       </header>
 
       <section id="install">
         <h2>0. 安装（复制即用）</h2>
-        <p>Release 固定资产名 <code>picbed.tgz</code>，下面命令<strong>永远装最新版</strong>：</p>
+        <p><strong>桌面用户（F24）</strong>：Releases 下载 <code>picbed-setup.exe</code> 安装即可用（无需 Node.js）。</p>
+        <p><strong>CLI / 开发者</strong>：Release 固定资产名 <code>picbed.tgz</code>，下面命令<strong>永远装最新版</strong>：</p>
         <pre><code>npm install -g https://github.com/Aermberry/picture_bed/releases/latest/download/picbed.tgz</code></pre>
         <p>鉴权<strong>两种方式</strong>（无 OAuth App）：</p>
         <ul class="check">
@@ -81,7 +81,7 @@
           </article>
           <article class="card">
             <h3>模块 · 归属</h3>
-            <p>主责限界上下文：<code>ingest</code> / <code>transfer</code> / <code>rewrite</code> / <code>cliops</code> / <code>webui</code>。</p>
+            <p>主责限界上下文：<code>ingest</code> / <code>transfer</code> / <code>rewrite</code> / <code>cliops</code> / <code>webui</code> / <code>desktop</code>。</p>
           </article>
           <article class="card">
             <h3>AC · 验收</h3>
@@ -110,7 +110,7 @@
           <li>G5 安全：token 不入库；默认拒路径越界</li>
           <li>G6 本地 Web 控制台：<strong>拖拽文档/目录</strong>或路径指定，完成 scan/plan/sync/revert 等</li>
         </ul>
-        <p><strong>非目标：</strong>公网/多用户 UI、Tauri/桌面壳、OAuth 登录（已移除）、图片工具箱。watch / 多图床 / MCP 已实现（原 P3）。</p>
+        <p><strong>非目标：</strong>公网/多用户 UI、OAuth 登录（已移除）、图片工具箱。watch / 多图床 / MCP / 桌面壳（Electron，非 Tauri）已实现。</p>
       </section>
 
       <section id="features">
@@ -144,7 +144,8 @@
               <tr><td>F20</td><td>配置与自检面板</td><td>P1</td><td>webui</td><td>config 掩码；doctor 报告</td></tr>
               <tr><td>F21</td><td>审计与报告</td><td>P2</td><td>webui</td><td>run 记录；失败明细；JSON 对齐</td></tr>
               <tr><td>F22</td><td>监听控制台</td><td>P2</td><td>webui</td><td>watch 启停与事件；无常驻特权</td></tr>
-              <tr><td>F23</td><td>控制台壳层与视觉重设计</td><td>P0</td><td>webui</td><td>双栏「管理/设置」+「文件放置」主区；主题令牌；契约不变</td></tr>
+              <tr><td>F23</td><td>控制台壳层与视觉重设计</td><td>P0</td><td>webui</td><td>四视图「上传/管理/设置/规范」；晨雾蓝×落日暖；契约不变</td></tr>
+              <tr><td>F24</td><td>桌面应用壳与安装包</td><td>P0</td><td>desktop</td><td>Electron 壳加载完整控制台；原生目录对话框；Windows NSIS；npm 不受影响</td></tr>
             </tbody>
           </table>
         </div>
@@ -152,42 +153,47 @@
 
       <section id="architecture">
         <h2>4. 总体架构</h2>
-        <p>CLI / WebUI（呈现）→ 应用编排 → 领域核心（无 I/O）→ Host / LocalStore 适配器。</p>
+        <p>分发形态（npm / 桌面）→ CLI / WebUI（呈现）→ 应用编排 → 领域核心（无 I/O）→ Host / LocalStore 适配器。</p>
         <figure class="diagram" aria-label="架构图">
-          <svg viewBox="0 0 680 460" xmlns="http://www.w3.org/2000/svg" role="img">
+          <svg viewBox="0 0 680 520" xmlns="http://www.w3.org/2000/svg" role="img">
             <defs>
               <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
                 <path d="M0,0 L6,3 L0,6" fill="none" stroke="#334155" stroke-width="1"/>
               </marker>
             </defs>
-            <rect x="40" y="20" width="600" height="44" rx="8" fill="#E8EEF7" stroke="#94A3B8" stroke-width="0.5"/>
-            <text x="340" y="46" text-anchor="middle" dominant-baseline="central" font-size="13" fill="#0F172A">CLI · init/doctor/scan/plan/sync/upload/revert/watch/config/ui</text>
+            <rect x="40" y="16" width="600" height="48" rx="8" fill="#ECFDF5" stroke="#34D399" stroke-width="0.5"/>
+            <text x="340" y="36" text-anchor="middle" font-size="13" fill="#0F172A">分发形态（F24 双形态）</text>
+            <text x="340" y="54" text-anchor="middle" font-size="11" fill="#065F46">npm：picbed / picbed-mcp / picbed ui　·　桌面：Electron + picbed-setup.exe</text>
 
-            <rect x="40" y="88" width="600" height="52" rx="8" fill="#FEF3C7" stroke="#D97706" stroke-width="0.5"/>
-            <text x="340" y="110" text-anchor="middle" font-size="13" fill="#0F172A">WebUI 本地控制台（F16–F23）</text>
-            <text x="340" y="128" text-anchor="middle" font-size="11" fill="#78350F">拖拽文档/目录工作台 · ConfirmGate · 127.0.0.1 · token 不进浏览器</text>
+            <rect x="40" y="88" width="600" height="44" rx="8" fill="#E8EEF7" stroke="#94A3B8" stroke-width="0.5"/>
+            <text x="340" y="114" text-anchor="middle" dominant-baseline="central" font-size="13" fill="#0F172A">CLI · init/doctor/scan/plan/sync/upload/revert/watch/config/ui</text>
 
-            <rect x="40" y="168" width="600" height="48" rx="8" fill="#F8FAFC" stroke="#94A3B8" stroke-width="0.5"/>
-            <text x="340" y="196" text-anchor="middle" dominant-baseline="central" font-size="13" fill="#0F172A">应用编排 · SyncOrchestrator / PlanBuilder / DoctorService</text>
+            <rect x="40" y="156" width="600" height="52" rx="8" fill="#FEF3C7" stroke="#D97706" stroke-width="0.5"/>
+            <text x="340" y="178" text-anchor="middle" font-size="13" fill="#0F172A">WebUI 本地控制台（F16–F23）· Desktop 壳宿主（F24）</text>
+            <text x="340" y="196" text-anchor="middle" font-size="11" fill="#78350F">拖拽工作台 · ConfirmGate · 127.0.0.1 · picbedNative 目录桥 · token 不进浏览器</text>
 
-            <rect x="40" y="246" width="600" height="64" rx="8" fill="#EEF2FF" stroke="#818CF8" stroke-width="0.5"/>
-            <text x="340" y="272" text-anchor="middle" font-size="13" fill="#0F172A">领域核心（无 I/O）</text>
-            <text x="340" y="294" text-anchor="middle" font-size="11" fill="#475569">Scanner · Extractor · Resolver · Deduper · Rewriter · Manifest</text>
+            <rect x="40" y="232" width="600" height="48" rx="8" fill="#F8FAFC" stroke="#94A3B8" stroke-width="0.5"/>
+            <text x="340" y="260" text-anchor="middle" dominant-baseline="central" font-size="13" fill="#0F172A">应用编排 · SyncOrchestrator / PlanBuilder / DoctorService</text>
 
-            <rect x="40" y="340" width="280" height="64" rx="8" fill="#F8FAFC" stroke="#94A3B8" stroke-width="0.5"/>
-            <text x="180" y="366" text-anchor="middle" font-size="12" fill="#0F172A">HostAdapter</text>
-            <text x="180" y="386" text-anchor="middle" font-size="11" fill="#475569">github | local · URL 风格</text>
+            <rect x="40" y="310" width="600" height="64" rx="8" fill="#EEF2FF" stroke="#818CF8" stroke-width="0.5"/>
+            <text x="340" y="336" text-anchor="middle" font-size="13" fill="#0F172A">领域核心（无 I/O）</text>
+            <text x="340" y="358" text-anchor="middle" font-size="11" fill="#475569">Scanner · Extractor · Resolver · Deduper · Rewriter · Manifest</text>
 
-            <rect x="360" y="340" width="280" height="64" rx="8" fill="#F8FAFC" stroke="#94A3B8" stroke-width="0.5"/>
-            <text x="500" y="366" text-anchor="middle" font-size="12" fill="#0F172A">LocalStore</text>
-            <text x="500" y="386" text-anchor="middle" font-size="11" fill="#475569">FS · hash · cache · backup · manifest · runs</text>
+            <rect x="40" y="404" width="280" height="64" rx="8" fill="#F8FAFC" stroke="#94A3B8" stroke-width="0.5"/>
+            <text x="180" y="430" text-anchor="middle" font-size="12" fill="#0F172A">HostAdapter</text>
+            <text x="180" y="450" text-anchor="middle" font-size="11" fill="#475569">github | local · URL 风格</text>
+
+            <rect x="360" y="404" width="280" height="64" rx="8" fill="#F8FAFC" stroke="#94A3B8" stroke-width="0.5"/>
+            <text x="500" y="430" text-anchor="middle" font-size="12" fill="#0F172A">LocalStore</text>
+            <text x="500" y="450" text-anchor="middle" font-size="11" fill="#475569">FS · hash · cache · backup · manifest · runs</text>
 
             <line x1="340" y1="64" x2="340" y2="88" stroke="#334155" stroke-width="1" marker-end="url(#arrow)"/>
-            <line x1="340" y1="140" x2="340" y2="168" stroke="#334155" stroke-width="1" marker-end="url(#arrow)"/>
-            <line x1="340" y1="216" x2="340" y2="246" stroke="#334155" stroke-width="1" marker-end="url(#arrow)"/>
-            <line x1="180" y1="310" x2="180" y2="340" stroke="#334155" stroke-width="1" marker-end="url(#arrow)"/>
-            <line x1="500" y1="310" x2="500" y2="340" stroke="#334155" stroke-width="1" marker-end="url(#arrow)"/>
-            <text x="340" y="440" text-anchor="middle" font-size="11" fill="#64748B">图片字节只读 · 回写只改文档 URL 子串 · token 不进核心模型</text>
+            <line x1="340" y1="132" x2="340" y2="156" stroke="#334155" stroke-width="1" marker-end="url(#arrow)"/>
+            <line x1="340" y1="208" x2="340" y2="232" stroke="#334155" stroke-width="1" marker-end="url(#arrow)"/>
+            <line x1="340" y1="280" x2="340" y2="310" stroke="#334155" stroke-width="1" marker-end="url(#arrow)"/>
+            <line x1="180" y1="374" x2="180" y2="404" stroke="#334155" stroke-width="1" marker-end="url(#arrow)"/>
+            <line x1="500" y1="374" x2="500" y2="404" stroke="#334155" stroke-width="1" marker-end="url(#arrow)"/>
+            <text x="340" y="500" text-anchor="middle" font-size="11" fill="#64748B">图片字节只读 · 回写只改文档 URL 子串 · token 不进核心模型</text>
           </svg>
         </figure>
       </section>
@@ -224,9 +230,15 @@
               </tr>
               <tr>
                 <td><code>webui</code></td>
-                <td>本地 Web 控制台：拖拽工作台、确认门、审计</td>
+                <td>本地 Web 控制台：拖拽工作台、确认门、审计、壳层视觉</td>
                 <td>F16–F23</td>
                 <td><code>docs/design/module-webui.md</code></td>
+              </tr>
+              <tr>
+                <td><code>desktop</code></td>
+                <td>Electron 桌面壳、原生对话框、Windows 安装包</td>
+                <td>F24</td>
+                <td><code>docs/design/module-desktop.md</code></td>
               </tr>
             </tbody>
           </table>
@@ -279,6 +291,7 @@ https://cdn.jsdelivr.net/gh/{owner}/{repo}@{branch}/{path}
         <ul>
           <li>单测（extract/resolve/rewrite）对齐 F4/F5/F8；Host mock 对齐 F7；CLI JSON 对齐 F10；e2e fixture 对齐 F6–F9。</li>
           <li>Web：health/confirm/掩码（F16/F18/F20）；拖拽解析与 plan 分组（F17）；revert/runs/watch（F19/F21/F22）。</li>
+          <li>Desktop：壳层/桥/打包契约（F24）；<code>npm pack</code> 不含 Electron；安装包可在无 Node 环境运行。</li>
           <li>黄金用例：代码块内 <code>![]()</code> 不改写；中文路径；同图多引用；已 URL 跳过；拖拽项不在 root 下 → blocked。</li>
           <li>交付规则：<strong>每次改动相关测试/验证全部通过</strong>；设计阶段用 <code>scripts/validate-design.ps1</code> 校验 docs 结构与本页锚点。</li>
         </ul>
@@ -293,7 +306,7 @@ https://cdn.jsdelivr.net/gh/{owner}/{repo}@{branch}/{path}
               <tr><td>阅读指南</td><td><code>docs/design-reading-guide.md</code></td></tr>
               <tr><td>架构总纲</td><td><code>docs/architecture.md</code></td></tr>
               <tr><td>功能点总表（F 权威）</td><td><code>docs/features-index.md</code></td></tr>
-              <tr><td>模块详设</td><td><code>docs/design/module-{ingest,transfer,rewrite,cliops,webui}.md</code></td></tr>
+              <tr><td>模块详设</td><td><code>docs/design/module-{ingest,transfer,rewrite,cliops,webui,desktop}.md</code></td></tr>
               <tr><td>横切约定</td><td><code>docs/design/cross-cutting.md</code></td></tr>
               <tr><td>HTML 呈现（本页）</td><td><code>docs/html/index.html</code> + <code>styles.css</code> + <code>app.js</code></td></tr>
             </tbody>
@@ -304,17 +317,15 @@ https://cdn.jsdelivr.net/gh/{owner}/{repo}@{branch}/{path}
       <section id="open">
         <h2>10. 状态与开放问题</h2>
         <ul class="check">
-          <li><strong>已冻结：</strong>命令/包名 <code>picbed</code>；栈 Node/TS；F1–F15 已实现；OAuth 登录已移除</li>
-          <li><strong>已发布：</strong>GitHub Release（<code>picbed.tgz</code> 跟随 latest；本版 v0.3.0）</li>
-          <li><strong>已实现：</strong>F1–F22 全量（CLI + <code>picbed ui</code> Web 控制台）</li>
-          <li><strong>设计中：</strong>F23 壳层与视觉重设计（视格 <code>docs/design/wireframes/ui-shell.md</code>）</li>
+          <li><strong>已冻结：</strong>命令/包名 <code>picbed</code>；栈 Node/TS；OAuth 登录已移除</li>
+          <li><strong>已实现：</strong>F1–F23（CLI + Web 控制台四视图）· F24 桌面双形态（Electron + NSIS）</li>
+          <li><strong>分发：</strong>npm / <code>picbed.tgz</code>（CLI）· <code>picbed-setup.exe</code>（桌面）</li>
+          <li><strong>本版：</strong>v0.4.0（F24 桌面壳）</li>
         </ul>
         <ul>
-          <li>URL 默认风格是否在文档示例中再收紧？</li>
-          <li>是否增加更多 HostAdapter 后端（对象存储等）？</li>
-          <li>npm 官方源发布？（当前仅 GitHub Release tarball）</li>
-          <li>开放问题均已冻结：<code>ui</code> · 轻量 Vite+原生 · 拖拽强制绑根 · watch 默认 <code>preview</code></li>
+          <li>开放问题均已冻结：<code>ui</code> · 轻量 Vite+原生 · 拖拽强制绑根 · watch 默认 <code>preview</code> · Electron 桌面壳</li>
           <li>F23 开放：刷新后 root 读入策略 · 管理页 TOC · 深色主题 · 侧栏图标风格</li>
+          <li>F24 开放：代码签名（SmartScreen）· macOS/Linux 产物 · 自动更新</li>
         </ul>
       </section>
 

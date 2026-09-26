@@ -1,0 +1,29 @@
+appId: com.aermberry.picbed
+productName: picbed
+copyright: Copyright © Aermberry
+# npm package has no "main"; desktop entry is injected only into the packaged app
+extraMetadata:
+  main: desktop/main.mjs
+directories:
+  output: release/
+  buildResources: desktop/
+files:
+  - dist/**/*
+  - desktop/**/*
+  - package.json
+  - "!**/*.map"
+  - "!**/node_modules/**/{test,tests,__tests__,docs,doc}/**"
+asar: true
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  artifactName: picbed-setup-${version}.${ext}
+nsis:
+  oneClick: true
+  perMachine: false
+  allowToChangeInstallationDirectory: false
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: picbed
+# No code-signing cert in v1 — SmartScreen may warn; documented in README.
