@@ -26,3 +26,5 @@
 pm-oidc-release（非全局） | User 要求项目内可复用；含 OIDC/npm11.5/NODE_AUTH_TOKEN 分层排障 | active |
 | 2026-09-26 | UI design/impl skill ui-spec-impl (project only) | pairs with npm-oidc-release | active |
 | 2026-09-26 | **双形态分发：npm 保留 + Electron Windows 安装包（F24）** | User: 本地 npm 检测可接受；发布后下载安装桌面应用；选型 Electron+electron-builder / Win 优先 / 完整原生体验 | active |
+| 2026-09-27 | **抽取 `src/app` 应用编排层**（CLI/Web/桌面壳单一实现） | 依据 `docs/design/module-app.md`（已入 develop）；错误码→退出码/HTTP 状态单源（`exitCodeForCode`/`httpStatusForCode`）；不变量：app 层不 import http/commander、每轮至多一次 manifest 写、RunRecord 不含 token | active |
+| 2026-09-27 | 评审修复按用户指令「请逐项来」顺序推进：① 应用层 → ② SPA 出模板串 → ③ HTTP 加固 | User: 「请逐项来」；每项走 design-first + feature 分支 + 测试证据 | active |

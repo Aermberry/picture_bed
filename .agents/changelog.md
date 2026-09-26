@@ -85,3 +85,7 @@
 2026-09-27 | fix(ui) | 拖图预览根因 | fad7660 的 \' 转义在模板字符串中被吞→线上 JS SyntaxError 整页脚本死亡（前三次修复均未触及）；改为 \' 并新增内联脚本语法守卫测试；drop 时同步渲染 blob 预览不再等服务器；blob/previewPath 按 abs 去重 | User: 拖入图片无法即时显示预览
 2026-09-27 | update | 工具链: fnm 可用 | node/npm 不在 Git Bash PATH；fnm (Scoop E:\CommandUtility\Scoop\shims\fnm.exe) 提供 v24.21.0/npm 11.19.0；eval "$(fnm.exe env --shell bash)" 后 tsc OK + vitest 51/51 | User: 请查看fnm
 2026-09-27 | update | .agents/memory/review-findings.md | F16–F24 架构评审（只读）：orchestration 双实现漂移、static.ts 1282 行内联 SPA、HTTP 写接口无 Origin 校验 + unbounded body、commander 挂名等 6+1 项，含 file:line 证据与修复方向 | User: 请检验当前的项目架构是否合理
+2026-09-27 | create | docs/design/module-app.md | 应用编排层设计包（38d83f3/f8e23c9）合入 develop：src/app 服务表、错误码→退出码/HTTP 单源表、8 项 delta、4 条不变量 | User: 请逐项来（评审 ①）
+2026-09-27 | update | src/app/* + src/ui/{server,index}.ts + tests/{ui,ui-panels}.test.ts | 落地应用编排层：删除 ui/{ops,doctor,revert,runs}.ts，Web/桌面壳改经 runSync/runRevert/doctorService/runPlan/writeConfigKey；5a186e8 | User: 请逐项来（评审 ①）
+2026-09-27 | update | src/cli.ts + src/app/sync.ts + tests/cli.test.ts | CLI 委托应用层：sync/revert/doctor/config 收敛到同一实现，catch-all 用 asAppError+exitCodeForCode，E_CONFIG 校验进 app；新增 7 项 CLI 测试（58/58）| User: 请逐项来（评审 ①）
+2026-09-27 | update | .agents/memory/{review-findings,decisions,open-items}.md | 评审 1–2 标记 closed（含残留：TOML 值转义）；新增决策「抽取 src/app」与「逐项来」次序；②③ 转 open-items | User: 请逐项来（评审 ①）
