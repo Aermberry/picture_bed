@@ -68,8 +68,8 @@
 └───────────────▲──────────────────────────────────────────┘
                 │  同一应用 DTO / JSON 信封
 ┌───────────────┴──────────────────────────────────────────┐
-│  应用编排 Application                                      │
-│   SyncOrchestrator · PlanBuilder · DoctorService           │
+│  应用编排 Application（app 共享层）                          │
+│   collect/runPlan/runSync/runRevert · Doctor/Config/Runs     │
 └───────────────▲──────────────────────────────────────────┘
                 │
 ┌───────────────┴──────────────────────────────────────────┐
@@ -95,8 +95,8 @@
 | Token | GitHub PAT / gh | **仅** `PICBED_GITHUB_TOKEN` / `GITHUB_TOKEN` / `gh auth token` | 用户（禁止入库） |
 | Manifest | localPath+sha → publicUrl | `./.picbed/manifest.json` | `ManifestStore` |
 | Backup | 回写前文档副本 | `./.picbed/backup/` | `LinkRewriter` |
-| Cache | sha → 已上传 URL | 并入 manifest 或 `./.picbed/cache.json` | `SyncOrchestrator` |
-| Run 记录 | 每次 sync/revert 等结果摘要 | `./.picbed/runs/`（建议 gitignore） | `RunRecorder`（webui） |
+| Cache | sha → 已上传 URL | 并入 manifest 或 `./.picbed/cache.json` | `SyncOrchestrator`（app 共享层） |
+| Run 记录 | 每次 sync/revert 等结果摘要 | `./.picbed/runs/`（建议 gitignore） | `RunRecorder`（app 共享层） |
 | 远端图床 | 图片 blob | GitHub 图床仓库 `{dir}/…` | `GitHubHostAdapter` |
 
 设计要点：
@@ -115,7 +115,7 @@
 - **HostAdapter**：`GitHubHostAdapter` / `LocalHostAdapter`；`createHostAdapter` 按 `host.type` 注入；生成 public URL。
 - **LinkRewriter**：按偏移切片替换 URL，保留 alt/title/srcset 其它候选；原子写。
 - **ManifestStore**：读写映射，支撑幂等、revert、审计。
-- **DoctorService**：配置完整性、token 探测、API 连通与权限。
+- **DoctorService**（app 共享层）：配置完整性、token 探测、API 连通与权限；按 `host.type` 分派，local 主机不要求 token。见 `design/module-app.md`。
 - **WebUiFacade / UiServer / ConfirmGate / ViewMapper**（webui）：本机 HTTP 控制台、写操作确认门、拖拽工作集与视图映射；**不**重写域规则（F16–F22）。
 - **AppShell / SideNav / DropZone**（webui 呈现壳层，F23）：双栏布局、管理/设置导航、文件放置英雄区与主题令牌；只消费既有 API。
 - **DesktopShell / NativeBridge**（desktop，F24）：Electron 主进程宿主 UI 服务与窗口；preload 暴露目录/文件对话框；打包 NSIS。**不**承载业务规则。
@@ -125,6 +125,8 @@
 - **SyncOrchestrator**：scan → extract → resolve → plan → upload（限流/退避）→ rewrite → manifest。
 - 单文件失败隔离：默认继续，结果标记 `partial`（退出码 6）。
 - `--dry-run`：只跑到 plan 并输出，不写文档、不上传（或 `plan` 子命令等价）。
+- **唯一实现**落在 `src/app/`（collect/plan/sync/revert/doctor/config/runs，见 `design/module-app.md`）；CLI 与 WebUI 只做协议适配（参数解析 / JSON 信封 / HTTP 状态码）与确认门，不各自复制编排逻辑。
+- **错误单一来源**：`AppError { code, exitCode, path?, hint? }` 统一定义 code → 退出码 → HTTP 状态码映射，见 `design/module-app.md`。
 
 ---
 

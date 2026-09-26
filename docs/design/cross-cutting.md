@@ -15,6 +15,7 @@
 | Agent 模式 | `--json` + 非 TTY + 退出码契约 |
 | Web 控制台 | 本机 HTTP UI（F16–F22）；写操作需 `confirm` |
 | 工作集 | UI 会话内选中的文档/根（经拖拽或路径解析到真实 FS） |
+| app 共享层 | CLI 与 Web 共用的应用编排实现（`src/app/`）：collect/plan/sync/revert/doctor/config/runs；见 [`design/module-app.md`](module-app.md) |
 
 ## 1. 退出码（全局）
 
@@ -44,7 +45,7 @@
 
 失败时 `ok=false`，`error`: `{ code, message, path?, hint? }`。  
 **禁止**在 message/warnings 中包含 token 明文。  
-Web API 使用**同一信封**（`command` 为 `api.*`）；HTTP 状态码可映射退出码语义（409≈7、403/401≈3、404/400≈2/4），**以信封 `error.code` 为准**。
+Web API 使用**同一信封**（`command` 为 `api.*`）；HTTP 状态码由 app 层 `AppError` 表从退出码语义单点派生（409≈7、401≈3、400≈2/4、502≈5、207≈6），**以信封 `error.code` 为准**（见 [`design/module-app.md`](module-app.md)）。
 
 ## 3. 密钥纪律
 
@@ -67,6 +68,7 @@ Web API 使用**同一信封**（`command` 为 `api.*`）；HTTP 状态码可映
 
 | 层 | 对齐 F |
 |----|--------|
+| 应用层（app）：collect/plan/sync/revert/doctor/config（CLI 与 Web 共用实现，含 RunRecord / 错误码映射） | F1 F2 F6–F9 F18 F20 F21 |
 | 单测：extract/resolve/rewrite | F4 F5 F8 |
 | 契约测：HostAdapter mock | F7 |
 | CLI 集成：退出码 + JSON | F10 |

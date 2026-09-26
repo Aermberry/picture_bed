@@ -77,7 +77,7 @@
 | 维度 | 说明 |
 |------|------|
 | **是什么** | 主要责任所在的限界上下文 |
-| **本项目** | `ingest` / `transfer` / `rewrite` / `cliops` / `webui` / `desktop` |
+| **本项目** | `ingest` / `transfer` / `rewrite` / `cliops` / `webui` / `desktop`，另加 **`app` 共享应用编排层**（非限界上下文，CLI 与 Web 共用同一份编排实现） |
 | **不是什么** | 不是 CLI 子命令名，不等于未来仓库文件夹（可对齐但允许调整） |
 
 ### 3.4 `AC` —— 验收标准
@@ -130,6 +130,7 @@
 | **cliops** | 配置、doctor、Agent 契约 | F1–F2, F10 |
 | **webui** | 本地 Web 控制台（拖拽工作台、确认门、壳层视觉） | F16–F23 |
 | **desktop** | Electron 桌面壳、原生对话框、Windows 安装包 | F24 |
+| **app**（共享层，非限界上下文） | CLI/Web 共用的应用编排：collect/plan/sync/revert/doctor/config/runs 与错误码映射 | 服务 cliops/webui 路径（F1–F2, F6–F9, F18–F21） |
 
 文档分层：
 
