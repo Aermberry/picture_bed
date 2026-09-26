@@ -81,3 +81,4 @@
 2026-09-26 | update | 扫描预览+上传/重置 | drop→plan preview thumbs + btnUpload/btnReset; /api/preview + /api/session/reset | User: 预览并选择上传或重置
 2026-09-26 | fix(ui) | 图片拖入无预览 | accept image files on drop; /api/session/images lists root+dropped images for preview | User: 拖图片无扫描结果
 2026-09-26 | update | desktop:dev 热更新 + 图片路径解析 | tsc -w + app.relaunch; dataTransfer.files + getPathForFile/file.path; immediate previewPaths | User: 拖图仍无结果/要热更新
+2026-09-26 | fix(ui) | 拖图预览 | blob URL preview from dropped Files; preload.cjs webUtils; merge blob+path previews | User: 拖图仍无预览

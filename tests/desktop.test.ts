@@ -10,7 +10,7 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
 describe('F24 desktop shell', () => {
   it('ships desktop sources and builder config', () => {
     expect(fs.existsSync(path.join(repoRoot, 'desktop/main.mjs'))).toBe(true);
-    expect(fs.existsSync(path.join(repoRoot, 'desktop/preload.mjs'))).toBe(true);
+    expect(fs.existsSync(path.join(repoRoot, 'desktop/preload.cjs'))).toBe(true);
     expect(fs.existsSync(path.join(repoRoot, 'desktop/icon.png'))).toBe(true);
     expect(fs.existsSync(path.join(repoRoot, 'electron-builder.yml'))).toBe(true);
   });

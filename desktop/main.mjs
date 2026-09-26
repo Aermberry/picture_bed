@@ -78,7 +78,7 @@ async function createWindow() {
     title: 'picbed',
     backgroundColor: '#F3F7FA',
     webPreferences: {
-      preload: path.join(__dirname, 'preload.mjs'),
+      preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,
