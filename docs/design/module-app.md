@@ -41,7 +41,7 @@ src/app/
 | `collect(root, cfg)` | scanDocs → extractRefs → resolveAssets → `{docs, byDoc, assets, blocked, remoteSkips, warnings}` | plan / sync |
 | `runPlan(root, cfg, cwd)` | collect + manifest + buildPlan → `{collected, plan, summary}` | CLI scan/plan/sync-dryRun；API `/api/plan`、`/api/scan`、`/api/sync` (dryRun) |
 | `publicPlanItem(it)` | plan item 公开投影（**含 localPath**） | 同上 |
-| `runSync({root,cfg,cwd,getToken,command})` | 写阶段**重新 collect** → 上传（cache 命中跳过）→ 回写 → 保存 manifest → 写 RunRecord | CLI `sync`；API `/api/sync`；watch auto |
+| `runSync({root,cfg,cwd,getToken,command})` | 调用时**单次 collect+plan**（上传与回写共用同一文本快照，不复用调用方先前 plan）→ 上传（cache 命中跳过）→ 回写 → 保存 manifest → 写 RunRecord | CLI `sync`；API `/api/sync`；watch auto |
 | `runRevert({root,cfg,cwd,dryRun,command})` | manifest 校验 → 逐文档 revert（dry-run 进 `planned`）→ 写 RunRecord | CLI `revert`；API `/api/revert` |
 | `listManifestView(cwd)` | manifest 只读视图（无 token） | API `/api/manifest` |
 | `doctorService({cfg,getToken,probeApi})` | host-aware 检查：github 校验 owner/repo/branch + token + API 探测；local 只校验 host | CLI `doctor`；API `/api/doctor` |
@@ -71,7 +71,7 @@ src/app/
 4. **plan item 投影统一含 `localPath`**（CLI 原缺）：JSON `data` 只增字段，action 分类与退出码不变。
 5. **revert dry-run 明确分流**：`planned[]`=将改文档，`rewritten[]`=已写文档；CLI `revert --dry-run` 输出相应改为 `planned`。
 6. **revert manifest 损坏**：显式返回 `errorCode='E_MANIFEST_CORRUPT'`（Web 不再依赖错误字符串匹配）；CLI 退出码 1 → 4（本地文件类）。
-7. **sync 写阶段重扫**：与 Web 一致（避免 plan 与写之间文件变化导致 offset 错配）。
+7. **sync 单次 collect+plan（同一文本快照）**：`runSync` 在调用时自行执行一次 collect+plan，上传与回写共用该次快照，**不复用调用方先前的 dry-run / plan 结果**；CLI 与 Web 由此走同一条写路径，不再各自预扫。app 不承诺「写阶段重扫」「防 plan 与写之间外部改动」这类更强语义。
 8. **partial 判定单一来源**：`partial = !ok && (uploaded + rewritten > 0)`（CLI 退出码 6 / Web 207 同一判定）。
 
 ## 不变式
