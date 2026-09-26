@@ -1,93 +1,31 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { extractRefs } from '../extract.js';
-import {
-  createHostAdapter,
-  hostRequiresToken,
-  uploadAsset,
-} from '../host/index.js';
-import {
-  findCachedUrl,
-  loadManifest,
-  saveManifest,
-} from '../manifest.js';
-import { buildPlan } from '../plan.js';
-import { resolveAssets } from '../resolve.js';
+import { createHostAdapter, hostRequiresToken, uploadAsset } from '../host/index.js';
+import { findCachedUrl, loadManifest, saveManifest } from '../manifest.js';
 import { applyRewrites, mergeManifest } from '../rewrite.js';
-import { scanDocs } from '../scan.js';
 import type { ResolvedConfig, SyncPlanItem } from '../types.js';
+import { AppError, TOKEN_HINT } from './errors.js';
+import { runPlan } from './plan.js';
 import { newRunId, recordRun } from './runs.js';
 
-export interface CollectResult {
-  docs: { path: string; kind: 'markdown' | 'html' }[];
-  byDoc: Map<string, string>;
-  assets: ReturnType<typeof resolveAssets>['assets'];
-  blocked: ReturnType<typeof resolveAssets>['blocked'];
-  remoteSkips: ReturnType<typeof resolveAssets>['remoteSkips'];
+export interface SyncItem {
+  action: string;
+  localPath?: string;
+  publicUrl?: string;
+  error?: string;
+}
+
+export interface SyncResult {
+  ok: boolean;
+  uploaded: number;
+  rewrittenDocs: string[];
+  summary: Record<string, number>;
+  errors: string[];
+  items: SyncItem[];
   warnings: string[];
-}
-
-export async function collect(root: string, cfg: ResolvedConfig): Promise<CollectResult> {
-  const docs = scanDocs(root, cfg.scan);
-  const warnings: string[] = [];
-  const allRefs = [];
-  const blocked = [];
-  const remoteSkips = [];
-  const byDoc = new Map<string, string>();
-
-  for (const doc of docs) {
-    let text: string;
-    try {
-      text = fs.readFileSync(doc.path, 'utf8');
-    } catch {
-      warnings.push(`unreadable doc: ${doc.path}`);
-      continue;
-    }
-    byDoc.set(doc.path, text);
-    const refs = extractRefs(doc, text);
-    allRefs.push(...refs);
-  }
-
-  const resolved = resolveAssets(allRefs, { scanRoot: root });
-  blocked.push(...resolved.blocked);
-  remoteSkips.push(...resolved.remoteSkips);
-  return { docs, byDoc, assets: resolved.assets, blocked, remoteSkips, warnings };
-}
-
-export function summarizePlan(plan: SyncPlanItem[]): Record<string, number> {
-  const s: Record<string, number> = {
-    upload: 0,
-    'skip-cache': 0,
-    'skip-remote': 0,
-    'rewrite-only': 0,
-    blocked: 0,
-  };
-  for (const p of plan) s[p.action] = (s[p.action] ?? 0) + 1;
-  return s;
-}
-
-export function publicPlanItem(it: SyncPlanItem) {
-  return {
-    action: it.action,
-    reason: it.reason,
-    raw: it.ref?.raw,
-    doc: it.ref?.docPath,
-    sha256: it.asset?.sha256,
-    publicUrl: it.remote?.publicUrl,
-    localPath: it.asset?.localPath,
-  };
-}
-
-export async function runPlan(root: string, cfg: ResolvedConfig, cwd: string) {
-  const collected = await collect(root, cfg);
-  const manifest = loadManifest(cwd);
-  const plan = buildPlan({
-    assets: collected.assets,
-    blocked: collected.blocked,
-    remoteSkips: collected.remoteSkips,
-    manifest,
-  });
-  return { collected, plan, summary: summarizePlan(plan) };
+  partial: boolean;
+  errorCode?: 'E_PARTIAL' | 'E_REMOTE';
+  runId: string;
 }
 
 export async function runSync(opts: {
@@ -95,17 +33,17 @@ export async function runSync(opts: {
   cfg: ResolvedConfig;
   cwd: string;
   getToken: () => string | undefined;
-}) {
-  const { root, cfg, cwd, getToken } = opts;
+  command?: string;
+}): Promise<SyncResult> {
+  const { root, cfg, cwd, getToken, command = 'sync' } = opts;
   const startedAt = new Date().toISOString();
   const { collected, plan, summary } = await runPlan(root, cfg, cwd);
   const manifest = loadManifest(cwd);
   const token = getToken();
 
   if (hostRequiresToken(cfg) && !token) {
-    throw Object.assign(new Error('missing token'), {
-      code: 'E_TOKEN',
-      exitCode: 3,
+    throw new AppError('E_TOKEN', 'missing GitHub token (PICBED_GITHUB_TOKEN / GITHUB_TOKEN / GitHub CLI `gh`)', {
+      hint: TOKEN_HINT,
     });
   }
 
@@ -114,7 +52,7 @@ export async function runSync(opts: {
   const warnings = [...collected.warnings];
   let uploaded = 0;
   const urlBySha = new Map<string, string>();
-  const items: { action: string; localPath?: string; publicUrl?: string; error?: string }[] = [];
+  const items: SyncItem[] = [];
 
   const unique = new Map<string, (typeof collected.assets)[number]>();
   for (const item of plan) {
@@ -194,10 +132,12 @@ export async function runSync(opts: {
   }
 
   const ok = errors.length === 0;
+  const partial = !ok && uploaded + rewrittenDocs.length > 0;
+  const errorCode: SyncResult['errorCode'] = ok ? undefined : partial ? 'E_PARTIAL' : 'E_REMOTE';
   const runId = newRunId();
   recordRun(cwd, {
     id: runId,
-    command: 'api.sync',
+    command,
     startedAt,
     finishedAt: new Date().toISOString(),
     ok,
@@ -210,17 +150,19 @@ export async function runSync(opts: {
     items,
     errors,
     warnings,
-    errorCode: ok ? undefined : 'E_PARTIAL',
+    errorCode,
   });
 
   return {
+    ok,
     uploaded,
     rewrittenDocs,
     summary,
     errors,
     items,
     warnings,
-    ok,
+    partial,
+    errorCode,
     runId,
   };
 }

@@ -5,7 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { RootBinder } from '../src/ui/root.js';
 import { createUiServer, type UiServerHandle } from '../src/ui/server.js';
 import { loadConfig } from '../src/config.js';
-import { runSync } from '../src/ui/ops.js';
+import { runSync } from '../src/app/sync.js';
 
 function tmp(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'picbed-ui-'));
