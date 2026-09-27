@@ -148,6 +148,41 @@ desktop-dev.mjs（supervisor）
 4. 其它 `dist/**` → `restartUiServer()`（close → 动态 import 带时间戳 → listen(0) → loadURL）；失败则回退进程重启。
 5. 打包版（`app.isPackaged`）**不注册**任何热更新监听。
 
+## electron-vite 渲染层迁移（2026-09-27）
+
+> 目标：渲染层获得 **Vite 真 HMR**；CLI/`picbed ui` 双形态与 `/api/*` 契约不变。
+
+### 目录（单一 UI 源）
+
+```text
+renderer/                 # Vite root · 唯一 UI 源
+  index.html
+  styles.css              # 原 spa/styles.ts 模板串拆出
+  main.js                 # 原 spa/app.js
+electron.vite.config.mjs  # main/preload/renderer 三段
+out/                      # electron-vite build 产物（gitignore）
+src/                      # CLI + app 核心（不动业务规则）→ dist/
+desktop/                  # Electron main/preload（入口仍在此）
+```
+
+`src/ui/spa/*` **降级为薄适配**（从 `renderer/` 读文件 re-export），保证既有测试/服务在迁移期可跑；新代码不得再往模板串加 UI。
+
+### 运行形态
+
+| 形态 | 渲染层来源 | API | 热更新 |
+|------|------------|-----|--------|
+| `desktop:dev` | Vite dev server（`ELECTRON_RENDERER_URL`） | 主进程 `createUiServer`；Vite `proxy /api` | **HMR**（CSS/JS 免刷新） |
+| 桌面安装包 | `out/renderer` 静态资源，由 `createUiServer` 下发 | 同上，同源 | 无 |
+| `picbed ui` 浏览器 | `renderer/`（或构建产物）静态下发 | 同上，同源 | 无（可改文件后刷新） |
+
+### 契约
+
+1. `/api/*` 路径、信封、confirm 门、token 掩码 **零变更**。
+2. `window.picbedNative` preload 桥不变；无桥时浏览器形态不报错。
+3. `desktop:dev` = `tsc -w`（核心）+ `electron-vite dev`（壳+渲染）；主进程/preload 变更由 electron-vite 重启，**不再**手写 `fs.watch` relaunch（上一节分层重载仅作无 Vite 回退，迁移完成后删除）。
+4. `desktop:dist` 前置 `electron-vite build`；`electron-builder` 打包 `out/**` + `desktop/**` + `dist/**`。
+5. 打包版不得加载 Vite dev URL（`app.isPackaged` 时强制走本地静态）。
+
 ## 与 webui 的协作
 
 | 能力 | webui（F16–F23） | desktop（F24） |
