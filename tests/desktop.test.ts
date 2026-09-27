@@ -87,6 +87,17 @@ describe('F24 desktop shell', () => {
     expect(spaApp).toContain('photoWallTitle');
   });
 
+  it('photo wall follows Material Tailwind masonry gallery: 2/3/4 cols, gap 16, r16', () => {
+    // responsive column ladder (mobile → tablet → desktop)
+    expect(SPA_CSS).toContain('columns:2');
+    expect(SPA_CSS).toContain('.photo-wall{columns:3}');
+    expect(SPA_CSS).toContain('.photo-wall{columns:4}');
+    // MT rounded-2xl + gap-4 rhythm
+    expect(SPA_CSS).toContain('column-gap:16px');
+    expect(SPA_CSS).toContain('margin:0 0 16px');
+    expect(SPA_CSS).toContain('border-radius:16px');
+  });
+
   it('photo wall count matches tiles: doc drop is not previewed, failed loads update the headline', () => {
     // previewPath must be image-only (server + client)
     expect(spaApp).toContain('pp && isImageName(pp)');
