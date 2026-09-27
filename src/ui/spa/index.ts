@@ -1,0 +1,265 @@
+export const INDEX_HTML = `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>picbed 本地控制台</title>
+  <script>window.__PICBED_UI_DEV__ = __PICBED_UI_DEV_FLAG__;</script>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+  <symbol id="i-upload" viewBox="0 0 24 24">
+    <rect class="ico-s" x="3.5" y="11" width="17" height="9.5" rx="1.5" stroke-width="2"/>
+    <path class="ico-stroke" d="M12 3.2v8.8M8.5 6.7 12 3.2l3.5 3.5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect class="ico-soft" x="7" y="16.2" width="10" height="2.4" rx="1.2"/>
+  </symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24">
+    <path class="ico-s" d="M3.5 6.2A1.7 1.7 0 0 1 5.2 4.5h3.9l2.1 2.6h7.6a1.7 1.7 0 0 1 1.7 1.7v9.5a1.7 1.7 0 0 1-1.7 1.7H5.2a1.7 1.7 0 0 1-1.7-1.7z" stroke-width="2" stroke-linejoin="round"/>
+    <rect class="ico-soft" x="6.8" y="13.2" width="7.5" height="2.2" rx="1.1"/>
+    <rect class="ico-muted" x="6.8" y="16.4" width="4.5" height="2.2" rx="1.1"/>
+  </symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24">
+    <circle class="ico-s" cx="12" cy="12" r="5.4" stroke-width="2"/>
+    <circle class="ico-soft" cx="12" cy="12" r="1.9"/>
+    <g class="ico-stroke" stroke-width="2" stroke-linecap="round">
+      <path d="M12 2.6v2.8"/><path d="M12 18.6v2.8"/>
+      <path d="M2.6 12h2.8"/><path d="M18.6 12h2.8"/>
+      <path d="M5.4 5.4l2 2"/><path d="M16.6 16.6l2 2"/>
+      <path d="M18.6 5.4l-2 2"/><path d="M7.4 16.6l-2 2"/>
+    </g>
+  </symbol>
+  <symbol id="i-search" viewBox="0 0 24 24">
+    <circle class="ico-s" cx="10.5" cy="10.5" r="6.4" stroke-width="2"/>
+    <path class="ico-stroke" d="M15.3 15.3l5 5" stroke-width="2" stroke-linecap="round"/>
+    <path class="ico-soft" d="M7.3 9.2a3.6 3.6 0 0 1 2.6-2.4" stroke-width="2" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="i-book" viewBox="0 0 24 24">
+    <path class="ico-s" d="M4.5 5.2A1.7 1.7 0 0 1 6.2 3.5h5.3a2 2 0 0 1 2 2v14a1.8 1.8 0 0 0-1.8-1.8H6.2A1.7 1.7 0 0 1 4.5 16z" stroke-width="2" stroke-linejoin="round"/>
+    <path class="ico-soft" d="M19.5 5.2a1.7 1.7 0 0 0-1.7-1.7H12.5a2 2 0 0 0-2 2v14a1.8 1.8 0 0 1 1.8-1.8h5.5a1.7 1.7 0 0 0 1.7-1.7z" stroke-width="2" stroke-linejoin="round"/>
+    <path class="ico-muted" d="M8 8.5h4M8 12h3" stroke-width="2" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="i-image" viewBox="0 0 24 24">
+    <rect class="ico-s" x="3" y="4" width="18" height="16" rx="2" stroke-width="2"/>
+    <circle class="ico-dot" cx="15.6" cy="9" r="1.8"/>
+    <path class="ico-soft" d="M4.8 18.2 9.4 12.2l4 6z" stroke-width="1.6" stroke-linejoin="round"/>
+    <path class="ico-muted" d="M12.4 18.2l3.2-3.8 3.6 3.8z" stroke-width="1.6" stroke-linejoin="round"/>
+  </symbol>
+</svg>
+
+<div class="app">
+  <nav class="sidebar">
+    <div class="logo" id="logo" title="点击预览 Logo 动效状态">
+      <svg viewBox="0 0 40 40">
+        <rect class="bg" width="40" height="40" rx="13"/>
+        <g class="g-glyph">
+          <rect class="ink-f" x="8" y="9" width="13" height="13" rx="2.5"/>
+          <rect class="accent" x="19" y="18" width="13" height="13" rx="2.5"/>
+          <path class="link" d="M14.6 17.2 23.4 26" fill="none" stroke-width="2.4" stroke-linecap="round"/>
+        </g>
+        <g class="g-scan"><rect x="10" width="20" height="2.8" rx="1.4"/></g>
+        <g class="g-up">
+          <path d="M20 30v-9.5" stroke-width="2.6" stroke-linecap="round"/>
+          <path d="M16 24l4-4 4 4" fill="none" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+        </g>
+      </svg>
+    </div>
+    <button class="nav-item active" data-view="upload"><svg class="ico"><use href="#i-upload"/></svg>上传</button>
+    <button class="nav-item" data-view="manage"><svg class="ico"><use href="#i-folder"/></svg>管理</button>
+    <button class="nav-item" data-view="settings"><svg class="ico"><use href="#i-gear"/></svg>设置</button>
+    <button class="nav-item" id="navDoc" data-view="doc" hidden><svg class="ico"><use href="#i-book"/></svg>规范</button>
+    <div class="spacer"></div>
+    <div class="avatar">P</div>
+  </nav>
+
+  <main class="main">
+    <header class="topbar">
+      <h1 id="pageTitle">文件放置</h1>
+      <span class="crumb" id="pageCrumb">拖入文件即可上传 · picbed 本地控制台</span>
+      <div class="right">
+        <div class="quota" id="quota" title="本机映射规模示意">
+          <span class="lbl">已用</span>
+          <div class="bar"><div class="fill" id="quotaFill"></div></div>
+          <span class="val" id="quotaVal">0 / 200</span>
+        </div>
+        <div class="theme-pills" id="themePills">
+          <button type="button" class="pill active" data-theme-btn="">晴空蓝</button>
+          <button type="button" class="pill" data-theme-btn="klein">柔群青</button>
+          <button type="button" class="pill" data-theme-btn="cream">柔樱粉</button>
+        </div>
+        <span class="hint" id="health">…</span>
+      </div>
+    </header>
+
+    <!-- 上传 / 文件放置 -->
+    <section class="content" id="view-upload">
+      <div class="dropzone" id="dropzone">
+        <div class="big-ico"><svg><use href="#i-image"/></svg></div>
+        <h2 id="dropTitle">将文件拖放到此处</h2>
+        <p>拖拽 md / html 文档或文件夹 · 自动扫描图片</p>
+        <span class="hint">支持 JPG / PNG / GIF / WebP · 扫描成功后可上传或重置</span>
+        <div class="preview-grid" id="previewGrid" hidden></div>
+        <div class="row" id="previewActions" style="justify-content:center" hidden>
+          <button class="btn btn-ghost" id="btnReset" type="button">重置</button>
+          <button class="btn btn-primary" id="btnUpload" type="button">上传</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 管理 -->
+    <section class="content" id="view-manage" style="display:none">
+      <div class="stat-row">
+        <div class="stat-card"><div class="lbl">文件总数</div><div class="num" id="statTotal">0</div></div>
+        <div class="stat-card"><div class="lbl">本月上传</div><div class="num" id="statMonth">0</div></div>
+        <div class="stat-card"><div class="lbl">已映射</div><div class="num" id="statMapped">0</div></div>
+        <div class="stat-card"><div class="lbl">审计记录</div><div class="num" id="statRuns">0</div></div>
+      </div>
+      <div class="toolbar">
+        <input class="search" id="fileSearch" placeholder="搜索文件名…" />
+        <button class="btn btn-ghost" id="fileSort" type="button">按时间 ↓</button>
+        <button class="btn btn-primary" id="batchCopy" type="button" style="margin-left:auto">批量复制外链</button>
+      </div>
+      <div class="file-grid" id="fileGrid"></div>
+
+      <div class="card">
+        <h3>回滚（F19）</h3>
+        <div class="row">
+          <button class="btn btn-ghost" id="loadManifest" type="button">查看 manifest</button>
+          <button class="btn btn-ghost" id="revertDry" type="button">revert --dry-run</button>
+          <button class="btn btn-danger" id="revert" type="button">确认并 revert</button>
+        </div>
+        <pre id="revertOut">（尚无）</pre>
+      </div>
+
+      <div class="card">
+        <h3>审计 run（F21）</h3>
+        <div class="row"><button class="btn btn-ghost" id="runs" type="button">刷新 runs</button></div>
+        <pre id="runsOut">（尚无）</pre>
+      </div>
+
+      <div class="card">
+        <h3>watch（F22）</h3>
+        <div class="row">
+          <button class="btn btn-ghost" id="watchPreview" type="button">启动 preview</button>
+          <button class="btn btn-ghost" id="watchConfirm" type="button">启动 confirm-each</button>
+          <button class="btn btn-ghost" id="watchStop" type="button">停止</button>
+        </div>
+        <pre id="watchOut">（未启动）</pre>
+      </div>
+    </section>
+
+    <!-- 设置 -->
+    <section class="content" id="view-settings" style="display:none">
+      <div class="settings">
+        <div class="card" style="margin-top:0">
+          <h3>图床配置</h3>
+          <div class="form-row"><label>Owner</label><input type="text" id="cfgOwner" placeholder="github.owner" /></div>
+          <div class="form-row"><label>Repo</label><input type="text" id="cfgRepo" placeholder="github.repo" /></div>
+          <div class="form-row"><label>Branch</label><input type="text" id="cfgBranch" placeholder="github.branch" /></div>
+          <div class="form-row"><label>目录</label><input type="text" id="cfgDir" placeholder="github.dir" /></div>
+          <div class="form-row"><label>URL 风格</label>
+            <select id="cfgUrlStyle">
+              <option value="raw">raw</option>
+              <option value="jsdelivr">jsdelivr</option>
+              <option value="custom">custom</option>
+            </select>
+          </div>
+          <div class="form-row"><label>Token</label><input type="text" id="cfgToken" readonly value="••••••••" /></div>
+        </div>
+        <div class="card">
+          <h3>上传偏好</h3>
+          <div class="form-row"><label>写操作需确认</label>
+            <label class="switch"><input type="checkbox" id="prefConfirm" checked><span class="track"></span></label>
+          </div>
+          <div class="form-row"><label>自动备份文档</label>
+            <label class="switch"><input type="checkbox" id="prefBackup" checked><span class="track"></span></label>
+          </div>
+          <div class="form-row"><label>watch 默认预览</label>
+            <label class="switch"><input type="checkbox" id="prefWatchPreview" checked><span class="track"></span></label>
+          </div>
+        </div>
+        <div class="card">
+          <h3>外观主题</h3>
+          <div class="form-row"><label>界面主题</label>
+            <select id="themeSelect">
+              <option value="">晴空蓝 × 夕照金</option>
+              <option value="klein">A 柔群青 × 夕橙</option>
+              <option value="cream">B 柔樱粉 × 若叶</option>
+            </select>
+          </div>
+          <div class="hint">主题切换即时生效并记忆在本机 localStorage；Logo 候选随主题联动。</div>
+        </div>
+        <div class="card">
+          <h3>自检 doctor（F20）</h3>
+          <div class="row">
+            <button class="btn btn-ghost" id="doctor" type="button">运行 doctor</button>
+            <button class="btn btn-ghost" id="cfgGet" type="button">读配置</button>
+            <button class="btn btn-primary" id="cfgSet" type="button">保存设置</button>
+          </div>
+          <div class="status hint" id="cfgHint">缺 token 时使用 PICBED_GITHUB_TOKEN / GITHUB_TOKEN / gh auth token；此处永不回显 secret。</div>
+          <pre id="cfgOut">（尚无）</pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- 规范 -->
+    <section class="content doc" id="view-doc" style="display:none">
+      <p class="hint" style="margin-bottom:16px">💡 顶栏可切换三套主题；Logo 候选随主题联动；点击左上角 Logo 预览扫描 / 上传动效。</p>
+      <h2>🎨 主题配色（京阿尼柔光 · 三套令牌换肤）</h2>
+      <div class="token-row" id="themeSwitchRow">
+        <button type="button" class="chip chip-btn active" data-theme-btn="">默认 · 晴空蓝</button>
+        <button type="button" class="chip chip-btn" data-theme-btn="klein">A · 柔群青</button>
+        <button type="button" class="chip chip-btn" data-theme-btn="cream">B · 柔樱粉</button>
+      </div>
+      <div class="token-row" id="tokenSwatches"></div>
+      <ul class="spec-list">
+        <li><b>京阿尼七原则</b>：去浊提纯 · 彩度阴影 · 高光留白 · 空气透视 · 亮色分离 · 柔化降饱和 · 彩色柔影</li>
+        <li>底色：A <code>#EDF2F9</code> · B <code>#FAF1F4</code> · 默认 <code>#EDF4FA</code>（与纯白差 10+）</li>
+        <li>页面空气渐变 + 顶部白雾；投影用 <code>--c-shadow</code> 彩色柔影，不用死黑</li>
+        <li>换肤原理：<code>body[data-theme]</code> 覆盖 <code>--c-*</code> 与 <code>--logo-*</code>，组件结构零改动</li>
+      </ul>
+      <h2>✨ Logo 令牌与候选位</h2>
+      <ul class="spec-list">
+        <li>SVG 造型<strong>零色值</strong>，全部 <code>var(--logo-*)</code>；JS 只写 <code>data-theme</code> / <code>data-logo</code></li>
+        <li>候选位 ① 主色同族 ② 中性 ③ 辅助色点睛 —— 随主题自动切换三套</li>
+      </ul>
+      <div class="token-row" id="logoVarRow"></div>
+      <h2>🖼 图标规范</h2>
+      <div class="token-row">
+        <div class="chip"><svg style="width:30px;height:30px"><use href="#i-upload"/></svg>i-upload</div>
+        <div class="chip"><svg style="width:30px;height:30px"><use href="#i-folder"/></svg>i-folder</div>
+        <div class="chip"><svg style="width:30px;height:30px"><use href="#i-gear"/></svg>i-gear</div>
+        <div class="chip"><svg style="width:30px;height:30px"><use href="#i-search"/></svg>i-search</div>
+        <div class="chip"><svg style="width:30px;height:30px"><use href="#i-book"/></svg>i-book</div>
+        <div class="chip"><svg style="width:30px;height:30px"><use href="#i-image"/></svg>i-image</div>
+      </div>
+      <ul class="spec-list">
+        <li>粗描边双色 · 描边 <code>#2E4B7E</code> · 线宽 2/24 · 点缀 <code>#B5D8F2</code> / <code>#C9CDD4</code></li>
+        <li>导航 22px · 行内 16px · 空状态主视觉 52px</li>
+      </ul>
+      <h2>🔗 交互</h2>
+      <ul class="spec-list">
+        <li>导航四视图 · 拖放触发 Logo 动效 · FileCard 详情浮层（复制外链）· 设置保存 Toast（琥珀点睛）</li>
+        <li>顶栏容量条 &gt;80% 自动转 Danger</li>
+      </ul>
+    </section>
+  </main>
+</div>
+
+<div class="toast" id="toast"><span class="mark">✓</span><span id="toastText"></span></div>
+<div class="modal" id="modal">
+  <div class="panel">
+    <h3 id="modalTitle">确认</h3>
+    <p id="modalBody" class="hint"></p>
+    <div id="modalExtra"></div>
+    <div class="actions">
+      <button class="btn btn-ghost" id="modalCancel" type="button">取消</button>
+      <button class="btn btn-primary" id="modalOk" type="button">确认</button>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="/app.js"></script>
+</body>
+</html>
+`;

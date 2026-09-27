@@ -1,11 +1,16 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { RootBinder } from '../src/ui/root.js';
 import { createUiServer, type UiServerHandle } from '../src/ui/server.js';
+import { SPA_CSS } from '../src/ui/spa/styles.js';
 import { loadConfig } from '../src/config.js';
 import { runSync } from '../src/app/sync.js';
+
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const spaApp = fs.readFileSync(path.join(repoRoot, 'src', 'ui', 'spa', 'app.js'), 'utf8');
 
 function tmp(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'picbed-ui-'));
@@ -156,50 +161,66 @@ describe('ui server F16–F18', () => {
     expect(html).toContain('拖拽');
   });
 
-  it('F23 shell: four nav views, theme tokens, logo and dropzone', async () => {
+  it('F23 shell: four nav views, dropzone; theme tokens live in styles.css', async () => {
     const html = await (await fetch(base + '/')).text();
     for (const label of ['上传', '管理', '设置', '规范']) {
       expect(html).toContain('>' + label + '</button>');
     }
-    expect(html).toContain('#4E93C0');
-    expect(html).toContain('#FFC978');
-    expect(html).toContain('#EDF4FA');
     expect(html).toContain('dropzone');
     expect(html).toContain('g-scan');
     expect(html).toContain('g-up');
     expect(html).toContain('文件放置');
+    expect(SPA_CSS).toContain('#4E93C0');
+    expect(SPA_CSS).toContain('#FFC978');
+    expect(SPA_CSS).toContain('#EDF4FA');
   });
 
-  it('F23 theme system: three themes, logo tokens, no JS color inject', async () => {
+  it('F23 theme system: themes/logo/icon CSS in styles.css, whitelist in app.js', async () => {
     const html = await (await fetch(base + '/')).text();
-    // three themes (KyoAni palette)
-    expect(html).toContain('data-theme="klein"');
-    expect(html).toContain('data-theme="cream"');
-    expect(html).toContain('THEME_WHITELIST');
-    expect(html).toContain('#6484CE');
-    expect(html).toContain('#D37493');
+    // three themes (KyoAni palette) as CSS selectors
+    expect(SPA_CSS).toContain('data-theme="klein"');
+    expect(SPA_CSS).toContain('data-theme="cream"');
+    expect(SPA_CSS).toContain('#6484CE');
+    expect(SPA_CSS).toContain('#D37493');
     // air gradient + colored soft shadow
-    expect(html).toContain('--c-shadow');
-    expect(html).toContain('--c-bg-2');
-    expect(html).toContain('radial-gradient');
+    expect(SPA_CSS).toContain('--c-shadow');
+    expect(SPA_CSS).toContain('--c-bg-2');
+    expect(SPA_CSS).toContain('radial-gradient');
     // logo tokenized (consumed via CSS vars, fallbacks present)
-    expect(html).toContain('--logo-bg');
-    expect(html).toContain('--logo-line');
-    expect(html).toContain('--logo-ring');
-    expect(html).toContain('var(--logo-bg');
+    expect(SPA_CSS).toContain('--logo-bg');
+    expect(SPA_CSS).toContain('--logo-line');
+    expect(SPA_CSS).toContain('--logo-ring');
+    expect(SPA_CSS).toContain('var(--logo-bg');
     // candidate lift + RGB ring
-    expect(html).toContain('data-logo="v2"');
-    expect(html).toContain('rgba(var(--logo-ring');
-    // topbar quota + theme pills
+    expect(SPA_CSS).toContain('data-logo="v2"');
+    expect(SPA_CSS).toContain('rgba(var(--logo-ring');
+    // icon tokens (no hardcoded stroke color in markup symbols)
+    expect(SPA_CSS).toContain('--ico-stroke');
+    // topbar quota + theme pills stay in markup
     expect(html).toContain('quota');
     expect(html).toContain('data-theme-btn');
-    // icon tokens (no hardcoded #2E4B7E in symbols)
-    expect(html).toContain('--ico-stroke');
     expect(html).toContain('class="ico-s"');
     expect(html).not.toContain('stroke="#2E4B7E"');
-    // multi-format copy in detail modal
-    expect(html).toContain('data-copy="md"');
-    // fill must NOT be injected by JS setAttribute on logo parts
-    expect(html).not.toMatch(/querySelector\\(\\\"\\.bg\\\"\\)\\.setAttribute/);
+    // whitelist + multi-format copy + no JS fill injection live in app.js
+    expect(spaApp).toContain('THEME_WHITELIST');
+    expect(spaApp).toContain('data-copy="md"');
+    expect(spaApp).not.toMatch(/querySelector\("\.bg"\)\.setAttribute/);
+  });
+
+  it('serves SPA assets as external routes (/styles.css, /app.js)', async () => {
+    const html = await (await fetch(base + '/')).text();
+    expect(html).toContain('href="/styles.css"');
+    expect(html).toContain('type="module" src="/app.js"');
+
+    const css = await fetch(base + '/styles.css');
+    expect(css.status).toBe(200);
+    expect(css.headers.get('content-type')).toContain('text/css');
+    expect(await css.text()).toBe(SPA_CSS);
+
+    // under vitest, import.meta.url resolves to src/, so the server reads src/ui/spa/app.js
+    const js = await fetch(base + '/app.js');
+    expect(js.status).toBe(200);
+    expect(js.headers.get('content-type')).toContain('javascript');
+    expect(await js.text()).toBe(spaApp);
   });
 });

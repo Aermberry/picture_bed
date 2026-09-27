@@ -11,6 +11,8 @@
     "declaration": true,
     "sourceMap": true,
     "forceConsistentCasingInFileNames": true,
+    "allowJs": true,
+    "checkJs": true,
     "types": ["node"]
   },
   "include": ["src/**/*"],

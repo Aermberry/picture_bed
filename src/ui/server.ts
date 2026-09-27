@@ -21,6 +21,7 @@ import {
 } from '../app/index.js';
 import { RootBinder, ensureDocExt } from './root.js';
 import { INDEX_HTML } from './static.js';
+import { SPA_CSS } from './spa/styles.js';
 import { WatchController } from './watch.js';
 
 export interface UiServerOptions {
@@ -51,6 +52,18 @@ export function detectUiDevMode(explicit?: boolean): boolean {
 
 function renderIndexHtml(dev: boolean): string {
   return INDEX_HTML.replace('__PICBED_UI_DEV_FLAG__', dev ? 'true' : 'false');
+}
+
+// Read lazily: under vitest the import resolves to src/ where app.js does not exist.
+let spaAppJsCache: string | null | undefined;
+function spaAppJs(): string | null {
+  if (spaAppJsCache !== undefined) return spaAppJsCache;
+  try {
+    spaAppJsCache = fs.readFileSync(fileURLToPath(new URL('./spa/app.js', import.meta.url)), 'utf8');
+  } catch {
+    spaAppJsCache = null;
+  }
+  return spaAppJsCache;
 }
 
 const IMAGE_EXTS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp', 'ico', 'avif']);
@@ -148,6 +161,26 @@ export function createUiServer(opts: UiServerOptions): {
     try {
       if (req.method === 'GET' && (url.pathname === '/' || url.pathname === '/index.html')) {
         send(200, renderIndexHtml(detectUiDevMode(opts.uiDev)));
+        return;
+      }
+
+      if (req.method === 'GET' && url.pathname === '/styles.css') {
+        res.writeHead(200, { 'Content-Type': 'text/css; charset=utf-8', 'Cache-Control': 'no-store' });
+        res.end(SPA_CSS);
+        return;
+      }
+
+      if (req.method === 'GET' && url.pathname === '/app.js') {
+        const js = spaAppJs();
+        if (js === null) {
+          send(500, envelope(false, 'api.static', undefined, {
+            code: 'E_STATIC',
+            message: 'spa/app.js missing; run npm run build first',
+          }));
+          return;
+        }
+        res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'no-store' });
+        res.end(js);
         return;
       }
 

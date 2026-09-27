@@ -3,9 +3,11 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { INDEX_HTML } from '../src/ui/static.js';
+import { SPA_CSS } from '../src/ui/spa/styles.js';
 import { detectUiDevMode } from '../src/ui/server.js';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const spaApp = fs.readFileSync(path.join(repoRoot, 'src/ui/spa/app.js'), 'utf8');
 
 describe('F24 desktop shell', () => {
   it('ships desktop sources and builder config', () => {
@@ -28,8 +30,8 @@ describe('F24 desktop shell', () => {
 
   it('upload view is drop-only; native path bridge for drag-drop', () => {
     expect(INDEX_HTML).toContain('id="dropzone"');
-    expect(INDEX_HTML).toContain('getPathForFile');
-    expect(INDEX_HTML).toContain('picbedNative');
+    expect(spaApp).toContain('getPathForFile');
+    expect(spaApp).toContain('picbedNative');
     // removed panels
     expect(INDEX_HTML).not.toContain('id="rootCard"');
     expect(INDEX_HTML).not.toContain('id="workset"');
@@ -37,8 +39,17 @@ describe('F24 desktop shell', () => {
     expect(INDEX_HTML).not.toContain('id="scan"');
   });
 
+  it('SPA is split out of the template into served modules', () => {
+    expect(INDEX_HTML).toContain('href="/styles.css"');
+    expect(INDEX_HTML).toContain('type="module" src="/app.js"');
+    expect(INDEX_HTML).not.toContain('collectDropItems'); // logic lives in app.ts, not markup
+    expect(spaApp).toContain('collectDropItems');
+    expect(SPA_CSS).toContain('Design Tokens');
+    expect(SPA_CSS).not.toContain('`');
+  });
+
   it('drop renders local blob previews before awaiting the server', () => {
-    const handler = INDEX_HTML.slice(INDEX_HTML.indexOf('dz.addEventListener("drop"'));
+    const handler = spaApp.slice(spaApp.indexOf('dz.addEventListener("drop"'));
     expect(handler).not.toBe('');
     const collect = handler.indexOf('collectDropItems(e.dataTransfer)');
     const render = handler.indexOf('setPreviewImages(blobPreviews)');
@@ -49,13 +60,15 @@ describe('F24 desktop shell', () => {
   });
 
   it('server previewPath already covered by a dropped blob (same abs) is skipped', () => {
-    expect(INDEX_HTML).toContain('b.abs && b.abs === p');
+    expect(spaApp).toContain('b.abs && b.abs === p');
   });
 
-  it('served inline scripts are syntactically valid (escapes survive the template literal)', () => {
+  it('served scripts are syntactically valid (app.ts stays plain JS; inline scripts stay tiny)', () => {
+    expect(() => new Function(spaApp)).not.toThrow();
     const scripts = [...INDEX_HTML.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
     expect(scripts.length).toBeGreaterThan(0);
     for (const s of scripts) {
+      expect(s.length).toBeLessThan(200);
       expect(() => new Function(s)).not.toThrow();
     }
   });
