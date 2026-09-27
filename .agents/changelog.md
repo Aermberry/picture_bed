@@ -91,3 +91,5 @@
 2026-09-27 | update | .agents/memory/{review-findings,decisions,open-items}.md | 评审 1–2 标记 closed（含残留：TOML 值转义）；新增决策「抽取 src/app」与「逐项来」次序；②③ 转 open-items | User: 请逐项来（评审 ①）
 2026-09-27 | update | src/ui/static.ts + src/ui/spa/* | 评审 ② 落地：1282 行内联 SPA 拆为 spa/{index,styles,app.js,globals.d.ts}，static.ts 变 barrel；server 增 /styles.css /app.js 路由（懒读 dist，E_STATIC 兜底）；type="module" 加载（NodeNext 强制 ESM）；4ae32a3 入 develop | User: 请逐项来（评审 ②）
 2026-09-27 | update | .agents/memory/{review-findings,decisions,open-items}.md | 评审 ③ 标记 closed（含残留 pivot 记录：.js+checkJs、type=module）；② 关闭、③ HTTP 加固为下一项 | User: 请逐项来（评审 ②）
+2026-09-27 | update | docs/{features-index,design/module-webui,html/index,architecture,design/wireframes/ui-shell} | F17/扫描来源收窄：拖放仅图片或文档（拒文件夹）；预览=拖入图+拖入文档引用图；sync 按工作集作用域；00857b1→docs/design→develop | User: 改为只能拖图片或者文档
+2026-09-27 | update | src/app/{plan,sync}.ts + src/ui/{server,spa} + tests | 落地：drop 拒 type=dir；session/images 只列工作集图；scanIntoPreview 不再扩根；runSync includeDocs/includeImages；64/64 + tsc 绿；49a28c3→feature/drop-images-docs-only→develop d36a934 | User: 拖入后点预览冒出不明图片
