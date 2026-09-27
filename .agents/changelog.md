@@ -106,3 +106,4 @@
 2026-09-27 | update | docs/html/index.html | 对齐照片墙 + renderer/electron-vite + v0.4.1；去 src/ui/spa 旧栈 | User: html的文档有修改没有
 2026-09-27 | update | README.md | Web 流程改照片墙累加；补 desktop:dev=electron-vite；示例版本 0.4.1 | User: readme呢
 2026-09-27 | update | .agents/rules/delivery.md + memory | 新增 Docs trio sync：设计稿+docs/html+README 必须同步 | User: 请记住更新文档设计稿、html文档和readme
+2026-09-27 | fix(ui) | 上传/重置常显 | .row display:flex 压过 hidden；[hidden]!important + syncWallChrome 按 tile 数显隐；73/73 | User: 重置和上传按钮只有扫描出图片并预览出来时才显示

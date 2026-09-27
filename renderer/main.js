@@ -442,16 +442,31 @@
       })
       .join("");
     g.hidden = false;
-    a.hidden = false;
     if (dz) dz.classList.add("has-photos");
     // Keep the headline in sync with tiles actually in the wall (failed loads drop out).
     /** @type {NodeListOf<HTMLImageElement>} */ (g.querySelectorAll("img")).forEach((img) => {
       img.addEventListener("error", () => {
         const tile = img.parentNode;
         if (tile && tile.parentNode) tile.parentNode.removeChild(tile);
-        $("dropTitle").textContent = photoWallTitle();
+        syncWallChrome();
       });
     });
+    syncWallChrome();
+  }
+
+  /** Show actions/headline only when the wall actually has tiles. */
+  function syncWallChrome() {
+    const g = $("previewGrid");
+    const a = $("previewActions");
+    const dz = $("dropzone");
+    const n = g ? g.querySelectorAll(".tile").length : 0;
+    if (a) a.hidden = n === 0;
+    if (n === 0) {
+      if (dz) dz.classList.remove("has-photos");
+      $("dropTitle").textContent = "将文件拖放到此处";
+      return;
+    }
+    if (dz) dz.classList.add("has-photos");
     $("dropTitle").textContent = photoWallTitle();
   }
 
