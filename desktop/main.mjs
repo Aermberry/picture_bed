@@ -149,7 +149,12 @@ async function createWindow() {
   await mainWindow.loadURL(uiHandle.url);
 }
 
-/** Close + re-import UI server, then point the window at the new URL. */
+/** Dev: window is on Vite — never navigate it back to the API static origin. */
+function isViteDevSession() {
+  return !app.isPackaged && Boolean(process.env.ELECTRON_RENDERER_URL);
+}
+
+/** Close + re-import UI server. Reload the window only if it is not on the Vite URL. */
 async function restartUiServer() {
   const prev = uiHandle;
   uiHandle = null;
@@ -169,7 +174,7 @@ async function restartUiServer() {
     processExitForReload('ui-restart-failed');
     return;
   }
-  if (mainWindow && !mainWindow.isDestroyed()) {
+  if (mainWindow && !mainWindow.isDestroyed() && !isViteDevSession()) {
     await mainWindow.loadURL(uiHandle.url);
   }
 }
@@ -227,14 +232,15 @@ function isNoiseWatchPath(p) {
 }
 
 /**
- * Tiered hot reload (dev only):
- * - desktop/**  → process restart (main/preload)
- * - dist/ui/spa/app.js only → webContents.reload()
- * - other dist/** → restart UI server + reload window
+ * Fallback hot reload when NOT on the Vite dev URL (packaged never).
+ * When ELECTRON_RENDERER_URL is set, Vite owns renderer HMR — this watcher
+ * must not navigate the window (that kills HMR). It only refreshes the API
+ * server on dist/ changes so /api picks up core rebuilds.
  */
 function installDevHotReload() {
   const distDir = path.join(__dirname, '..', 'dist');
   const desktopDir = __dirname;
+  const viteSession = isViteDevSession();
   /** @type {Record<string, number>} */
   const pending = {};
   let timer = null;
@@ -248,22 +254,18 @@ function installDevHotReload() {
 
     const desktopHit = files.some((f) => f.startsWith(desktopDir));
     if (desktopHit) {
+      if (viteSession) {
+        // electron-vite already rebuilds/restarts main on desktop/* changes
+        console.log('[desktop:dev] desktop/* changed (vite session → electron-vite restarts)');
+        return;
+      }
       console.log('[desktop:dev] desktop/* changed → process restart');
       processExitForReload('desktop');
       return;
     }
 
-    const spaAppOnly =
-      files.length > 0 &&
-      files.every((f) => f.replace(/\\/g, '/').endsWith('dist/ui/spa/app.js'));
-
-    if (spaAppOnly && mainWindow && !mainWindow.isDestroyed()) {
-      console.log('[desktop:dev] spa/app.js changed → reload window');
-      mainWindow.webContents.reload();
-      return;
-    }
-
-    console.log('[desktop:dev] dist/* changed → restart UI server');
+    // dist/ (API core). Never navigate away from the Vite HMR URL.
+    console.log('[desktop:dev] dist/* changed → restart UI server (keep window URL)');
     reloading = true;
     try {
       await restartUiServer();
@@ -290,14 +292,21 @@ function installDevHotReload() {
   };
 
   watchRoot(distDir);
-  watchRoot(desktopDir);
+  if (!viteSession) watchRoot(desktopDir);
 }
 
 app.whenReady().then(async () => {
   registerIpc();
   await createWindow();
 
-  if (!app.isPackaged) installDevHotReload();
+  if (!app.isPackaged) {
+    installDevHotReload();
+    if (process.env.ELECTRON_RENDERER_URL) {
+      console.log('[desktop:dev] renderer = Vite HMR', process.env.ELECTRON_RENDERER_URL);
+    } else {
+      console.log('[desktop:dev] renderer = local UI server (no ELECTRON_RENDERER_URL)');
+    }
+  }
 
   app.on('activate', async () => {
     if (BrowserWindow.getAllWindows().length === 0) await createWindow();
