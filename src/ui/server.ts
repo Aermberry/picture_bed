@@ -54,16 +54,18 @@ function renderIndexHtml(dev: boolean): string {
   return INDEX_HTML.replace('__PICBED_UI_DEV_FLAG__', dev ? 'true' : 'false');
 }
 
-// Read lazily: under vitest the import resolves to src/ where app.js does not exist.
+// Read on each request when possible: under vitest the import resolves to src/
+// where app.js does not exist; desktop:dev reloads the window against fresh bytes.
 let spaAppJsCache: string | null | undefined;
 function spaAppJs(): string | null {
-  if (spaAppJsCache !== undefined) return spaAppJsCache;
   try {
-    spaAppJsCache = fs.readFileSync(fileURLToPath(new URL('./spa/app.js', import.meta.url)), 'utf8');
+    return fs.readFileSync(fileURLToPath(new URL('./spa/app.js', import.meta.url)), 'utf8');
   } catch {
+    // fall through to one-shot cache probe for missing-file cases
+    if (spaAppJsCache !== undefined) return spaAppJsCache;
     spaAppJsCache = null;
+    return spaAppJsCache;
   }
-  return spaAppJsCache;
 }
 
 const IMAGE_EXTS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp', 'ico', 'avif']);

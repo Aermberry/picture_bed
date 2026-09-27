@@ -97,3 +97,4 @@
 2026-09-27 | update | src/ui/spa/{index,styles,app.js} + tests/desktop.test.ts | 落地照片墙：has-photos 态隐藏空态英雄，multi-column 瀑布流 tile（自然比例/r14/hover 文件名）；65/65 + tsc 绿；feature/photo-wall | User: 扫描后获取到图片后应以照片墙形式呈现
 2026-09-27 | fix(ui) | 照片墙计数4≠3 | drop 文档误写 previewPath→多计1张且加载失败被移除；server 仅图片返回 previewPath，client isImageName 过滤，headline=活 tile 数；67/67 | User: 扫描到4张但预览3张
 2026-09-27 | fix(ui) | 二次拖入清空照片墙 | scanIntoPreview/drop 整表替换→wallItems 累加去重；重置/上传成功才清空；68/68 | User: 再拖入后之前预览图片不见了
+2026-09-27 | fix(desktop) | desktop:dev 热更新失效 | 根因 app.relaunch 后 supervisor 误杀 tsc/自身；改为 supervisor respawn + 分层重载（app.js reload / dist UI 重启 / desktop 进程重启）；70/70 | User: Electron 本地调试无法热更新

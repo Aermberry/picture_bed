@@ -113,6 +113,41 @@ electron-builder 要点：
   - 对话框取消 → 返回 `null`/空数组，不改变当前 root。
   - 打包缺文件（dist/未构建）→ `desktop:dist` 前置 `npm run build` 失败即中止。
 
+## 本地开发热更新（desktop:dev，2026-09-27）
+
+目标：接近 Flutter Hot Reload 的日常体验——改 UI 几乎即时可见；改主进程才重启。**仅开发调试**；生产无热更新。
+
+### 架构（supervisor + 分层重载）
+
+```text
+desktop-dev.mjs（supervisor）
+  ├─ tsc -w（持续产出 dist/）
+  └─ spawn electron desktop/main.mjs
+        ├─ dist/** 变更 → 重启 UI 服务（cache-bust import）+ 窗口 reload
+        ├─ desktop/** 变更 → 进程级重启（见下）
+        └─ 仅 SPA 资源（app.js）→ 窗口 reload
+```
+
+| 变更 | 动作 | 状态保留 |
+|------|------|----------|
+| `src/ui/spa/app.js`（→ `dist/ui/spa/app.js`） | `webContents.reload()` | 窗口内 React 类状态可留；服务端会话保留 |
+| `dist/**`（styles/index/服务端） | 关闭并以 `?t=` cache-bust 重载 `createUiServer`，再 `loadURL` | Electron 进程保留；UI 会话（workset/root）重置 |
+| `desktop/**`（main/preload） | 进程重启 | 全部丢（与 electron-reloader 一致） |
+
+### Supervisor 契约（`scripts/desktop-dev.mjs`）
+
+1. 环境变量 `PICBED_DESKTOP_SUPERVISED=1`：主进程**不要** `app.relaunch()`，改为 `app.exit(0)` 交还生命周期。
+2. Electron 子进程退出后 **respawn**（除非 `shutdown` 中）；**禁止**因 relaunch 退出而杀掉 `tsc -w` 或 supervisor 自身（根因修复）。
+3. `SIGINT`/`SIGTERM` → 杀子进程与 tsc → 退出 0。
+
+### 主进程契约（`desktop/main.mjs`）
+
+1. 监听 `dist/` 与 `desktop/`（递归），**去抖 ~200ms**；忽略 `*.tsbuildinfo` / `*.map`。
+2. `desktop/**`：`PICBED_DESKTOP_SUPERVISED=1` → `app.exit(0)`；否则 `app.relaunch(); app.exit(0)`。
+3. `dist/ui/spa/app.js` 且无其它 dist 变更 → 仅 `mainWindow.webContents.reload()`。
+4. 其它 `dist/**` → `restartUiServer()`（close → 动态 import 带时间戳 → listen(0) → loadURL）；失败则回退进程重启。
+5. 打包版（`app.isPackaged`）**不注册**任何热更新监听。
+
 ## 与 webui 的协作
 
 | 能力 | webui（F16–F23） | desktop（F24） |

@@ -114,6 +114,27 @@ describe('F24 desktop shell', () => {
     expect(submit).toBeGreaterThan(render);
   });
 
+  it('desktop:dev supervisor respawns Electron and keeps tsc --watch (no harness kill on relaunch)', () => {
+    const dev = fs.readFileSync(path.join(repoRoot, 'scripts', 'desktop-dev.mjs'), 'utf8');
+    expect(dev).toContain('PICBED_DESKTOP_SUPERVISED');
+    expect(dev).toContain('spawnElectron');
+    // must NOT treat child exit as terminal shutdown (root cause of broken hot reload)
+    expect(dev).toContain('respawning');
+    expect(dev).toMatch(/shuttingDown/);
+  });
+
+  it('main.mjs tiered hot reload: app.js reload · dist UI restart · desktop process restart', () => {
+    const main = fs.readFileSync(path.join(repoRoot, 'desktop', 'main.mjs'), 'utf8');
+    expect(main).toContain('installDevHotReload');
+    expect(main).toContain('restartUiServer');
+    expect(main).toContain('PICBED_DESKTOP_SUPERVISED');
+    expect(main).toContain('webContents.reload');
+    expect(main).toContain('spa/app.js');
+    expect(main).toContain('processExitForReload');
+    // packaged builds must not watch
+    expect(main).toContain('app.isPackaged');
+  });
+
   it('served scripts are syntactically valid (app.ts stays plain JS; inline scripts stay tiny)', () => {
     expect(() => new Function(spaApp)).not.toThrow();
     const scripts = [...INDEX_HTML.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
