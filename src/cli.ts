@@ -2,29 +2,21 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { Command } from 'commander';
 import {
-  CONFIG_NAME,
-  configTemplate,
-  getToken,
-  loadConfig,
-  maskToken,
-  validateStyle,
-} from './config.js';
-import { extractRefs } from './extract.js';
-import {
-  createHostAdapter,
-  hostRequiresToken,
-  remotePath,
-  uploadAsset,
-} from './host/index.js';
-import {
-  findCachedUrl,
-  loadManifest,
-  saveManifest,
-} from './manifest.js';
-import { buildPlan } from './plan.js';
-import { resolveAssets } from './resolve.js';
-import { applyRewrites, mergeManifest, revertDoc, writeDocAtomic } from './rewrite.js';
-import { scanDocs } from './scan.js';
+  asAppError,
+  doctorService,
+  exitCodeForCode,
+  githubProbe,
+  publicConfig,
+  publicPlanItem,
+  readConfigKey,
+  runPlan,
+  runRevert,
+  runSync,
+  TOKEN_HINT,
+  writeConfigKey,
+} from './app/index.js';
+import { CONFIG_NAME, configTemplate, getToken, loadConfig } from './config.js';
+import { createHostAdapter, hostRequiresToken, uploadAsset } from './host/index.js';
 import { EXIT, type ExitCode, type JsonEnvelope, type ResolvedConfig } from './types.js';
 
 function emit<T>(
@@ -69,47 +61,6 @@ function loadCfg(cwd: string, config?: string): ResolvedConfig {
   return loadConfig({ cwd, configPath: config });
 }
 
-/** Explain auth options for users who do not know what `gh` is. */
-const AUTH_HINT = [
-  'How to authenticate GitHub uploads (pick one of 2 ways):',
-  '  1) Use a Personal Access Token (PAT) — easiest if you do not have GitHub CLI:',
-  '     - Create at https://github.com/settings/tokens (classic) or fine-grained tokens',
-  '     - Need repo (or Contents read/write) on the image-bed repository',
-  '     - PowerShell:  $env:PICBED_GITHUB_TOKEN = "<your token>"',
-  '     - bash:        export PICBED_GITHUB_TOKEN=<your token>',
-  '     - Same PAT may also be put in GITHUB_TOKEN instead (alternate env name).',
-  '  2) Reuse GitHub CLI (the `gh` command — official GitHub CLI, not git itself):',
-  '     - Install: https://cli.github.com/  then run:  gh auth login',
-  '     - picbed will call `gh auth token` automatically',
-].join('\n');
-
-
-async function collect(root: string, cfg: ResolvedConfig) {
-  const docs = scanDocs(root, cfg.scan);
-  const warnings: string[] = [];
-  const allRefs = [];
-  const blocked = [];
-  const remoteSkips = [];
-  const byDoc = new Map<string, string>();
-
-  for (const doc of docs) {
-    let text: string;
-    try {
-      text = fs.readFileSync(doc.path, 'utf8');
-    } catch (err) {
-      warnings.push(`unreadable doc: ${doc.path}`);
-      continue;
-    }
-    byDoc.set(doc.path, text);
-    const refs = extractRefs(doc, text);
-    allRefs.push(...refs);
-  }
-
-  const resolved = resolveAssets(allRefs, { scanRoot: root });
-  blocked.push(...resolved.blocked);
-  remoteSkips.push(...resolved.remoteSkips);
-  return { docs, byDoc, assets: resolved.assets, blocked, remoteSkips, warnings };
-}
 
 export async function run(argv: string[]): Promise<ExitCode> {
   const program = new Command();
@@ -249,7 +200,7 @@ export async function run(argv: string[]): Promise<ExitCode> {
       return fail(json, command, EXIT.USAGE, {
         code: 'E_AUTH',
         message: `${command} was removed (no OAuth App flow)`,
-        hint: AUTH_HINT,
+        hint: TOKEN_HINT,
       });
     }
 
@@ -258,16 +209,7 @@ export async function run(argv: string[]): Promise<ExitCode> {
     if (command === 'config') {
       const action = p1 ?? 'list';
       if (action === 'list') {
-        const token = getToken();
-        const data = {
-          github: cfg.github,
-          url: cfg.url,
-          scan: cfg.scan,
-          upload: cfg.upload,
-          rewrite: cfg.rewrite,
-          token: maskToken(token),
-          configPath: cfg.configPath,
-        };
+        const data = publicConfig(cfg);
         emit(json, { schemaVersion: 1, ok: true, command, data }, () => {
           console.log(JSON.stringify(data, null, 2));
         });
@@ -275,7 +217,7 @@ export async function run(argv: string[]): Promise<ExitCode> {
       }
       if (action === 'get') {
         const key = p2 ?? '';
-        const data = resolveConfigKey(cfg, key);
+        const data = readConfigKey(cfg, key);
         emit(json, { schemaVersion: 1, ok: true, command, data }, () => {
           console.log(String(data));
         });
@@ -290,13 +232,18 @@ export async function run(argv: string[]): Promise<ExitCode> {
         }
         const key = p2 ?? '';
         const value = p3 ?? '';
-        if (key === 'url.style' && !validateStyle(value)) {
-          return fail(json, command, EXIT.USAGE, {
-            code: 'E_STYLE',
-            message: 'url.style must be raw|jsdelivr|custom',
+        let out: { key: string; value: string; file: string; dryRun: boolean };
+        try {
+          out = writeConfigKey(cfg, key, value, dryRun);
+        } catch (err) {
+          const e = asAppError(err);
+          return fail(json, command, e.exitCode, {
+            code: e.code,
+            message: e.message,
+            path: e.path,
+            hint: e.hint,
           });
         }
-        const out = applyConfigSet(cfg, key, value, dryRun);
         emit(json, { schemaVersion: 1, ok: true, command, data: out }, () => {
           console.log(`set ${key}=${value}`);
         });
@@ -309,59 +256,19 @@ export async function run(argv: string[]): Promise<ExitCode> {
     }
 
     if (command === 'doctor') {
-      const checks: { name: string; ok: boolean; detail: string }[] = [];
-      const required = [
-        ['github.owner', cfg.github.owner],
-        ['github.repo', cfg.github.repo],
-        ['github.branch', cfg.github.branch],
-      ] as const;
-      for (const [name, val] of required) {
-        checks.push({
-          name,
-          ok: Boolean(val),
-          detail: val ? 'set' : 'missing',
-        });
-      }
-      const token = getToken();
-      checks.push({
-        name: 'token',
-        ok: Boolean(token),
-        detail: token
-          ? `present (${maskToken(token)})`
-          : 'missing — set PICBED_GITHUB_TOKEN (PAT) or install GitHub CLI `gh` and run `gh auth login`',
-      });
-
-      let apiOk = false;
-      let apiDetail = 'skipped';
-      if (token && cfg.github.owner && cfg.github.repo) {
-        try {
-          const res = await fetch(
-            `https://api.github.com/repos/${cfg.github.owner}/${cfg.github.repo}`,
-            {
-              headers: {
-                Authorization: `Bearer ${token}`,
-                Accept: 'application/vnd.github+json',
-                'User-Agent': 'picbed',
-              },
-            },
-          );
-          apiOk = res.ok;
-          apiDetail = `HTTP ${res.status}`;
-        } catch (err) {
-          apiDetail = String(err);
-        }
-      }
-      checks.push({ name: 'github.api', ok: apiOk, detail: apiDetail });
-
-      const failures = checks.filter((c) => !c.ok).map((c) => c.name);
-      const ok = failures.length === 0;
-      const data = { ok, checks, failures };
-      emit(json, { schemaVersion: 1, ok, command, data, error: ok ? null : { code: 'E_DOCTOR', message: 'doctor failed: ' + failures.join(',') } }, () => {
-        for (const c of checks) {
+      const view = await doctorService({ cfg, getToken, probeApi: githubProbe });
+      emit(json, {
+        schemaVersion: 1,
+        ok: view.ok,
+        command,
+        data: view,
+        error: view.ok ? null : { code: 'E_DOCTOR', message: 'doctor failed: ' + view.failures.join(',') },
+      }, () => {
+        for (const c of view.checks) {
           console.log(`${c.ok ? 'OK ' : 'FAIL'} ${c.name}: ${c.detail}`);
         }
       });
-      return ok ? EXIT.OK : EXIT.CONFIG;
+      return view.ok ? EXIT.OK : EXIT.CONFIG;
     }
 
     if (command === 'ui') {
@@ -513,40 +420,39 @@ export async function run(argv: string[]): Promise<ExitCode> {
       const root = path.resolve(cwd, target);
 
       if (command === 'revert') {
-        const manifest = loadManifest(cwd);
-        const docs = scanDocs(root, cfg.scan);
-        const rewritten: string[] = [];
-        for (const doc of docs) {
-          const text = fs.readFileSync(doc.path, 'utf8');
-          const entries = manifest.entries.filter((e) => path.resolve(cwd, e.doc) === doc.path);
-          if (!entries.length) continue;
-          const next = revertDoc(text, entries);
-          if (next === text) continue;
-          if (!dryRun) {
-            if (!yes) {
-              return fail(json, command, EXIT.CONFIRM, {
-                code: 'E_CONFIRM',
-                message: 'revert writes files; pass --yes or --dry-run',
-              });
-            }
-            writeDocAtomic(doc.path, next);
-          }
-          rewritten.push(path.relative(cwd, doc.path).split(path.sep).join('/'));
+        if (!dryRun && !yes) {
+          return fail(json, command, EXIT.CONFIRM, {
+            code: 'E_CONFIRM',
+            message: 'revert writes files; pass --yes or --dry-run',
+          });
         }
-        emit(json, { schemaVersion: 1, ok: true, command, data: { rewritten, dryRun } }, () => {
-          console.log(rewritten.join('\n') || '(no changes)');
-        });
-        return EXIT.OK;
+        const result = runRevert({ root, cfg, cwd, dryRun, command });
+        if (!result.ok && result.errorCode === 'E_MANIFEST_CORRUPT') {
+          return fail(json, command, exitCodeForCode(result.errorCode), {
+            code: result.errorCode,
+            message: result.errors.join('; '),
+          });
+        }
+        const data = { rewritten: result.rewritten, planned: result.planned, dryRun: result.dryRun };
+        emit(
+          json,
+          {
+            schemaVersion: 1,
+            ok: result.ok,
+            command,
+            data,
+            error: result.ok ? null : { code: result.errorCode ?? 'E_PARTIAL', message: result.errors.join('; ') },
+          },
+          () => {
+            const lines = dryRun ? result.planned : result.rewritten;
+            console.log(lines.join('\n') || '(no changes)');
+            for (const e of result.errors) console.error(e);
+          },
+        );
+        return result.ok ? EXIT.OK : EXIT.PARTIAL;
       }
 
-      const collected = await collect(root, cfg);
-      const manifest = loadManifest(cwd);
-      const plan = buildPlan({
-        assets: collected.assets,
-        blocked: collected.blocked,
-        remoteSkips: collected.remoteSkips,
-        manifest,
-      });
+      const { collected, plan, summary } = await runPlan(root, cfg, cwd);
 
       if (command === 'scan') {
         const data = {
@@ -570,10 +476,9 @@ export async function run(argv: string[]): Promise<ExitCode> {
         return collected.blocked.length && !collected.assets.length ? EXIT.LOCAL : EXIT.OK;
       }
 
-      const summary = summarize(plan);
       if (command === 'plan' || dryRun) {
         const data = { plan: plan.map(publicPlanItem), summary };
-        emit(json, { schemaVersion: 1, ok: true, command: command === 'sync' ? 'sync' : command, data, warnings: collected.warnings }, () => {
+        emit(json, { schemaVersion: 1, ok: true, command, data, warnings: collected.warnings }, () => {
           console.log(JSON.stringify(data, null, 2));
         });
         return EXIT.OK;
@@ -587,133 +492,37 @@ export async function run(argv: string[]): Promise<ExitCode> {
         }, collected.warnings);
       }
 
-      const token = getToken();
-      if (hostRequiresToken(cfg) && !token) {
-        return fail(json, command, EXIT.CONFIG, {
-          code: 'E_TOKEN',
-          message: 'missing GitHub token (PICBED_GITHUB_TOKEN / GITHUB_TOKEN / GitHub CLI `gh`)',
-          hint: AUTH_HINT,
-        }, collected.warnings);
-      }
-      if (cfg.host.type === 'github' && (!cfg.github.owner || !cfg.github.repo)) {
-        return fail(json, command, EXIT.CONFIG, {
-          code: 'E_CONFIG',
-          message: 'github.owner/repo required',
-        }, collected.warnings);
-      }
-
-      const host = createHostAdapter(cfg, token);
-      const errors: string[] = [];
-      const warnings = [...collected.warnings];
-      let uploaded = 0;
-      const urlBySha = new Map<string, string>();
-
-      // upload unique assets
-      const unique = new Map<string, (typeof collected.assets)[number]>();
-      for (const item of plan) {
-        if (item.action !== 'upload' || !item.asset) continue;
-        unique.set(item.asset.sha256, item.asset);
-      }
-      for (const asset of unique.values()) {
-        try {
-          const cached = findCachedUrl(manifest, asset.sha256);
-          if (cached) {
-            urlBySha.set(asset.sha256, cached);
-            continue;
-          }
-          const bytes = fs.readFileSync(asset.localPath);
-          const remote = await uploadAsset(host, {
-            asset,
-            bytes,
-            cfg,
-          });
-          urlBySha.set(asset.sha256, remote.publicUrl);
-          uploaded += 1;
-          mergeManifest(manifest, [
-            {
-              doc: '',
-              raw: '',
-              localPath: asset.localPath,
-              sha256: asset.sha256,
-              publicUrl: remote.publicUrl,
-              updatedAt: new Date().toISOString(),
-            },
-          ]);
-        } catch (err) {
-          errors.push(`${asset.localPath}: ${String(err)}`);
-        }
-      }
-
-      // rewrite docs
-      const rewrittenDocs: string[] = [];
-      const byDoc = new Map<string, ReturnType<typeof publicPlanItem>[]>();
-      for (const docPath of collected.byDoc.keys()) {
-        const text = collected.byDoc.get(docPath) ?? '';
-        const items = plan
-          .filter((it) => it.ref && it.ref.docPath === docPath)
-          .map((it) => {
-            const url =
-              it.action === 'upload' || it.action === 'skip-cache'
-                ? urlBySha.get(it.asset?.sha256 ?? '')
-                : it.remote?.publicUrl;
-            return { it, url };
-          })
-          .filter((x): x is { it: (typeof plan)[number]; url: string } => Boolean(x.url));
-
-        if (!items.length) continue;
-        try {
-          const result = applyRewrites({
-            docPath,
-            content: text,
-            items: items.map((x) => ({
-              ref: x.it.ref!,
-              publicUrl: x.url,
-              localPath: x.it.asset?.localPath ?? '',
-              sha256: x.it.asset?.sha256 ?? '',
-            })),
-            rootDir: cwd,
-            backup: cfg.rewrite.backup,
-            dryRun: false,
-          });
-          mergeManifest(manifest, result.entries);
-          rewrittenDocs.push(path.relative(cwd, docPath).split(path.sep).join('/'));
-        } catch (err) {
-          errors.push(`${docPath}: ${String(err)}`);
-        }
-        void byDoc;
-      }
-
+      let result;
       try {
-        saveManifest(cwd, manifest);
+        result = await runSync({ root, cfg, cwd, getToken, command });
       } catch (err) {
-        warnings.push(`manifest save failed: ${String(err)}`);
+        const e = asAppError(err);
+        return fail(json, command, e.exitCode, { code: e.code, message: e.message, path: e.path, hint: e.hint }, collected.warnings);
       }
 
-      const ok = errors.length === 0;
       const data = {
-        uploaded,
-        rewrittenDocs,
-        summary,
-        errors,
+        uploaded: result.uploaded,
+        rewrittenDocs: result.rewrittenDocs,
+        summary: result.summary,
+        errors: result.errors,
       };
       emit(
         json,
         {
           schemaVersion: 1,
-          ok,
+          ok: result.ok,
           command,
           data,
-          warnings,
-          error: ok ? null : { code: 'E_PARTIAL', message: errors.join('; ') },
+          warnings: result.warnings,
+          error: result.ok ? null : { code: result.errorCode ?? 'E_PARTIAL', message: result.errors.join('; ') },
         },
         () => {
-          console.log(`uploaded=${uploaded}`);
-          console.log(rewrittenDocs.join('\n'));
-          for (const e of errors) console.error(e);
+          console.log(`uploaded=${result.uploaded}`);
+          console.log(result.rewrittenDocs.join('\n'));
+          for (const e of result.errors) console.error(e);
         },
       );
-      if (!ok && uploaded + rewrittenDocs.length) return EXIT.PARTIAL;
-      return ok ? EXIT.OK : EXIT.REMOTE;
+      return result.ok ? EXIT.OK : result.partial ? EXIT.PARTIAL : EXIT.REMOTE;
     }
 
     if (command === 'upload') {
@@ -737,7 +546,7 @@ export async function run(argv: string[]): Promise<ExitCode> {
         return fail(json, command, EXIT.CONFIG, {
           code: 'E_TOKEN',
           message: 'missing GitHub token (PICBED_GITHUB_TOKEN / GITHUB_TOKEN / GitHub CLI `gh`)',
-          hint: AUTH_HINT,
+          hint: TOKEN_HINT,
         });
       }
       const bytes = fs.readFileSync(abs);
@@ -762,95 +571,12 @@ export async function run(argv: string[]): Promise<ExitCode> {
       hint: 'picbed commands',
     });
   } catch (err) {
-    const e = err as Error & { code?: string };
-    return fail(json, command, EXIT.GENERAL, {
-      code: e.code ?? 'E_GENERAL',
+    const e = asAppError(err);
+    return fail(json, command, exitCodeForCode(e.code), {
+      code: e.code,
       message: e.message,
+      path: e.path,
+      hint: e.hint,
     });
   }
-}
-
-function summarize(plan: { action: string }[]): Record<string, number> {
-  const s: Record<string, number> = {
-    upload: 0,
-    'skip-cache': 0,
-    'skip-remote': 0,
-    'rewrite-only': 0,
-    blocked: 0,
-  };
-  for (const p of plan) {
-    s[p.action] = (s[p.action] ?? 0) + 1;
-  }
-  return s;
-}
-
-function publicPlanItem(it: {
-  action: string;
-  reason?: string;
-  ref?: { raw: string; docPath: string };
-  asset?: { sha256: string; localPath: string };
-  remote?: { publicUrl: string };
-}) {
-  return {
-    action: it.action,
-    reason: it.reason,
-    raw: it.ref?.raw,
-    doc: it.ref?.docPath,
-    sha256: it.asset?.sha256,
-    publicUrl: it.remote?.publicUrl,
-  };
-}
-
-function resolveConfigKey(cfg: ResolvedConfig, key: string): unknown {
-  const map: Record<string, unknown> = {
-    'github.owner': cfg.github.owner,
-    'github.repo': cfg.github.repo,
-    'github.branch': cfg.github.branch,
-    'github.dir': cfg.github.dir,
-    'url.style': cfg.url.style,
-    'upload.concurrency': cfg.upload.concurrency,
-    'rewrite.backup': cfg.rewrite.backup,
-  };
-  return map[key] ?? null;
-}
-
-function applyConfigSet(
-  cfg: ResolvedConfig,
-  key: string,
-  value: string,
-  dryRun: boolean,
-): Record<string, unknown> {
-  const file = cfg.configPath ?? path.join(cfg.rootDir, CONFIG_NAME);
-  let text = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : configTemplate();
-  const sectionOf: Record<string, string> = {
-    'github.owner': 'github',
-    'github.repo': 'github',
-    'github.branch': 'github',
-    'github.dir': 'github',
-    'url.style': 'url',
-  };
-  const fieldOf: Record<string, string> = {
-    'github.owner': 'owner',
-    'github.repo': 'repo',
-    'github.branch': 'branch',
-    'github.dir': 'dir',
-    'url.style': 'style',
-  };
-  const section = sectionOf[key];
-  const field = fieldOf[key];
-  if (!section || !field) {
-    throw Object.assign(new Error(`unsupported key: ${key}`), { code: 'E_USAGE' });
-  }
-  const sectionRe = new RegExp(`(\\[${section}\\][\\s\\S]*?)(\\n\\[|$)`);
-  if (sectionRe.test(text)) {
-    text = text.replace(sectionRe, (_m, body: string, end: string) => {
-      const lineRe = new RegExp(`^${field}\\s*=.*$`, 'm');
-      if (lineRe.test(body)) {
-        return body.replace(lineRe, `${field} = "${value}"`) + end;
-      }
-      return body + `${field} = "${value}"\n` + end;
-    });
-  }
-  if (!dryRun) fs.writeFileSync(file, text, 'utf8');
-  return { key, value, file, dryRun };
 }

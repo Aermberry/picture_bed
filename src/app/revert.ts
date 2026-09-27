@@ -6,6 +6,16 @@ import { scanDocs } from '../scan.js';
 import type { ResolvedConfig } from '../types.js';
 import { newRunId, recordRun } from './runs.js';
 
+export interface RevertResult {
+  ok: boolean;
+  dryRun: boolean;
+  rewritten: string[];
+  planned: string[];
+  errors: string[];
+  errorCode?: 'E_MANIFEST_CORRUPT' | 'E_PARTIAL';
+  runId: string;
+}
+
 export function listManifestView(cwd: string) {
   try {
     const manifest = loadManifest(cwd);
@@ -26,15 +36,9 @@ export function runRevert(opts: {
   cfg: ResolvedConfig;
   cwd: string;
   dryRun: boolean;
-}): {
-  ok: boolean;
-  dryRun: boolean;
-  rewritten: string[];
-  planned: string[];
-  errors: string[];
-  runId: string;
-} {
-  const { root, cfg, cwd, dryRun } = opts;
+  command?: string;
+}): RevertResult {
+  const { root, cfg, cwd, dryRun, command = 'revert' } = opts;
   const startedAt = new Date().toISOString();
   const runId = newRunId();
   const errors: string[] = [];
@@ -48,7 +52,7 @@ export function runRevert(opts: {
     const msg = String(err);
     recordRun(cwd, {
       id: runId,
-      command: 'api.revert',
+      command: dryRun ? `${command}.dryRun` : command,
       startedAt,
       finishedAt: new Date().toISOString(),
       ok: false,
@@ -62,6 +66,7 @@ export function runRevert(opts: {
       rewritten,
       planned,
       errors: [msg],
+      errorCode: 'E_MANIFEST_CORRUPT',
       runId,
     };
   }
@@ -87,16 +92,17 @@ export function runRevert(opts: {
   }
 
   const ok = errors.length === 0;
+  const errorCode: RevertResult['errorCode'] = ok ? undefined : 'E_PARTIAL';
   recordRun(cwd, {
     id: runId,
-    command: dryRun ? 'api.revert.dryRun' : 'api.revert',
+    command: dryRun ? `${command}.dryRun` : command,
     startedAt,
     finishedAt: new Date().toISOString(),
     ok,
     counts: { planned: planned.length, rewritten: rewritten.length, failed: errors.length },
     errors,
-    errorCode: ok ? undefined : 'E_PARTIAL',
+    errorCode,
   });
 
-  return { ok, dryRun, rewritten, planned, errors, runId };
+  return { ok, dryRun, rewritten, planned, errors, errorCode, runId };
 }

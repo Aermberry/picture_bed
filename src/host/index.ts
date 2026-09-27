@@ -4,7 +4,14 @@ import { LocalHostAdapter } from './local.js';
 import type { HostAdapter } from './types.js';
 
 export type { HostAdapter, HostUrls } from './types.js';
-export { GitHubHostAdapter, uploadAsset, composeUrls, remotePath } from './github.js';
+export {
+  GitHubHostAdapter,
+  uploadAsset,
+  composeUrls,
+  remotePath,
+  probeGithubAccess,
+} from './github.js';
+export type { GithubProbeResult } from './github.js';
 export { LocalHostAdapter } from './local.js';
 
 /** F13 factory: pick backend by `host.type` while keeping AC7 upload/URL semantics. */
