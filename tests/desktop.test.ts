@@ -171,6 +171,15 @@ describe('F24 desktop shell', () => {
     expect(main).toContain('uiHandle.url');
   });
 
+  it('vite session keeps window on HMR URL (fs.watch must not navigate away)', () => {
+    const main = fs.readFileSync(path.join(repoRoot, 'desktop', 'main.mjs'), 'utf8');
+    expect(main).toContain('isViteDevSession');
+    expect(main).toMatch(/if \(mainWindow && !mainWindow\.isDestroyed\(\) && !isViteDevSession\(\)\)/);
+    expect(main).toContain('keep window URL');
+    // desktop/* left to electron-vite when Vite owns the renderer
+    expect(main).toContain('vite session → electron-vite restarts');
+  });
+
   it('served scripts are syntactically valid (app.ts stays plain JS; inline scripts stay tiny)', () => {
     expect(() => new Function(spaApp)).not.toThrow();
     const scripts = [...INDEX_HTML.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]);

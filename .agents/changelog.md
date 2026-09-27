@@ -108,3 +108,4 @@
 2026-09-27 | update | .agents/rules/delivery.md + memory | 新增 Docs trio sync：设计稿+docs/html+README 必须同步 | User: 请记住更新文档设计稿、html文档和readme
 2026-09-27 | fix(ui) | 上传/重置常显 | .row display:flex 压过 hidden；[hidden]!important + syncWallChrome 按 tile 数显隐；73/73 | User: 重置和上传按钮只有扫描出图片并预览出来时才显示
 2026-09-27 | update | .agents/rules/delivery.md | 新增 Bugfix Git Flow：feature/fix-* / hotfix/* 分流，一 bug 一支 | User: 是的
+2026-09-27 | fix(desktop) | Vite HMR 不生效 | fs.watch 在 dist 变更后 loadURL(uiHandle.url) 把窗口拽离 Vite；Vite 会话禁止导航、desktop/* 交 electron-vite；74/74 | User: 热更新还是没有生效
