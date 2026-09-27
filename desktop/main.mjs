@@ -2,11 +2,31 @@
  * F24 Electron main process — hosts the same Web UI as `picbed ui`.
  * No business rules here: createUiServer (dist/) owns scan/plan/sync/revert.
  */
-import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
+import { createRequire } from 'node:module';
+import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+// `import from 'electron'` in an ESM main hits Node 20 (Electron 33) CJS-interop
+// bugs (cjsPreparseModuleExports). Load the CJS electron API via createRequire.
+const require = createRequire(import.meta.url);
+const electron = require('electron');
+
+// If ELECTRON_RUN_AS_NODE leaked into the environment, `require('electron')`
+// returns the binary path string instead of the API. Re-exec as real Electron.
+if (typeof electron === 'string') {
+  const self = fileURLToPath(import.meta.url);
+  delete process.env.ELECTRON_RUN_AS_NODE;
+  const child = spawn(electron, [self], { stdio: 'inherit', env: process.env });
+  child.on('exit', (code) => process.exit(code ?? 0));
+} else {
+  const { app, BrowserWindow, dialog, ipcMain, shell } = electron;
+  startApp({ app, BrowserWindow, dialog, ipcMain, shell });
+}
+
+/** @param {{app:any,BrowserWindow:any,dialog:any,ipcMain:any,shell:any}} electronApi */
+function startApp({ app, BrowserWindow, dialog, ipcMain, shell }) {
 // 「规范」入口：打包安装版必须关闭；desktop:dev 显示（F24 调试门）
 if (app.isPackaged) {
   process.env.PICBED_UI_DEV = '0';
@@ -298,3 +318,4 @@ app.on('before-quit', (e) => {
     .catch(() => {})
     .finally(() => app.quit());
 });
+} // end startApp

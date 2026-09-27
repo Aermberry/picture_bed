@@ -101,3 +101,4 @@
 2026-09-28 | update | docs/design/{module-webui,wireframes/ui-shell} + renderer/styles.css + tests/desktop.test.ts | 照片墙对齐 Material Tailwind Masonry 画廊：响应式 2/3/4 列、gap 16、图块 r16；photo-wall 4 测试绿 + tsc 绿；7a64492→feature/electron-vite | User: 拖拽扫描后的图片预览效果参考 material-tailwind gallery 排列
 2026-09-27 | feat(desktop) | electron-vite 迁移 | renderer/ 单源；desktop:dev=electron-vite HMR + tsc -w；71/71 + build 绿 | User: 请迁移 electron-vite
 2026-09-27 | verify(desktop) | electron-vite 冒烟 | UI 服务下发 renderer 含照片墙；electron-vite dev 可启动（main/preload/5173）；config 解析正确 | User: 请继续
+2026-09-27 | fix(desktop) | electron-vite 启动失败 | package.json 无 main→补 ELECTRON_ENTRY=desktop/main.mjs；ESM import electron 触发 Node20 CJS bug→createRequire；RUN_AS_NODE 泄漏→re-exec；失败退避 5 次；72/72 + dev 实测 DEV_OK | User: No entry point found

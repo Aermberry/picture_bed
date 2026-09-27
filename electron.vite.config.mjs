@@ -13,12 +13,14 @@ export default defineConfig({
     plugins: [externalizeDepsPlugin()],
     build: {
       outDir: resolve(root, 'out/main'),
+      // CJS: Electron 33 main-process ESM interop (node:module createRequire) is brittle
       lib: {
         entry: resolve(root, 'desktop/main.mjs'),
-        formats: ['es'],
+        formats: ['cjs'],
       },
       rollupOptions: {
         external: ['electron'],
+        output: { entryFileNames: 'main.cjs' },
       },
     },
   },
