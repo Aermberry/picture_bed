@@ -120,7 +120,14 @@ function envelope<T>(
   return { schemaVersion: 1, ok, command, data, warnings, error: error ?? null };
 }
 
-function readBody(req: http.IncomingMessage, limit = 64 * 1024): Promise<string> {
+/** Request body cap (docs/design/module-webui-http-hardening.md decision 4). */
+const API_BODY_LIMIT = 64 * 1024;
+
+function normalizeHostname(host: string): string {
+  return host.replace(/^\[|\]$/g, '').toLowerCase();
+}
+
+function readBody(req: http.IncomingMessage, limit = API_BODY_LIMIT): Promise<string> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
     let size = 0;
@@ -148,6 +155,8 @@ export function createUiServer(opts: UiServerOptions): {
   const cwd = path.resolve(opts.cwd);
   const binder = new RootBinder();
   const watchCtl = new WatchController();
+  /** Actual bind address; captured in listen(). Wildcard binds skip Host name checks. */
+  let bindHost = normalizeHostname(opts.host ?? '');
   const workset: {
     name: string;
     relativePath: string;
@@ -180,6 +189,22 @@ export function createUiServer(opts: UiServerOptions): {
           message: 'missing or malformed Host header',
         }));
         return;
+      }
+
+      // Host must name the bound address (decision 5): blocks DNS-rebinding where
+      // Origin and Host are both attacker-controlled. Wildcard binds are explicit
+      // LAN exposure and skip this check. `localhost` is always accepted.
+      {
+        const bound = bindHost;
+        const wildcard = bound === '0.0.0.0' || bound === '::';
+        const name = normalizeHostname(hostUrl.hostname);
+        if (!wildcard && bound !== '' && name !== bound && name !== 'localhost') {
+          send(403, envelope(false, 'api.host', undefined, {
+            code: 'E_HOST',
+            message: 'Host header must name the bound address',
+          }));
+          return;
+        }
       }
 
       const url = new URL(req.url ?? '/', hostUrl);
@@ -221,6 +246,20 @@ export function createUiServer(opts: UiServerOptions): {
               message: 'POST requires Content-Type: application/json',
             }));
             return;
+          }
+          // Layer ① of the body cap: reject oversized Content-Length before any
+          // route runs — covers handlers that never call readBody (e.g. session/reset).
+          const cl = req.headers['content-length'];
+          if (cl !== undefined) {
+            const n = Number(cl);
+            if (Number.isFinite(n) && n > API_BODY_LIMIT) {
+              req.resume();
+              send(413, envelope(false, 'api.body', undefined, {
+                code: 'E_BODY_TOO_LARGE',
+                message: 'request body exceeds 64 KiB',
+              }));
+              return;
+            }
           }
         }
       }
@@ -790,6 +829,7 @@ export function createUiServer(opts: UiServerOptions): {
     server,
     binder,
     listen(port, host) {
+      bindHost = normalizeHostname(host);
       return new Promise((resolve, reject) => {
         server.once('error', reject);
         server.listen(port, host, () => {

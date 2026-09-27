@@ -36,6 +36,7 @@ const EXIT_BY_CODE: Record<string, ExitCode> = {
   EADDRINUSE: EXIT.USAGE,
   E_ORIGIN: EXIT.USAGE,
   E_HEADER: EXIT.USAGE,
+  E_HOST: EXIT.USAGE,
   E_CONTENT_TYPE: EXIT.USAGE,
   E_BODY_TOO_LARGE: EXIT.USAGE,
   E_LOCAL: EXIT.LOCAL,
@@ -59,7 +60,7 @@ export function exitCodeForCode(code: string | undefined): ExitCode {
 export function httpStatusForCode(code: string | undefined): number {
   if (!code) return 200;
   if (code === 'E_TOKEN' || code === 'E_AUTH') return 401;
-  if (code === 'E_ORIGIN' || code === 'E_HEADER') return 403;
+  if (code === 'E_ORIGIN' || code === 'E_HEADER' || code === 'E_HOST') return 403;
   if (code === 'E_CONTENT_TYPE') return 415;
   if (code === 'E_BODY_TOO_LARGE') return 413;
   switch (exitCodeForCode(code)) {

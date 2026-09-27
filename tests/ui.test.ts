@@ -85,7 +85,7 @@ describe('ui server F16–F18', () => {
   async function api(pathname: string, body?: unknown) {
     const res = await fetch(base + pathname, {
       method: body === undefined ? 'GET' : 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-Picbed-UI': '1' },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
     return { status: res.status, data: await res.json() };
@@ -297,12 +297,13 @@ describe('HTTP hardening (review finding 4)', () => {
     expect(noOrigin.status).toBe(200);
   });
 
-  it('non-loopback Host with matching Origin is still rejected (no origin echo)', async () => {
+  it('non-loopback Host with matching Origin is still rejected (Host must name bind address)', async () => {
     const rebinding = await raw(
       `GET /api/health HTTP/1.1\r\nHost: evil.example:${port()}\r\nOrigin: http://evil.example:${port()}\r\nConnection: close\r\n\r\n`,
     );
     expect(rebinding).toContain('403');
-    expect(rebinding).toContain('E_ORIGIN');
+    expect(rebinding).toContain('E_HOST');
+    expect(rebinding).not.toContain('evil.example'); // no origin/host echo
   });
 
   it('request body over 64 KiB gets 413', async () => {
@@ -322,11 +323,20 @@ describe('HTTP hardening (review finding 4)', () => {
   });
 
   it('CORS preflight gets no special handling (no Access-Control headers)', async () => {
-    const res = await raw(
+    // Refined design: cross-origin preflight hits the Origin guard first (403);
+    // same-origin OPTIONS falls through to the unknown-route 404.
+    const cross = await raw(
       `OPTIONS /api/sync HTTP/1.1\r\nHost: 127.0.0.1:${port()}\r\nOrigin: http://evil.example\r\nAccess-Control-Request-Method: POST\r\nConnection: close\r\n\r\n`,
     );
-    expect(res).toContain('404');
-    expect(res).not.toContain('Access-Control-Allow-Origin');
+    expect(cross).toContain('403');
+    expect(cross).toContain('E_ORIGIN');
+    expect(cross).not.toContain('Access-Control-Allow-Origin');
+
+    const same = await raw(
+      `OPTIONS /api/sync HTTP/1.1\r\nHost: 127.0.0.1:${port()}\r\nOrigin: ${base}\r\nAccess-Control-Request-Method: POST\r\nConnection: close\r\n\r\n`,
+    );
+    expect(same).toContain('404');
+    expect(same).not.toContain('Access-Control-Allow-Origin');
   });
 
   it('static assets are not subject to the /api guards', async () => {
