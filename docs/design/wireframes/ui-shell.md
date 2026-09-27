@@ -29,7 +29,7 @@ App (flex, height 100vh)
 
 ### 1.1 上传视图（默认）
 
-1. **DropZone 英雄区**（min-height 420）：拖入 **md/html 文档或文件夹**（picbed 策略 A）；2px 虚线、圆角 16。
+1. **DropZone 英雄区**（min-height 420）：拖入 **图片或 md/html 文档**（不接受文件夹）；2px 虚线、圆角 16。
 2. **根绑定行**：服务端路径输入 +「绑定」+ 状态徽章（未绑根不进 scan/plan）。
 3. **工作集**：拖入项列表（名称/相对路径/类型/状态）。
 4. **操作条**：`scan` · `plan` · `sync --dry-run` · **确认并 sync**。
@@ -148,7 +148,7 @@ App (flex, height 100vh)
 
 | 界面能力 | API / F | 说明 |
 |----------|---------|------|
-| 拖入文档/文件夹 | `/api/session/drop` · F17 | 策略 A，未绑根 blocked |
+| 拖入图片/文档 | `/api/session/drop` · F17 | 仅图片或文档；文件夹拒绝 |
 | 绑定 root | `/api/session/bind-root` · F17 | 会话绑定 |
 | scan / plan / sync | `/api/scan|plan|sync` · F17/F18 | dry-run 零副作用；sync 需 confirm |
 | manifest 网格 / 复制外链 | `/api/manifest` · F9/F19 | 无 token |

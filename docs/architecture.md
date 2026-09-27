@@ -25,7 +25,7 @@
 - G3 回写：把文档中的本地引用替换为公开链接，可 dry-run、可备份、可 revert。
 - G4 Agent 契约：无交互默认、稳定退出码、`--json` schema、幂等重跑。
 - G5 安全：token 不入库、不进日志/manifest；默认拒绝路径越界与绝对路径。
-- G6 本地 Web 控制台：人在浏览器中**拖拽文档/目录**或选择路径完成 scan/plan/sync/revert/config/doctor/watch（F16–F22）。
+- G6 本地 Web 控制台：人在浏览器中**拖拽图片或文档**（不接受文件夹）完成 scan/plan/sync/revert/config/doctor/watch（F16–F22）。
 
 ### 非目标
 - 公网部署、多用户/账号体系、云端托管 UI。

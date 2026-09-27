@@ -108,7 +108,7 @@
           <li>G3 回写链接：dry-run / backup / revert</li>
           <li>G4 Agent 契约：<code>--json</code>、退出码、无 TTY、幂等</li>
           <li>G5 安全：token 不入库；默认拒路径越界</li>
-          <li>G6 本地 Web 控制台：<strong>拖拽文档/目录</strong>或路径指定，完成 scan/plan/sync/revert 等</li>
+          <li>G6 本地 Web 控制台：<strong>拖拽图片或文档</strong>（不接受文件夹），完成 scan/plan/sync/revert 等</li>
         </ul>
         <p><strong>非目标：</strong>公网/多用户 UI、OAuth 登录（已移除）、图片工具箱。watch / 多图床 / MCP / 桌面壳（Electron，非 Tauri）已实现。</p>
       </section>
@@ -138,7 +138,7 @@
               <tr><td>F14</td><td>VS Code / MCP 包装</td><td>P3→done</td><td>cliops</td><td>picbed-mcp 只转调 CLI --json</td></tr>
               <tr><td>F15</td><td>GitHub Token 鉴权</td><td>P0→done</td><td>cliops</td><td>PAT / GITHUB_TOKEN / gh auth；无 OAuth</td></tr>
               <tr><td>F16</td><td>本地 Web 控制台服务</td><td>P0</td><td>webui</td><td>本机起停；health；token 不出响应</td></tr>
-              <tr><td>F17</td><td>目录/拖拽与计划工作台</td><td>P0</td><td>webui</td><td>拖拽文档/文件夹；scan/plan；dry-run 无副作用</td></tr>
+              <tr><td>F17</td><td>目录/拖拽与计划工作台</td><td>P0</td><td>webui</td><td>拖拽图片或文档（拒绝文件夹）；预览仅本次拖入相关；dry-run 无副作用</td></tr>
               <tr><td>F18</td><td>一键同步</td><td>P0</td><td>webui</td><td>显式确认后 sync；进度与 partial 可观察</td></tr>
               <tr><td>F19</td><td>回滚面板</td><td>P1</td><td>webui</td><td>manifest 可视；revert 可 dry-run</td></tr>
               <tr><td>F20</td><td>配置与自检面板</td><td>P1</td><td>webui</td><td>config 掩码；doctor 报告</td></tr>
