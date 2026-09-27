@@ -136,7 +136,21 @@ describe('F24 desktop shell', () => {
     // must NOT treat child exit as terminal shutdown (root cause of broken hot reload)
     expect(dev).toContain('respawning');
     expect(dev).toMatch(/shuttingDown/);
+    // electron-vite needs an Electron entry — pass desktop/main.mjs explicitly
+    expect(dev).toContain('ELECTRON_ENTRY');
+    expect(dev).toContain('--entry');
+    expect(dev).toContain('desktop/main.mjs');
     expect(fs.existsSync(path.join(repoRoot, 'electron.vite.config.mjs'))).toBe(true);
+  });
+
+  it('package.json main points at Electron source entry (desktop/main.mjs)', () => {
+    const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8')) as {
+      main?: string;
+      files: string[];
+    };
+    expect(pkg.main).toBe('desktop/main.mjs');
+    // npm pack still excludes desktop runtime
+    expect(pkg.files.join(' ')).not.toMatch(/desktop|electron|release/);
   });
 
   it('main.mjs loads Vite dev URL in dev and local UI server in prod', () => {

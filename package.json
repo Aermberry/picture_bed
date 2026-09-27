@@ -19,6 +19,7 @@
     "picbed": "bin/picbed.js",
     "picbed-mcp": "bin/picbed-mcp.js"
   },
+  "main": "desktop/main.mjs",
   "files": [
     "bin",
     "dist",
@@ -33,7 +34,8 @@
     "openspec": "openspec",
     "desktop:dev": "tsc -p tsconfig.json && node scripts/desktop-dev.mjs",
     "desktop:build": "tsc -p tsconfig.json && electron-vite build",
-    "desktop:dist": "tsc -p tsconfig.json && electron-vite build && node scripts/build-desktop.mjs"
+    "desktop:dist": "tsc -p tsconfig.json && electron-vite build && node scripts/build-desktop.mjs",
+    "desktop:evite": "electron-vite dev --entry desktop/main.mjs"
   },
   "engines": {
     "node": ">=20"
