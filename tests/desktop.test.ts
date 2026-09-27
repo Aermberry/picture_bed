@@ -110,6 +110,13 @@ describe('F24 desktop shell', () => {
     expect(spaApp).toContain('img.addEventListener("error"');
   });
 
+  it('reset/upload actions appear only when the photo wall has tiles', () => {
+    expect(INDEX_HTML).toMatch(/id="previewActions"[^>]*\bhidden\b/);
+    expect(SPA_CSS).toContain('[hidden]{display:none !important}');
+    expect(spaApp).toContain('syncWallChrome');
+    expect(spaApp).toContain('a.hidden = n === 0');
+  });
+
   it('later drops accumulate into the photo wall instead of replacing it', () => {
     expect(spaApp).toContain('wallItems');
     expect(spaApp).toContain('mergeWallItems');

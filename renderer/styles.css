@@ -78,6 +78,8 @@
     }
 
     *{margin:0;padding:0;box-sizing:border-box}
+    /* class display rules must not override the hidden attribute */
+    [hidden]{display:none !important}
     body{
       background:
         radial-gradient(1100px 460px at 16% -8%, rgba(255,255,255,.85), rgba(255,255,255,0) 68%),
