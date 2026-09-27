@@ -1,6 +1,11 @@
 /**
  * Launch Electron shell for local desktop dev with hot rebuild.
- * Spawns electron.exe directly so PATH/shim node quirks cannot break startup.
+ *
+ * Supervisor contract (module-desktop · 本地开发热更新):
+ * - tsc --watch keeps running across Electron restarts.
+ * - Electron exits (relaunch / crash) → respawn; do NOT kill the harness.
+ * - PICBED_DESKTOP_SUPERVISED=1 tells main.mjs to app.exit(0) instead of
+ *   app.relaunch(), so this process owns the lifecycle (single instance).
  */
 import { spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -35,29 +40,57 @@ if (first.status !== 0) {
 console.log('[desktop:dev] tsc --watch (hot rebuild)');
 const watch = spawn(node, [tscJs, '-w', '-p', 'tsconfig.json'], { cwd: root, stdio: 'inherit' });
 
-console.log('[desktop:dev] electron (auto-relaunch on desktop/ or dist/ change)');
-const child = spawn(electron, [distMain], {
-  cwd: root,
-  stdio: 'inherit',
-  env: { ...process.env, PICBED_UI_DEV: process.env.PICBED_UI_DEV ?? '1' },
-});
+/** @type {import('node:child_process').ChildProcess | null} */
+let child = null;
+let shuttingDown = false;
+let respawnTimer = null;
+
+function spawnElectron() {
+  console.log('[desktop:dev] electron (tiered hot reload: app.js reload · dist UI restart · desktop relaunch)');
+  child = spawn(electron, [distMain], {
+    cwd: root,
+    stdio: 'inherit',
+    env: {
+      ...process.env,
+      PICBED_UI_DEV: process.env.PICBED_UI_DEV ?? '1',
+      PICBED_DESKTOP_SUPERVISED: '1',
+    },
+  });
+  child.on('exit', (code, signal) => {
+    child = null;
+    if (shuttingDown) return;
+    // Relaunch/crash must NOT take down tsc --watch or this supervisor.
+    if (signal) console.error('[desktop:dev] electron exited with signal', signal);
+    else console.log('[desktop:dev] electron exited code', code, '— respawning…');
+    if (respawnTimer) clearTimeout(respawnTimer);
+    respawnTimer = setTimeout(() => {
+      respawnTimer = null;
+      if (!shuttingDown) spawnElectron();
+    }, 200);
+  });
+}
 
 function shutdown(code) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  if (respawnTimer) {
+    clearTimeout(respawnTimer);
+    respawnTimer = null;
+  }
   try {
     watch.kill();
   } catch {}
   try {
-    child.kill();
+    if (child) child.kill();
   } catch {}
   process.exit(code ?? 0);
 }
 
-child.on('exit', (code, signal) => {
-  if (signal) console.error('electron exited with signal', signal);
-  shutdown(code ?? 0);
-});
+spawnElectron();
+
 watch.on('exit', (code) => {
-  console.error('tsc --watch exited', code);
+  if (shuttingDown) return;
+  console.error('[desktop:dev] tsc --watch exited', code);
   shutdown(code ?? 1);
 });
 process.on('SIGINT', () => shutdown(0));

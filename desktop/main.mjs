@@ -54,7 +54,9 @@ function saveWindowState() {
 }
 
 async function startUiServer() {
-  const distUrl = new URL('../dist/ui/index.js', import.meta.url);
+  // cache-bust so desktop:dev can re-import rebuilt dist/ without a process restart
+  const bust = process.env.PICBED_DESKTOP_UI_BUST || '';
+  const distUrl = new URL(`../dist/ui/index.js${bust}`, import.meta.url);
   const mod = await import(distUrl.href);
   const createUiServer = mod.createUiServer;
   if (typeof createUiServer !== 'function') {
@@ -115,6 +117,44 @@ async function createWindow() {
   await mainWindow.loadURL(uiHandle.url);
 }
 
+/** Close + re-import UI server, then point the window at the new URL. */
+async function restartUiServer() {
+  const prev = uiHandle;
+  uiHandle = null;
+  if (prev) {
+    try {
+      await prev.close();
+    } catch {
+      /* ignore */
+    }
+  }
+  process.env.PICBED_DESKTOP_UI_BUST = `?t=${Date.now()}`;
+  try {
+    uiHandle = await startUiServer();
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('[desktop] restartUiServer failed:', message);
+    processExitForReload('ui-restart-failed');
+    return;
+  }
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    await mainWindow.loadURL(uiHandle.url);
+  }
+}
+
+/**
+ * Process-level restart. Supervisor respawns us when PICBED_DESKTOP_SUPERVISED=1;
+ * otherwise Electron's own relaunch keeps a single instance.
+ */
+function processExitForReload(_reason) {
+  if (process.env.PICBED_DESKTOP_SUPERVISED === '1') {
+    app.exit(0);
+    return;
+  }
+  app.relaunch();
+  app.exit(0);
+}
+
 function registerIpc() {
   ipcMain.handle('dialog:selectDirectory', async () => {
     const win = mainWindow ?? undefined;
@@ -149,29 +189,83 @@ function registerIpc() {
   }));
 }
 
+/** @param {string} p */
+function isNoiseWatchPath(p) {
+  return /\.(tsbuildinfo|map|tmp|swp)$/i.test(p) || /[\\/]\.git[\\/]/.test(p);
+}
+
+/**
+ * Tiered hot reload (dev only):
+ * - desktop/**  → process restart (main/preload)
+ * - dist/ui/spa/app.js only → webContents.reload()
+ * - other dist/** → restart UI server + reload window
+ */
+function installDevHotReload() {
+  const distDir = path.join(__dirname, '..', 'dist');
+  const desktopDir = __dirname;
+  /** @type {Record<string, number>} */
+  const pending = {};
+  let timer = null;
+  let reloading = false;
+
+  const flush = async () => {
+    timer = null;
+    const files = Object.keys(pending);
+    for (const k of Object.keys(pending)) delete pending[k];
+    if (!files.length || reloading) return;
+
+    const desktopHit = files.some((f) => f.startsWith(desktopDir));
+    if (desktopHit) {
+      console.log('[desktop:dev] desktop/* changed → process restart');
+      processExitForReload('desktop');
+      return;
+    }
+
+    const spaAppOnly =
+      files.length > 0 &&
+      files.every((f) => f.replace(/\\/g, '/').endsWith('dist/ui/spa/app.js'));
+
+    if (spaAppOnly && mainWindow && !mainWindow.isDestroyed()) {
+      console.log('[desktop:dev] spa/app.js changed → reload window');
+      mainWindow.webContents.reload();
+      return;
+    }
+
+    console.log('[desktop:dev] dist/* changed → restart UI server');
+    reloading = true;
+    try {
+      await restartUiServer();
+    } finally {
+      reloading = false;
+    }
+  };
+
+  /** @param {string} root */
+  const watchRoot = (root) => {
+    try {
+      fs.watch(root, { recursive: true }, (_event, filename) => {
+        if (!filename || isNoiseWatchPath(String(filename))) return;
+        const abs = path.join(root, String(filename));
+        pending[abs] = Date.now();
+        if (timer) clearTimeout(timer);
+        timer = setTimeout(() => {
+          void flush();
+        }, 200);
+      });
+    } catch {
+      /* recursive watch unsupported — ignore */
+    }
+  };
+
+  watchRoot(distDir);
+  watchRoot(desktopDir);
+}
+
 app.whenReady().then(async () => {
   registerIpc();
   await createWindow();
 
-  // Hot-reload: relaunch when dist/ or desktop/ changes (desktop:dev only)
-  if (!app.isPackaged) {
-    const roots = [path.join(__dirname, '..', 'dist'), __dirname];
-    let timer = null;
-    const relaunch = () => {
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(() => {
-        app.relaunch();
-        app.exit(0);
-      }, 250);
-    };
-    for (const dir of roots) {
-      try {
-        fs.watch(dir, { recursive: true }, relaunch);
-      } catch {
-        /* ignore */
-      }
-    }
-  }
+  if (!app.isPackaged) installDevHotReload();
 
   app.on('activate', async () => {
     if (BrowserWindow.getAllWindows().length === 0) await createWindow();

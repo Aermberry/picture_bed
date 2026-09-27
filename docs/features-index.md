@@ -190,7 +190,7 @@
 
 - 优先级：P0（已实现）· 模块：**desktop**
 - 实现（域）：[module-desktop · F24](design/module-desktop.md#f24-桌面应用壳与安装包)
-- AC：双形态并存——**npm**（`picbed`/`picbed-mcp`/`picbed ui`，供本地开发测试与 Agent）与**桌面安装包**（下载安装即用）互不破坏。桌面端启动原生窗口并加载**完整 Web 控制台**（F16–F23 契约不变）；UI 服务仅绑 `127.0.0.1`；提供**原生目录选择**（策略 A 仍强制先绑 root）；窗口尺寸/位置可记忆；关闭窗口释放端口并停 watch；token 不进渲染进程；`npm pack` **不含** Electron/`desktop/`；Windows NSIS 用户级安装包（`picbed-setup.exe`）可在无 Node 环境运行。**调试可见性**：侧栏「规范」仅在本地调试显示（源码树 / `desktop:dev` / `PICBED_UI_DEV=1`）；正式发包（`npm i -g`、安装包 `app.isPackaged`）**不得**显示该入口（`PICBED_UI_DEV=0` 强制关闭）。
+- AC：双形态并存——**npm**（`picbed`/`picbed-mcp`/`picbed ui`，供本地开发测试与 Agent）与**桌面安装包**（下载安装即用）互不破坏。桌面端启动原生窗口并加载**完整 Web 控制台**（F16–F23 契约不变）；UI 服务仅绑 `127.0.0.1`；提供**原生目录选择**（策略 A 仍强制先绑 root）；窗口尺寸/位置可记忆；关闭窗口释放端口并停 watch；token 不进渲染进程；`npm pack` **不含** Electron/`desktop/`；Windows NSIS 用户级安装包（`picbed-setup.exe`）可在无 Node 环境运行。**调试可见性**：侧栏「规范」仅在本地调试显示（源码树 / `desktop:dev` / `PICBED_UI_DEV=1`）；正式发包（`npm i -g`、安装包 `app.isPackaged`）**不得**显示该入口（`PICBED_UI_DEV=0` 强制关闭）。**开发热更新（`desktop:dev`）**：改 `app.js` → 窗口 reload；改其它 `dist/**` → 重启 UI 服务并 reload；改 `desktop/**` → 进程重启；supervisor 保证 relaunch **不**终止 `tsc -w`/自身（详见 module-desktop）。
 
 ---
 
