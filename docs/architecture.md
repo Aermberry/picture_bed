@@ -217,7 +217,7 @@ Web API 信封与退出码语义对齐 [`design/cross-cutting.md`](design/cross-
 | 项 | 推荐 | 备选 | 理由 |
 |----|------|------|------|
 | 服务 | Node `http` / 轻量路由（与 CLI 同进程可 spawn） | fastify | 本地单用户，无需重框架 |
-| 前端 | 轻量 Vite + 原生 SPA（**已冻结**；不引入 React） | React | 拖拽 + 列表工作台足够；避免重依赖 |
+| 前端 | 原生 SPA 拆分为 `src/ui/spa/` 真实 TS 模块，tsc 直编、静态路由下发（**已冻结**；不引入 React/Vite，见 [`design/module-webui-spa-split.md`](design/module-webui-spa-split.md)） | React / Vite | 拖拽 + 列表工作台足够；避免重依赖与构建链 |
 | 实时进度 | SSE | 轮询 | sync/watch 推送简单 |
 | 拖拽路径 | 根绑定 + 相对路径解析（**策略 A，已冻结**） | File System Access 预览暂存（不纳入） | 浏览器不给绝对路径；原地回写必须服务端可解析真实路径 |
 
@@ -283,7 +283,7 @@ Web API 信封与退出码语义对齐 [`design/cross-cutting.md`](design/cross-
 5. 是否增加更多 HostAdapter（对象存储等）？  
 6. ~~是否发布到 npm 官方源？（当前仅 GitHub Release tarball）~~ **已启用双通道**（2026-09-23，用户已注册 npm 账号）：GitHub Release tarball **+** `npm publish`（`npx picbed` / `npm i -g picbed`）。  
 7. ~~Web 子命令名：`ui` 还是 `serve`？~~ **已冻结为 `ui`**（2026-09-23，用户确认）；不为 `serve` 保留别名。  
-8. ~~Web 前端栈：原生 / 轻量 Vite / React？~~ **已冻结为轻量 Vite + 原生 SPA（不引入 React）**（2026-09-23，采纳建议）。  
+8. ~~Web 前端栈：原生 / 轻量 Vite / React？~~ **已冻结为原生 SPA + `src/ui/spa/` TS 模块 tsc 直发（不引入 React/Vite）**（2026-09-23 初冻结"轻量 Vite"；2026-09-27 依评审 ② 修正——Vite 从未落地且模板串承载整页 SPA 引发线上语法事故，改为模块化直发，见 [`design/module-webui-spa-split.md`](design/module-webui-spa-split.md)）。  
 9. ~~拖拽后「无 root」时：强制先绑根，还是允许暂存预览（策略 B）？~~ **已冻结为策略 A：强制先绑根**（2026-09-23）；未绑根不得进入 scan/plan/sync；暂存预览不纳入本期。  
 10. ~~watch 在 UI 默认模式：`preview` / `confirm-each` / `auto`？~~ **已冻结为默认 `preview`**（2026-09-23，采纳建议）；`auto` 须显式打开并仍写 RunRecord。
 11. **F23 UI 壳层**：草图已锁定双栏「管理 / 设置」+ 主区「文件放置」；主题与布局细则见 [`design/wireframes/ui-shell.md`](design/wireframes/ui-shell.md)。开放：刷新后 root 自动读入策略、管理页 TOC、深色主题、侧栏图标风格（见该文件 §10）。

@@ -3,6 +3,7 @@
 > 归属功能点：F16 本地 Web 控制台服务、F17 目录/拖拽与计划工作台、F18 一键同步、F19 回滚面板、F20 配置与自检面板、F21 审计与报告、F22 监听控制台、F23 控制台壳层与视觉重设计。
 > 架构见 [`../architecture.md`](../architecture.md)；定义见 [`../features-index.md`](../features-index.md)；全局契约见 [`cross-cutting.md`](cross-cutting.md)。
 > 壳层布局与主题令牌见 [`wireframes/ui-shell.md`](wireframes/ui-shell.md)（F23 视格权威）。
+> SPA 前端交付形态（拆分出模板串：`src/ui/spa/` TS 模块 + 静态路由下发）见 [`module-webui-spa-split.md`](module-webui-spa-split.md)（2026-09-27 评审 ②）。
 > 栈无关；接口为意图伪码。**本期只设计，不实现业务/UI 代码。**
 
 ## 目的
