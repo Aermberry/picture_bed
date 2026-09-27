@@ -87,6 +87,15 @@ describe('F24 desktop shell', () => {
     expect(spaApp).toContain('photoWallTitle');
   });
 
+  it('photo wall count matches tiles: doc drop is not previewed, failed loads update the headline', () => {
+    // previewPath must be image-only (server + client)
+    expect(spaApp).toContain('pp && isImageName(pp)');
+    // headline comes from live tile count, not the raw path list
+    expect(spaApp).toContain('$("dropTitle").textContent = photoWallTitle()');
+    // failed image removes its tile and refreshes the count
+    expect(spaApp).toContain('img.addEventListener("error"');
+  });
+
   it('served scripts are syntactically valid (app.ts stays plain JS; inline scripts stay tiny)', () => {
     expect(() => new Function(spaApp)).not.toThrow();
     const scripts = [...INDEX_HTML.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]);

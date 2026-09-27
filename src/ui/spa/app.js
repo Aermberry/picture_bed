@@ -358,7 +358,8 @@
       if (data.ok) {
         dropped += 1;
         const pp = data.data && data.data.previewPath;
-        if (pp) previewPaths.push(pp);
+        // previewPath is image-only; a dropped document must not enter the wall
+        if (pp && isImageName(pp)) previewPaths.push(pp);
         else if (it.abs && isImageName(it.abs)) previewPaths.push(it.abs);
         if (it.abs && isDocName(it.abs)) dropDocs.push(it.abs);
         else if (it.name && isDocName(it.name) && it.abs) dropDocs.push(it.abs);
@@ -410,7 +411,7 @@
         if (!src) return "";
         return (
           '<figure class="tile">' +
-          '<img alt="" loading="lazy" src="' + src + '" onerror="this.parentNode&&this.parentNode.remove()" />' +
+          '<img alt="" loading="lazy" src="' + src + '" />' +
           (name ? '<figcaption class="name">' + esc(name) + "</figcaption>" : "") +
           "</figure>"
         );
@@ -419,7 +420,15 @@
     g.hidden = false;
     a.hidden = false;
     if (dz) dz.classList.add("has-photos");
-    $("dropTitle").textContent = "扫描到 " + items.length + " 张图片";
+    // Keep the headline in sync with tiles actually in the wall (failed loads drop out).
+    /** @type {NodeListOf<HTMLImageElement>} */ (g.querySelectorAll("img")).forEach((img) => {
+      img.addEventListener("error", () => {
+        const tile = img.parentNode;
+        if (tile && tile.parentNode) tile.parentNode.removeChild(tile);
+        $("dropTitle").textContent = photoWallTitle();
+      });
+    });
+    $("dropTitle").textContent = photoWallTitle();
   }
 
   /** @returns {string} */

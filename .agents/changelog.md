@@ -95,3 +95,4 @@
 2026-09-27 | update | src/app/{plan,sync}.ts + src/ui/{server,spa} + tests | 落地：drop 拒 type=dir；session/images 只列工作集图；scanIntoPreview 不再扩根；runSync includeDocs/includeImages；64/64 + tsc 绿；49a28c3→feature/drop-images-docs-only→develop d36a934 | User: 拖入后点预览冒出不明图片
 2026-09-27 | update | docs/{features-index,design/module-webui,design/wireframes/ui-shell} | F17 扫描结果呈现改为照片墙（瀑布流图块+文件名浮层）；4d08837→docs/design→develop 9de1917 | User: 扫描后获取到图片后应以照片墙形式呈现
 2026-09-27 | update | src/ui/spa/{index,styles,app.js} + tests/desktop.test.ts | 落地照片墙：has-photos 态隐藏空态英雄，multi-column 瀑布流 tile（自然比例/r14/hover 文件名）；65/65 + tsc 绿；feature/photo-wall | User: 扫描后获取到图片后应以照片墙形式呈现
+2026-09-27 | fix(ui) | 照片墙计数4≠3 | drop 文档误写 previewPath→多计1张且加载失败被移除；server 仅图片返回 previewPath，client isImageName 过滤，headline=活 tile 数；67/67 | User: 扫描到4张但预览3张

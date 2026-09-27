@@ -330,7 +330,9 @@ export function createUiServer(opts: UiServerOptions): {
             action: isImg ? 'image' : 'in-root',
             boundRoot: rootNow,
             image: isImg,
-            previewPath: absPath,
+            // Only image files are previewable — dropping a document must not
+            // put the doc path into the photo-wall count.
+            ...(isImg ? { previewPath: absPath } : {}),
             item: workset.at(-1),
           }));
           return;

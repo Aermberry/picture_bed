@@ -142,6 +142,30 @@ describe('ui server F16–F18', () => {
     expect(String(drop.data.error.message)).toMatch(/image or document/i);
   });
 
+  it('F17 drop of a document does not set previewPath (photo wall is images only)', async () => {
+    await api('/api/session/reset', {});
+    await api('/api/session/bind-root', { root: path.join(cwd, 'docs') });
+    const dropDoc = await api('/api/session/drop', {
+      name: 'post.md',
+      relativePath: 'post.md',
+      type: 'file',
+      absPath: path.join(cwd, 'docs', 'post.md'),
+    });
+    expect(dropDoc.data.ok).toBe(true);
+    expect(dropDoc.data.data.image).toBe(false);
+    expect(dropDoc.data.data.previewPath).toBeUndefined();
+
+    const dropImg = await api('/api/session/drop', {
+      name: 'a.png',
+      relativePath: 'img/a.png',
+      type: 'file',
+      absPath: path.join(cwd, 'docs', 'img', 'a.png'),
+    });
+    expect(dropImg.data.ok).toBe(true);
+    expect(dropImg.data.data.image).toBe(true);
+    expect(dropImg.data.data.previewPath).toBe(path.join(cwd, 'docs', 'img', 'a.png'));
+  });
+
   it('F17 session/images lists workset images only (no root walk)', async () => {
     await api('/api/session/reset', {});
     // sibling image under root must NOT appear unless dropped
