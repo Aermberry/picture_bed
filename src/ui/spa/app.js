@@ -370,8 +370,32 @@
     return { dropped, err, previewPaths, dropDocs };
   }
 
+  /** @type {any[]} */
+  let wallItems = [];
+
+  /** @param {any} p */
+  function wallKey(p) {
+    if (p && typeof p === "object") return String(p.abs || p.src || p.name || "");
+    return String(p || "");
+  }
+
+  /** @param {any[]} items */
+  function mergeWallItems(items) {
+    /** @type {Record<string, number>} */
+    const seen = {};
+    for (const w of wallItems) seen[wallKey(w)] = 1;
+    for (const p of items || []) {
+      const key = wallKey(p);
+      if (!key || seen[key]) continue;
+      seen[key] = 1;
+      wallItems.push(p);
+    }
+    setPreviewImages(wallItems);
+  }
+
   /** @param {string=} title */
   function setPreviewIdle(title) {
+    wallItems = [];
     const g = $("previewGrid");
     const a = $("previewActions");
     const dz = $("dropzone");
@@ -446,7 +470,7 @@
     const seen = {};
     /** @param {any} p */
     function addPath(p) {
-      const key = p && typeof p === "object" ? p.src || p.name : p;
+      const key = wallKey(p);
       if (!key || seen[key]) return;
       seen[key] = 1;
       paths.push(p);
@@ -481,16 +505,17 @@
             if (!doc || !docSet[doc]) continue;
             addPath(p.localPath);
           }
-        } else if (!paths.length) {
+        } else if (!paths.length && !wallItems.length) {
           toast((data.error && data.error.message) || "扫描失败");
         }
       } catch (_) {
-        if (!paths.length) toast("扫描失败");
+        if (!paths.length && !wallItems.length) toast("扫描失败");
       }
     }
 
-    setPreviewImages(paths);
-    if (!paths.length) toast("未扫描到本地图片");
+    // Accumulate: keep tiles from earlier drops; only append this drop's hits.
+    mergeWallItems(paths);
+    if (!paths.length && !wallItems.length) toast("未扫描到本地图片");
   }
 
   $("btnReset").onclick = async () => {
@@ -536,14 +561,17 @@
     const { items, blobPreviews } = collectDropItems(e.dataTransfer);
     if (!items.length && !blobPreviews.length) {
       toast("仅支持图片或文档（不接受文件夹）");
-      setPreviewIdle();
+      // keep any wall already showing; just restore the headline
+      if (wallItems.length) $("dropTitle").textContent = photoWallTitle();
+      else setPreviewIdle();
       return;
     }
-    if (blobPreviews.length) setPreviewImages(blobPreviews);
+    if (blobPreviews.length) mergeWallItems(blobPreviews);
     const r = await submitDrop(items);
     if (r && r.err && !r.dropped) {
       toast(r.err);
-      if (!blobPreviews.length) setPreviewIdle();
+      if (wallItems.length) $("dropTitle").textContent = photoWallTitle();
+      else if (!blobPreviews.length) setPreviewIdle();
       return;
     }
     logoState("scanning");
