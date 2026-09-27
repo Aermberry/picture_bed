@@ -105,3 +105,4 @@
 2026-09-27 | update | docs design pack 整理 | module-desktop 重写为 electron-vite 权威；architecture/webui/reading-guide 去过期栈；spa-split 标历史 | User: 请把设计文档整理好
 2026-09-27 | update | docs/html/index.html | 对齐照片墙 + renderer/electron-vite + v0.4.1；去 src/ui/spa 旧栈 | User: html的文档有修改没有
 2026-09-27 | update | README.md | Web 流程改照片墙累加；补 desktop:dev=electron-vite；示例版本 0.4.1 | User: readme呢
+2026-09-27 | update | .agents/rules/delivery.md + memory | 新增 Docs trio sync：设计稿+docs/html+README 必须同步 | User: 请记住更新文档设计稿、html文档和readme
