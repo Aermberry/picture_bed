@@ -24,6 +24,26 @@ Rules:
 3. 集成到 `develop` 前：设计已在 `docs/design` 落地（或本次即文档变更）、测试全绿。
 4. 隔离 worktree 不能 `checkout` 时：仍须**逻辑上**按 topic 分支；可用 `git commit-tree` / `git fetch . <sha>:refs/heads/feature/<topic>` 创建，或明确记录「本环境无法建分支」并合并前由主 checkout 拆分。
 
+## Bugfix Git Flow (MANDATORY, 2026-09-27)
+
+**禁止把 bug 修复堆进无关的长期 `feature/*`**（违规示例：照片墙按钮显隐修在 `feature/electron-vite` 上）。按是否已发版分流：
+
+| 场景 | 分支 | 起点 | 合入 |
+|------|------|------|------|
+| **未发版**（只在 `develop` / 未进 `main`） | `feature/fix-<slug>` | `develop` | 测试绿 → `develop` |
+| **已发版**（`main` / 用户已安装包） | `hotfix/<slug>` | `main` | 合 `main`（可打补丁 `v*`）→ **必须再合** `develop` |
+
+规则：
+
+1. **一个逻辑修复 = 一支**（或一次可独立构建/测试的原子提交），可 bisect。
+2. 提交类型 **`fix(scope): …`**（Conventional Commits；补丁版本语义）。
+3. 仅**对齐既有 AC** 的缺陷：可不改 AC，但须在 changelog 写清现象/根因/验证。
+4. **改变约定行为**：仍走 Design before implementation + Docs trio sync。
+5. 交付前跑测试并附命令证据；commit 后自动 push。
+6. `hotfix` 补丁发版顺序不变：合入 `main` → **再** tag `v*`（禁止先 tag 后补分支）。
+
+Evidence: user standing instruction, 2026-09-27（「如果是修复bug，根据git flow 你应该怎么做」→ 确认写入规则）。
+
 ## GitHub Release (MANDATORY when shipping)
 
 1. **CI ≠ Release**：`ci.yml` 只验证；出包必须 **tag `v*`** 触发 `release.yml`。
