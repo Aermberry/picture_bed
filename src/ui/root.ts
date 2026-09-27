@@ -19,9 +19,9 @@ export class RootBinder {
 
   requireRoot(): string {
     if (!this.root) {
-      throw Object.assign(new Error('no scan directory yet (drop a folder or files first)'), {
+      throw Object.assign(new Error('no scan directory yet (drop image or document files first)'), {
         code: 'E_NO_ROOT',
-        hint: 'Drop docs/folder to auto-detect the scan directory',
+        hint: 'Drop images or documents to auto-detect the scan directory',
       });
     }
     return this.root;

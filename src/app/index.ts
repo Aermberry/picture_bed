@@ -2,6 +2,7 @@ export { AppError, asAppError, exitCodeForCode, httpStatusForCode, TOKEN_HINT } 
 export { collect } from './collect.js';
 export type { CollectResult } from './collect.js';
 export { runPlan, summarizePlan, publicPlanItem } from './plan.js';
+export type { RunPlanOptions } from './plan.js';
 export { runSync } from './sync.js';
 export type { SyncItem, SyncResult } from './sync.js';
 export { listManifestView, runRevert } from './revert.js';

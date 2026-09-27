@@ -63,6 +63,14 @@ describe('F24 desktop shell', () => {
     expect(spaApp).toContain('b.abs && b.abs === p');
   });
 
+  it('drop accepts only images/docs and preview never walks the scan root', () => {
+    expect(spaApp).toContain('isAcceptedDrop');
+    expect(spaApp).toContain('仅支持图片或文档');
+    expect(spaApp).not.toContain('api/session/images');
+    expect(spaApp).toContain('dropDocs');
+    expect(spaApp).toContain('docSet');
+  });
+
   it('served scripts are syntactically valid (app.ts stays plain JS; inline scripts stay tiny)', () => {
     expect(() => new Function(spaApp)).not.toThrow();
     const scripts = [...INDEX_HTML.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]);

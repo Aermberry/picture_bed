@@ -1,3 +1,4 @@
+import path from 'node:path';
 import { loadManifest } from '../manifest.js';
 import { buildPlan } from '../plan.js';
 import type { ResolvedConfig, SyncPlanItem } from '../types.js';
@@ -27,14 +28,32 @@ export function publicPlanItem(it: SyncPlanItem) {
   };
 }
 
-export async function runPlan(root: string, cfg: ResolvedConfig, cwd: string) {
+export interface RunPlanOptions {
+  /** When set (including `[]`), only these absolute doc paths are planned. */
+  includeDocs?: string[];
+}
+
+export async function runPlan(root: string, cfg: ResolvedConfig, cwd: string, opts?: RunPlanOptions) {
   const collected = await collect(root, cfg);
   const manifest = loadManifest(cwd);
-  const plan = buildPlan({
+  let plan = buildPlan({
     assets: collected.assets,
     blocked: collected.blocked,
     remoteSkips: collected.remoteSkips,
     manifest,
   });
+
+  if (opts?.includeDocs) {
+    const allow = new Set(opts.includeDocs.map((p) => path.resolve(p)));
+    plan = plan.filter((it) => it.ref && allow.has(path.resolve(it.ref.docPath)));
+    const docs = collected.docs.filter((d) => allow.has(path.resolve(d.path)));
+    const byDoc = new Map([...collected.byDoc].filter(([p]) => allow.has(path.resolve(p))));
+    return {
+      collected: { ...collected, docs, byDoc },
+      plan,
+      summary: summarizePlan(plan),
+    };
+  }
+
   return { collected, plan, summary: summarizePlan(plan) };
 }
