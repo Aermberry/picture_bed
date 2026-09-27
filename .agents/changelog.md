@@ -89,3 +89,5 @@
 2026-09-27 | update | src/app/* + src/ui/{server,index}.ts + tests/{ui,ui-panels}.test.ts | 落地应用编排层：删除 ui/{ops,doctor,revert,runs}.ts，Web/桌面壳改经 runSync/runRevert/doctorService/runPlan/writeConfigKey；5a186e8 | User: 请逐项来（评审 ①）
 2026-09-27 | update | src/cli.ts + src/app/sync.ts + tests/cli.test.ts | CLI 委托应用层：sync/revert/doctor/config 收敛到同一实现，catch-all 用 asAppError+exitCodeForCode，E_CONFIG 校验进 app；新增 7 项 CLI 测试（58/58）| User: 请逐项来（评审 ①）
 2026-09-27 | update | .agents/memory/{review-findings,decisions,open-items}.md | 评审 1–2 标记 closed（含残留：TOML 值转义）；新增决策「抽取 src/app」与「逐项来」次序；②③ 转 open-items | User: 请逐项来（评审 ①）
+2026-09-27 | update | src/ui/static.ts + src/ui/spa/* | 评审 ② 落地：1282 行内联 SPA 拆为 spa/{index,styles,app.js,globals.d.ts}，static.ts 变 barrel；server 增 /styles.css /app.js 路由（懒读 dist，E_STATIC 兜底）；type="module" 加载（NodeNext 强制 ESM）；4ae32a3 入 develop | User: 请逐项来（评审 ②）
+2026-09-27 | update | .agents/memory/{review-findings,decisions,open-items}.md | 评审 ③ 标记 closed（含残留 pivot 记录：.js+checkJs、type=module）；② 关闭、③ HTTP 加固为下一项 | User: 请逐项来（评审 ②）

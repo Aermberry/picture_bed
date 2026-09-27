@@ -28,3 +28,5 @@ pm-oidc-release（非全局） | User 要求项目内可复用；含 OIDC/npm11.
 | 2026-09-26 | **双形态分发：npm 保留 + Electron Windows 安装包（F24）** | User: 本地 npm 检测可接受；发布后下载安装桌面应用；选型 Electron+electron-builder / Win 优先 / 完整原生体验 | active |
 | 2026-09-27 | **抽取 `src/app` 应用编排层**（CLI/Web/桌面壳单一实现） | 依据 `docs/design/module-app.md`（已入 develop）；错误码→退出码/HTTP 状态单源（`exitCodeForCode`/`httpStatusForCode`）；不变量：app 层不 import http/commander、每轮至多一次 manifest 写、RunRecord 不含 token | active |
 | 2026-09-27 | 评审修复按用户指令「请逐项来」顺序推进：① 应用层 → ② SPA 出模板串 → ③ HTTP 加固 | User: 「请逐项来」；每项走 design-first + feature 分支 + 测试证据 | active |
+| 2026-09-27 | **SPA 出模板串采用最小拆分**（用户拍板）：`src/ui/spa/` 真实模块 + 现有 tsc 编译 + server 从 dist 静态服务，零新依赖，Electron 打包路径不变；同步修正 `docs/architecture.md` §7.1 冻结决策 | User: 选「最小拆分：独立 TS 模块（推荐）」；设计包 `88a067a`、实现 `4ae32a3` | active |
+| 2026-09-27 | SPA 脚本落 `.js`+JSDoc（`allowJs`+`checkJs`）而非 `.ts`；页面以 `<script type="module">` 加载 | TS 在 `.ts` 中忽略全部 JSDoc 类型标注（JSDoc 只在 `.js`+checkJs 生效）；NodeNext 对 `type:module` 包内 `.js` 强制 ESM 输出（补 `export {}`），经典脚本无法解析 | active |
