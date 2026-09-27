@@ -1,6 +1,6 @@
 # picture_bed · picbed
 
-本地 CLI：读取 Markdown / HTML 中的内嵌图片，上传到 PicX 同源 **GitHub 图床**，自动回写稳定链接。面向人与 Agent。
+本地 CLI：读取 Markdown / HTML 中的内嵌图片，上传到 PicX 同源 **GitHub 图床**，自动回写稳定链接。提供 **CLI / 本地 Web 控制台 / Windows 桌面应用** 三态，面向人与 Agent。
 
 设计文档见 [`docs/`](docs/)（F/P/模块/AC），HTML 呈现见 [`docs/html/index.html`](docs/html/index.html)。
 
@@ -23,7 +23,7 @@ npm install -g https://github.com/Aermberry/picture_bed/releases/latest/download
 也可到 [Releases](https://github.com/Aermberry/picture_bed/releases) 下载带版本号的 `picbed-x.y.z.tgz` 后：
 
 ```powershell
-npm install -g .\picbed-0.3.1.tgz
+npm install -g .\picbed-0.4.1.tgz
 ```
 
 装好后可用全局命令：`picbed`、`picbed-mcp`。
@@ -151,7 +151,7 @@ node bin/picbed.js revert ./docs --dry-run --json
 | `upload <file>` | 单文件上传 |
 | `revert <path>` | 按 manifest 还原本地链接 |
 | `watch <path>` | 监听变更并触发 sync（F12） |
-| `ui` | 启动本地 Web 控制台（拖拽工作台） |
+| `ui` | 启动本地 Web 控制台（拖入扫描 · 照片墙预览） |
 | `config get\|set\|list` | 配置读写（token 掩码） |
 | `commands` | 列出命令 |
 
@@ -182,7 +182,7 @@ picbed ui
 # → http://127.0.0.1:4780
 ```
 
-浏览器打开后：**先绑定扫描根目录** → 拖入 md/html 文档 → plan 预览 → 确认后 sync。另含回滚、配置/doctor、run 审计、watch 控制台。默认只监听本机；token 不会出现在页面里。
+浏览器打开后：**拖入图片或 md/html 文档**（不接受文件夹）→ 自动扫描 → **照片墙**展示已解析图片（可继续拖入累加）→「上传」确认后 sync，或「重置」清空。另含管理、回滚、配置/doctor、run 审计、watch。默认只监听本机；token 不会出现在页面里。
 
 ## 桌面应用（F24 · 双形态）
 
@@ -193,7 +193,17 @@ picbed ui
 
 - 桌面端复用**同一**核心与 Web 控制台（契约、confirm、token 掩码不变）。
 - 额外原生能力：系统目录选择对话框（「浏览…」）、窗口尺寸记忆。
-- Electron 仅在 `devDependencies`，**不会**随 `npm i -g picbed` 安装。
+- Electron / electron-vite 仅在 `devDependencies`，**不会**随 `npm i -g picbed` 安装。
+
+### 开发调试（桌面壳）
+
+```bash
+npm install
+npm run desktop:dev    # electron-vite：改 renderer/* 即时 HMR
+npm run desktop:dist   # 出 picbed-setup.exe
+```
+
+UI 单源在 `renderer/`；开发时 Vite 热更新，安装包/`picbed ui` 走同一套静态资源。详见 [`docs/design/module-desktop.md`](docs/design/module-desktop.md)。
 
 ### 多图床（F13）
 
