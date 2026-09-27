@@ -37,10 +37,10 @@ SPA 自身的合法请求必须全形态通过（浏览器 `picbed ui`、Electro
 | 1 | **同源 Origin 校验**（全部 `/api/*`） | 请求带 `Origin` 头时，其 host:port 必须等于 `Host` 头的 host:port（scheme 仅允许 http/https）；`Origin: null` 视为违例。Origin 缺失（curl 等非浏览器客户端）放行 | 403 `E_ORIGIN` |
 | 2 | **POST 必需自定义头**（全部 POST `/api/*`） | 必须带 `X-Picbed-UI: 1`。跨源网页无法发送自定义头：触发 CORS 预检，而服务器从不返回 `Access-Control-Allow-*`，预检失败，浏览器不发实际请求 | 403 `E_HEADER` |
 | 3 | **Content-Type 校验**（全部 POST `/api/*`） | 必须为 `application/json`（允许 `; charset=` 参数）；不解析 body 的路由（如 session/reset）同规则，保持均匀 | 415 `E_CONTENT_TYPE` |
-| 4 | **请求体大小上限** | `readBody` 累计 > 64 KiB 即应 413 并断开（`res.end` 后 `req.destroy()`） | 413 `E_BODY_TOO_LARGE` |
-| 5 | **Host 头必须存在且可解析** | `req.headers.host` 缺失/非法 → 400；URL 基不再回退 `'127.0.0.1'`（隐藏畸形请求） | 400 `E_USAGE` |
-| 6 | **新错误码显式映射 HTTP 状态** | `E_ORIGIN`/`E_HEADER` → 403，`E_CONTENT_TYPE` → 415，`E_BODY_TOO_LARGE` → 413，在 `src/app/errors.ts` 的 `httpStatusForCode` 显式分支（先于 exitCode 派生）；`exitCodeForCode` 归入 `EXIT.USAGE` | — |
-| 7 | **服务器永不输出 CORS 头** | 不返回 `Access-Control-Allow-Origin/Headers`；预检 OPTIONS 按普通未知路由 404 处理 | — |
+| 4 | **请求体大小上限（两道）** | ① 守卫在路由前预检 `Content-Length` > 64 KiB → 直接 413（覆盖 session/reset 等不读体的路由）；② `readBody` 累计超限 → 413，剩余数据 `resume()` 丢弃保证响应可送达 | 413 `E_BODY_TOO_LARGE` |
+| 5 | **Host 头必须存在、可解析且须指名绑定地址** | 缺失/不可解析 → 400；hostname 必须 ∈ {绑定地址, localhost}（IPv6 归一去括号）；`0.0.0.0`/`::` 通配绑定为例外：不限制（显式全网暴露，LAN 场景，已在 cli 警告） | 400 `E_USAGE` / 403 `E_HOST` |
+| 6 | **新错误码显式映射 HTTP 状态** | `E_ORIGIN`/`E_HEADER`/`E_HOST` → 403，`E_CONTENT_TYPE` → 415，`E_BODY_TOO_LARGE` → 413，在 `src/app/errors.ts` 的 `httpStatusForCode` 显式分支（先于 exitCode 派生）；`exitCodeForCode` 归入 `EXIT.USAGE` | — |
+| 7 | **服务器永不输出 CORS 头** | 不返回 `Access-Control-Allow-Origin/Headers`；预检 OPTIONS 无特殊处理：跨源预检先被 Origin 守卫 403，同源 OPTIONS 落到 404 未知路由 | — |
 
 **均匀性优先**：规则对全部 POST 路由一刀切（session/reset、bind-root、drop、scan、plan、
 sync、config、doctor、revert、watch/start、watch/stop），不按"是否写盘"分层——分层是
@@ -54,6 +54,9 @@ sync、config、doctor、revert、watch/start、watch/stop），不按"是否写
   一次覆盖全部绑定形态，也天然免疫 DNS-rebinding（rebind 后 Origin host ≠ Host host）。
 - 用户此前标注的拍板点（Origin allowlist 与 Electron 壳交互）：**以同源相等替代固定
   白名单**，不需要维护端口/IP 清单，Electron 与 LAN 行为无需特判。
+- 单独的同源相等挡不住 DNS-rebinding：攻击页origin与Host同为 `attacker.com:<port>` 时
+  相等比较会放行。因此叠加 Host 规则（决策 5）：浏览器可达的前提是 Host 必须指名绑定
+  地址，rebind 后的 `attacker.com` Host 直接被 403，无需维护"合法域名"清单。
 
 ### SPA 与测试适配
 
@@ -77,3 +80,11 @@ sync、config、doctor、revert、watch/start、watch/stop），不按"是否写
 - `npm test` 全绿、`npm run lint` 干净、`npm run build` 通过；
 - 浏览器实测：页面功能（扫描/计划/同步 dry-run）正常，且从 Console 伪造跨源 POST
   被 403 拒绝。
+
+## 实现期修订记录
+
+- 决策 4 改为两道上限（`Content-Length` 路由前预检 + `readBody` 累计）：原单道方案在
+  `session/reset`（不读请求体）上失效——超限体不触发任何读取。预检覆盖全部 POST 路由。
+- 新增决策 5 的 Host 指名绑定地址规则（403 `E_HOST`）：先写实现时发现同源相等单独
+  存在 DNS-rebinding 缺口（攻击者同时控制 Host 与 Origin），按"实现前必须先改设计"
+  回补设计，错误码随之增加 `E_HOST`。
