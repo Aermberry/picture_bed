@@ -104,3 +104,4 @@
 2026-09-27 | fix(desktop) | electron-vite 启动失败 | package.json 无 main→补 ELECTRON_ENTRY=desktop/main.mjs；ESM import electron 触发 Node20 CJS bug→createRequire；RUN_AS_NODE 泄漏→re-exec；失败退避 5 次；72/72 + dev 实测 DEV_OK | User: No entry point found
 2026-09-27 | update | docs design pack 整理 | module-desktop 重写为 electron-vite 权威；architecture/webui/reading-guide 去过期栈；spa-split 标历史 | User: 请把设计文档整理好
 2026-09-27 | update | docs/html/index.html | 对齐照片墙 + renderer/electron-vite + v0.4.1；去 src/ui/spa 旧栈 | User: html的文档有修改没有
+2026-09-27 | update | README.md | Web 流程改照片墙累加；补 desktop:dev=electron-vite；示例版本 0.4.1 | User: readme呢
