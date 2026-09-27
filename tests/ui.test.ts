@@ -130,6 +130,39 @@ describe('ui server F16–F18', () => {
     expect(plan.data.data.summary.upload + plan.data.data.summary['skip-cache']).toBeGreaterThan(0);
   });
 
+  it('F17 drop rejects folders (images/docs only)', async () => {
+    const drop = await api('/api/session/drop', {
+      name: 'img',
+      relativePath: 'img',
+      type: 'dir',
+    });
+    expect(drop.status).toBe(400);
+    expect(drop.data.ok).toBe(false);
+    expect(drop.data.error.code).toBe('E_USAGE');
+    expect(String(drop.data.error.message)).toMatch(/image or document/i);
+  });
+
+  it('F17 session/images lists workset images only (no root walk)', async () => {
+    await api('/api/session/reset', {});
+    // sibling image under root must NOT appear unless dropped
+    const dropImg = await api('/api/session/drop', {
+      name: 'a.png',
+      relativePath: 'img/a.png',
+      type: 'file',
+      absPath: path.join(cwd, 'docs', 'img', 'a.png'),
+    });
+    expect(dropImg.data.ok).toBe(true);
+    const imgs = await api('/api/session/images');
+    expect(imgs.data.ok).toBe(true);
+    expect(imgs.data.data.images).toEqual([path.join(cwd, 'docs', 'img', 'a.png')]);
+    // restore doc workset for later tests
+    await api('/api/session/drop', {
+      name: 'post.md',
+      relativePath: 'post.md',
+      type: 'file',
+    });
+  });
+
   it('F18 sync requires confirm then succeeds with local host', async () => {
     const denied = await api('/api/sync', {});
     expect(denied.status).toBe(409);
@@ -152,6 +185,24 @@ describe('ui server F16–F18', () => {
     expect(result.rewrittenDocs.length).toBe(1);
     const text = fs.readFileSync(path.join(cwd, 'docs', 'post.md'), 'utf8');
     expect(text).toContain('https://cdn.example.test');
+  });
+
+  it('runSync includeDocs scopes rewrite; includeImages uploads standalone', async () => {
+    const cfg = loadConfig({ cwd });
+    // second doc not referenced by includeDocs must stay untouched
+    fs.writeFileSync(path.join(cwd, 'docs', 'other.md'), '![x](img/a.png)\n');
+    const scoped = await runSync({
+      root: path.join(cwd, 'docs'),
+      cfg,
+      cwd,
+      getToken: () => undefined,
+      includeDocs: [path.join(cwd, 'docs', 'post.md')],
+      includeImages: [path.join(cwd, 'docs', 'img', 'a.png')],
+    });
+    expect(scoped.ok).toBe(true);
+    const other = fs.readFileSync(path.join(cwd, 'docs', 'other.md'), 'utf8');
+    expect(other).toContain('img/a.png');
+    expect(other).not.toContain('https://cdn.example.test');
   });
 
   it('serves console HTML', async () => {

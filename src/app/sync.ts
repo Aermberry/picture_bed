@@ -1,12 +1,41 @@
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { createHostAdapter, hostRequiresToken, uploadAsset } from '../host/index.js';
 import { findCachedUrl, loadManifest, saveManifest } from '../manifest.js';
 import { applyRewrites, mergeManifest } from '../rewrite.js';
-import type { ResolvedConfig, SyncPlanItem } from '../types.js';
+import type { Asset, ResolvedConfig, SyncPlanItem } from '../types.js';
 import { AppError, TOKEN_HINT } from './errors.js';
 import { runPlan } from './plan.js';
 import { newRunId, recordRun } from './runs.js';
+
+function mimeOf(p: string): string {
+  const ext = path.extname(p).toLowerCase();
+  const map: Record<string, string> = {
+    '.png': 'image/png',
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.gif': 'image/gif',
+    '.webp': 'image/webp',
+    '.avif': 'image/avif',
+    '.svg': 'image/svg+xml',
+    '.bmp': 'image/bmp',
+    '.ico': 'image/x-icon',
+  };
+  return map[ext] ?? 'application/octet-stream';
+}
+
+function standaloneAsset(localPath: string): Asset {
+  const abs = path.resolve(localPath);
+  const buf = fs.readFileSync(abs);
+  return {
+    localPath: abs,
+    sha256: crypto.createHash('sha256').update(buf).digest('hex'),
+    bytes: buf.length,
+    mime: mimeOf(abs),
+    refs: [],
+  };
+}
 
 export interface SyncItem {
   action: string;
@@ -34,10 +63,14 @@ export async function runSync(opts: {
   cwd: string;
   getToken: () => string | undefined;
   command?: string;
+  /** When set (including `[]`), only these absolute doc paths are planned/rewritten. */
+  includeDocs?: string[];
+  /** Standalone image files to upload without doc rewrite (UI workset images). */
+  includeImages?: string[];
 }): Promise<SyncResult> {
-  const { root, cfg, cwd, getToken, command = 'sync' } = opts;
+  const { root, cfg, cwd, getToken, command = 'sync', includeDocs, includeImages } = opts;
   const startedAt = new Date().toISOString();
-  const { collected, plan, summary } = await runPlan(root, cfg, cwd);
+  const { collected, plan, summary } = await runPlan(root, cfg, cwd, includeDocs ? { includeDocs } : undefined);
   const manifest = loadManifest(cwd);
   const token = getToken();
 
@@ -57,10 +90,20 @@ export async function runSync(opts: {
   const urlBySha = new Map<string, string>();
   const items: SyncItem[] = [];
 
-  const unique = new Map<string, (typeof collected.assets)[number]>();
+  const unique = new Map<string, Asset>();
   for (const item of plan) {
     if (item.action !== 'upload' || !item.asset) continue;
     unique.set(item.asset.sha256, item.asset);
+  }
+  for (const img of includeImages ?? []) {
+    try {
+      const asset = standaloneAsset(img);
+      if (!unique.has(asset.sha256)) unique.set(asset.sha256, asset);
+    } catch (err) {
+      const msg = `${img}: ${String(err)}`;
+      errors.push(msg);
+      items.push({ action: 'upload', localPath: img, error: String(err) });
+    }
   }
   for (const asset of unique.values()) {
     try {

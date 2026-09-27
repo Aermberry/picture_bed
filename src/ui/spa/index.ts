@@ -96,8 +96,8 @@ export const INDEX_HTML = `<!DOCTYPE html>
       <div class="dropzone" id="dropzone">
         <div class="big-ico"><svg><use href="#i-image"/></svg></div>
         <h2 id="dropTitle">将文件拖放到此处</h2>
-        <p>拖拽 md / html 文档或文件夹 · 自动扫描图片</p>
-        <span class="hint">支持 JPG / PNG / GIF / WebP · 扫描成功后可上传或重置</span>
+        <p>拖拽图片或 md / html 文档 · 自动扫描图片</p>
+        <span class="hint">支持 JPG / PNG / GIF / WebP · 仅图片或文档，不接受文件夹</span>
         <div class="preview-grid" id="previewGrid" hidden></div>
         <div class="row" id="previewActions" style="justify-content:center" hidden>
           <button class="btn btn-ghost" id="btnReset" type="button">重置</button>

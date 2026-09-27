@@ -286,6 +286,17 @@
     return /\.(png|jpe?g|gif|webp|svg|bmp|ico|avif)$/i.test(String(n || ""));
   }
 
+  /** @param {any} n */
+  function isDocName(n) {
+    return /\.(md|markdown|html?|txt)$/i.test(String(n || ""));
+  }
+
+  /** @param {any} n @param {any} type */
+  function isAcceptedDrop(n, type) {
+    if (type === "dir") return false;
+    return isImageName(n) || isDocName(n);
+  }
+
   // DataTransfer 仅在 drop 事件派发期间可读，必须同步收集
   /** @param {DataTransfer} dt */
   function collectDropItems(dt) {
@@ -302,19 +313,15 @@
       const rel = f.webkitRelativePath || name;
       const key = abs || rel;
       if (!key || seen[key]) return;
+      if (isDir) return;
+      if (!isAcceptedDrop(name, "file") && (f.type || "").indexOf("image/") !== 0) return;
       seen[key] = 1;
-      if (!isDir && (isImageName(name) || (f.type || "").indexOf("image/") === 0)) {
+      if (isImageName(name) || (f.type || "").indexOf("image/") === 0) {
         try {
           blobPreviews.push({ src: URL.createObjectURL(f), name, abs });
         } catch (_) {}
       }
-      items.push({ name, rel, type: isDir ? "dir" : "file", abs });
-    }
-    /** @param {any} name */
-    function pushDir(name) {
-      if (!name || seen[name]) return;
-      seen[name] = 1;
-      items.push({ name, rel: name, type: "dir", abs: "" });
+      items.push({ name, rel, type: "file", abs });
     }
 
     if (dt.files && dt.files.length) {
@@ -326,8 +333,8 @@
         const entry = item.webkitGetAsEntry && item.webkitGetAsEntry();
         const f = item.getAsFile && item.getAsFile();
         const isDir = !!(entry && entry.isDirectory);
-        if (f) takeFile(f, isDir);
-        else if (isDir) pushDir(entry.name);
+        if (isDir) continue;
+        if (f) takeFile(f, false);
       }
     }
 
@@ -340,6 +347,7 @@
     let dropped = 0;
     let err = "";
     const previewPaths = [];
+    const dropDocs = [];
     for (const it of items) {
       const { data } = await api("/api/session/drop", {
         name: it.name,
@@ -352,11 +360,13 @@
         const pp = data.data && data.data.previewPath;
         if (pp) previewPaths.push(pp);
         else if (it.abs && isImageName(it.abs)) previewPaths.push(it.abs);
+        if (it.abs && isDocName(it.abs)) dropDocs.push(it.abs);
+        else if (it.name && isDocName(it.name) && it.abs) dropDocs.push(it.abs);
       } else {
         err = (data.error && data.error.message) || "drop failed";
       }
     }
-    return { dropped, err, previewPaths };
+    return { dropped, err, previewPaths, dropDocs };
   }
 
   function setPreviewIdle() {
@@ -422,29 +432,29 @@
       }
     }
 
-    // 1) images under scan root + dropped image files
-    try {
-      const { data } = await api("/api/session/images");
-      if (data.ok && data.data && data.data.images) {
-        for (const p of data.data.images) addPath(p);
-      }
-    } catch (_) {}
-
-    // 2) image refs inside md/html under root
-    try {
-      const { data } = await api("/api/plan", {});
-      if (data.ok) {
-        const plan = (data.data && data.data.plan) || [];
-        for (const p of plan) {
-          if (!p.localPath) continue;
-          if (p.action === "blocked" || p.action === "skip-remote") continue;
-          addPath(p.localPath);
+    // 1) image refs inside THIS drop's docs only (never expand to the whole scan root)
+    const dropDocs = (dropInfo && dropInfo.dropDocs) || [];
+    if (dropDocs.length) {
+      try {
+        const { data } = await api("/api/plan", {});
+        if (data.ok) {
+          const plan = (data.data && data.data.plan) || [];
+          /** @type {Record<string, number>} */
+          const docSet = {};
+          for (const d of dropDocs) docSet[String(d).replace(/\\/g, "/")] = 1;
+          for (const p of plan) {
+            if (!p.localPath) continue;
+            if (p.action === "blocked" || p.action === "skip-remote") continue;
+            const doc = String(p.doc || "").replace(/\\/g, "/");
+            if (!doc || !docSet[doc]) continue;
+            addPath(p.localPath);
+          }
+        } else if (!paths.length) {
+          toast((data.error && data.error.message) || "扫描失败");
         }
-      } else if (!paths.length) {
-        toast((data.error && data.error.message) || "扫描失败");
+      } catch (_) {
+        if (!paths.length) toast("扫描失败");
       }
-    } catch (_) {
-      if (!paths.length) toast("扫描失败");
     }
 
     setPreviewImages(paths);
@@ -491,6 +501,11 @@
     $("dropTitle").textContent = "正在扫描…";
     // 即时本地预览：blob URL 无需等待服务器往返
     const { items, blobPreviews } = collectDropItems(e.dataTransfer);
+    if (!items.length && !blobPreviews.length) {
+      toast("仅支持图片或文档（不接受文件夹）");
+      setPreviewIdle();
+      return;
+    }
     if (blobPreviews.length) setPreviewImages(blobPreviews);
     const r = await submitDrop(items);
     if (r && r.err && !r.dropped) {
@@ -499,7 +514,7 @@
       return;
     }
     logoState("scanning");
-    await scanIntoPreview({ previewPaths: r.previewPaths, blobPreviews });
+    await scanIntoPreview({ previewPaths: r.previewPaths, blobPreviews, dropDocs: r.dropDocs });
     logoState(null);
   });
 

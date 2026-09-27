@@ -73,36 +73,6 @@ function isImagePath(p: string): boolean {
   return IMAGE_EXTS.has(ext);
 }
 
-const SKIP_DIRS = new Set(['node_modules', '.git', '.picbed', 'dist', 'release', 'coverage']);
-
-function listImagesUnder(root: string, limit = 200): string[] {
-  const out: string[] = [];
-  const walk = (dir: string) => {
-    if (out.length >= limit) return;
-    let names: string[];
-    try {
-      names = fs.readdirSync(dir);
-    } catch {
-      return;
-    }
-    for (const name of names) {
-      if (out.length >= limit) return;
-      if (SKIP_DIRS.has(name)) continue;
-      const abs = path.join(dir, name);
-      let st: fs.Stats;
-      try {
-        st = fs.statSync(abs);
-      } catch {
-        continue;
-      }
-      if (st.isDirectory()) walk(abs);
-      else if (st.isFile() && isImagePath(abs)) out.push(abs);
-    }
-  };
-  walk(root);
-  return out;
-}
-
 export interface UiServerHandle {
   url: string;
   port: number;
@@ -207,17 +177,14 @@ export function createUiServer(opts: UiServerOptions): {
       }
 
       if (req.method === 'GET' && url.pathname === '/api/session/images') {
+        // Workset images only — do not enumerate the scan root (preview must not "grow" unexplained images).
         const droppedImgs: string[] = [];
         for (const w of workset) {
           const p = w.resolvedPath || '';
           if (p && isImagePath(p)) droppedImgs.push(p);
         }
-        let underRoot: string[] = [];
-        if (binder.root) {
-          underRoot = listImagesUnder(binder.root, 200);
-        }
         const seen = new Set<string>();
-        const images = [...droppedImgs, ...underRoot].filter((p) => {
+        const images = droppedImgs.filter((p) => {
           if (seen.has(p)) return false;
           seen.add(p);
           return true;
@@ -302,35 +269,18 @@ export function createUiServer(opts: UiServerOptions): {
         const absRaw = (body.absPath || '').trim();
         const absPath = absRaw && path.isAbsolute(absRaw) ? absRaw : '';
 
-        // Desktop drops carry absolute paths → auto-infer root (no manual bind step).
-        if (absPath && type === 'dir') {
-          try {
-            const bound = binder.bind(absPath, path.dirname(absPath));
-            workset.push({
-              name: body.name ?? path.basename(absPath),
-              relativePath: rel || path.basename(absPath),
-              type: 'dir',
-              resolvedPath: bound,
-              status: 'bound-root',
-            });
-            send(200, envelope(true, 'api.session.drop', { action: 'bound-root', boundRoot: bound, item: workset.at(-1) }));
-            return;
-          } catch (err) {
-            const e = err as Error & { code?: string };
-            workset.push({
-              name: body.name ?? rel,
-              relativePath: rel,
-              type: 'dir',
-              status: 'blocked',
-            });
-            send(httpStatusForCode(e.code), envelope(false, 'api.session.drop', { item: workset.at(-1) }, {
-              code: e.code ?? 'E_ROOT',
-              message: e.message,
-            }));
-            return;
-          }
+        // Folders are not accepted: only image files or document files.
+        if (type === 'dir') {
+          workset.push({ name: body.name ?? rel, relativePath: rel, type: 'dir', status: 'blocked' });
+          send(400, envelope(false, 'api.session.drop', { item: workset.at(-1) }, {
+            code: 'E_USAGE',
+            message: 'only image or document files are accepted (folders are not)',
+            hint: 'Drop image files or md/html documents',
+          }));
+          return;
         }
 
+        // Desktop drops carry absolute paths → auto-infer root (no manual bind step).
         if (absPath && type === 'file') {
           // Infer root from the file's directory when none bound yet.
           if (!binder.root) {
@@ -386,65 +336,14 @@ export function createUiServer(opts: UiServerOptions): {
           return;
         }
 
-        // Fallback (browser): folder name under cwd may bind root; files need a root.
-        if (type === 'dir') {
-          if (!binder.root) {
-            const candidate = path.resolve(cwd, rel);
-            if (!path.relative(cwd, candidate).startsWith('..')) {
-              try {
-                const bound = binder.bind(rel, cwd);
-                workset.push({
-                  name: body.name ?? rel,
-                  relativePath: rel,
-                  type: 'dir',
-                  resolvedPath: bound,
-                  status: 'bound-root',
-                });
-                send(200, envelope(true, 'api.session.drop', { action: 'bound-root', boundRoot: bound, item: workset.at(-1) }));
-                return;
-              } catch (err) {
-                const e = err as Error & { code?: string };
-                workset.push({
-                  name: body.name ?? rel,
-                  relativePath: rel,
-                  type: 'dir',
-                  status: 'blocked',
-                });
-                send(httpStatusForCode(e.code), envelope(false, 'api.session.drop', { item: workset.at(-1) }, {
-                  code: e.code ?? 'E_ROOT',
-                  message: e.message,
-                }));
-                return;
-              }
-            }
-          }
-          const resolved = binder.resolveUnderRoot(rel);
-          if (!resolved.ok) {
-            workset.push({ name: body.name ?? rel, relativePath: rel, type: 'dir', status: 'blocked' });
-            send(httpStatusForCode(resolved.code), envelope(false, 'api.session.drop', { item: workset.at(-1) }, {
-              code: resolved.code,
-              message: resolved.reason,
-            }));
-            return;
-          }
-          workset.push({
-            name: body.name ?? rel,
-            relativePath: rel,
-            type: 'dir',
-            resolvedPath: resolved.path,
-            status: 'in-root',
-          });
-          send(200, envelope(true, 'api.session.drop', { action: 'in-root', item: workset.at(-1) }));
-          return;
-        }
-
+        // Fallback (browser): resolve relative clue under bound root.
         const resolved = binder.resolveUnderRoot(rel);
         if (!resolved.ok) {
           workset.push({ name: body.name ?? rel, relativePath: rel, type: 'file', status: 'blocked' });
           send(httpStatusForCode(resolved.code), envelope(false, 'api.session.drop', { item: workset.at(-1) }, {
             code: resolved.code,
             message: resolved.reason,
-            hint: 'Drop a folder first, or set root path (auto-bind when desktop paths are available)',
+            hint: 'Drop image or document files (auto-bind when desktop paths are available)',
           }));
           return;
         }
@@ -523,9 +422,21 @@ export function createUiServer(opts: UiServerOptions): {
         };
         const root = binder.requireRoot();
         const cfg = loadCfg();
+        // UI upload is scoped to the drop workset (images + docs only; folders are rejected).
+        const worksetDocs: string[] = [];
+        const worksetImages: string[] = [];
+        for (const w of workset) {
+          const p = w.resolvedPath || '';
+          if (!p || w.type !== 'file') continue;
+          if (isImagePath(p)) worksetImages.push(p);
+          else if (ensureDocExt(p, cfg.scan.extensions)) worksetDocs.push(p);
+        }
+        const scoped = worksetDocs.length > 0 || worksetImages.length > 0;
+        const includeDocs = scoped ? worksetDocs : undefined;
+        const includeImages = scoped ? worksetImages : undefined;
 
         if (body.dryRun) {
-          const { plan, summary, collected } = await runPlan(root, cfg, cwd);
+          const { plan, summary, collected } = await runPlan(root, cfg, cwd, includeDocs ? { includeDocs } : undefined);
           send(200, envelope(true, 'api.sync', {
             dryRun: true,
             plan: plan.map(publicPlanItem),
@@ -552,6 +463,8 @@ export function createUiServer(opts: UiServerOptions): {
           cwd,
           getToken,
           command: 'api.sync',
+          includeDocs,
+          includeImages,
         });
         const errorCode = result.errorCode ?? 'E_PARTIAL';
         send(
