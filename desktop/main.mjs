@@ -64,8 +64,10 @@ async function startUiServer() {
   }
   const cwd = process.env.PICBED_CWD || process.cwd();
   const ui = createUiServer({ cwd });
-  // port 0 → ephemeral loopback port; token never leaves this process
-  return ui.listen(0, '127.0.0.1');
+  // Dev (electron-vite): stable port so Vite can proxy /api. Prod: ephemeral loopback.
+  const dev = !app.isPackaged && process.env.PICBED_DESKTOP_DEV === '1';
+  const port = dev ? Number(process.env.PICBED_UI_PORT || 4780) : 0;
+  return ui.listen(port, '127.0.0.1');
 }
 
 async function createWindow() {
@@ -80,7 +82,10 @@ async function createWindow() {
     title: 'picbed',
     backgroundColor: '#F3F7FA',
     webPreferences: {
-      preload: path.join(__dirname, 'preload.cjs'),
+      // desktop/preload.cjs (source) or out/preload/preload.cjs (electron-vite build)
+      preload: fs.existsSync(path.join(__dirname, 'preload.cjs'))
+        ? path.join(__dirname, 'preload.cjs')
+        : path.join(__dirname, '..', 'out', 'preload', 'preload.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,
@@ -112,6 +117,13 @@ async function createWindow() {
       );
       return;
     }
+  }
+
+  // electron-vite dev → Vite HMR URL (proxy /api → createUiServer)
+  const rendererDevUrl = !app.isPackaged ? process.env.ELECTRON_RENDERER_URL : undefined;
+  if (rendererDevUrl) {
+    await mainWindow.loadURL(rendererDevUrl);
+    return;
   }
 
   await mainWindow.loadURL(uiHandle.url);
