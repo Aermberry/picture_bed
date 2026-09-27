@@ -100,3 +100,4 @@
 2026-09-27 | fix(desktop) | desktop:dev 热更新失效 | 根因 app.relaunch 后 supervisor 误杀 tsc/自身；改为 supervisor respawn + 分层重载（app.js reload / dist UI 重启 / desktop 进程重启）；70/70 | User: Electron 本地调试无法热更新
 2026-09-28 | update | docs/design/{module-webui,wireframes/ui-shell} + renderer/styles.css + tests/desktop.test.ts | 照片墙对齐 Material Tailwind Masonry 画廊：响应式 2/3/4 列、gap 16、图块 r16；photo-wall 4 测试绿 + tsc 绿；7a64492→feature/electron-vite | User: 拖拽扫描后的图片预览效果参考 material-tailwind gallery 排列
 2026-09-27 | feat(desktop) | electron-vite 迁移 | renderer/ 单源；desktop:dev=electron-vite HMR + tsc -w；71/71 + build 绿 | User: 请迁移 electron-vite
+2026-09-27 | verify(desktop) | electron-vite 冒烟 | UI 服务下发 renderer 含照片墙；electron-vite dev 可启动（main/preload/5173）；config 解析正确 | User: 请继续
