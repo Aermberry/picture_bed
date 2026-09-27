@@ -120,10 +120,21 @@ function envelope<T>(
   return { schemaVersion: 1, ok, command, data, warnings, error: error ?? null };
 }
 
-function readBody(req: http.IncomingMessage): Promise<string> {
+function readBody(req: http.IncomingMessage, limit = 64 * 1024): Promise<string> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
-    req.on('data', (c) => chunks.push(c));
+    let size = 0;
+    req.on('data', (c: Buffer) => {
+      size += c.length;
+      if (size > limit) {
+        // Drain the remainder so the 413 response can still be delivered, and stop buffering.
+        req.removeAllListeners('data');
+        req.resume();
+        reject(Object.assign(new Error('request body exceeds 64 KiB'), { code: 'E_BODY_TOO_LARGE' }));
+        return;
+      }
+      chunks.push(c);
+    });
     req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
     req.on('error', reject);
   });
@@ -148,7 +159,7 @@ export function createUiServer(opts: UiServerOptions): {
   const loadCfg = (): ResolvedConfig => loadConfig({ cwd, configPath: opts.configPath });
 
   const server = http.createServer(async (req, res) => {
-    const url = new URL(req.url ?? '/', `http://${req.headers.host ?? '127.0.0.1'}`);
+    const hostHeader = req.headers.host ?? '';
     const send = (status: number, body: unknown) => {
       const text = typeof body === 'string' ? body : JSON.stringify(body, null, 2);
       res.writeHead(status, {
@@ -159,6 +170,60 @@ export function createUiServer(opts: UiServerOptions): {
     };
 
     try {
+      // Host must exist and parse — no silent fallback base URL (hardens request URL construction).
+      let hostUrl: URL;
+      try {
+        hostUrl = new URL(`http://${hostHeader}`);
+      } catch {
+        send(400, envelope(false, 'api.host', undefined, {
+          code: 'E_USAGE',
+          message: 'missing or malformed Host header',
+        }));
+        return;
+      }
+
+      const url = new URL(req.url ?? '/', hostUrl);
+
+      // Loopback-console CSRF hardening (docs/design/module-webui-http-hardening.md):
+      // every /api request carrying Origin must be same-origin; POSTs additionally
+      // require the X-Picbed-UI header and application/json. The SPA's api() helper
+      // supplies both; cross-origin pages cannot (no CORS headers are ever emitted).
+      if (url.pathname.startsWith('/api/')) {
+        const origin = req.headers.origin;
+        if (origin !== undefined) {
+          let sameOrigin = false;
+          try {
+            const o = new URL(origin);
+            sameOrigin = (o.protocol === 'http:' || o.protocol === 'https:') && o.host === hostUrl.host;
+          } catch {
+            sameOrigin = false;
+          }
+          if (!sameOrigin) {
+            send(403, envelope(false, 'api.origin', undefined, {
+              code: 'E_ORIGIN',
+              message: 'cross-origin request rejected',
+            }));
+            return;
+          }
+        }
+        if (req.method === 'POST') {
+          if (req.headers['x-picbed-ui'] !== '1') {
+            send(403, envelope(false, 'api.header', undefined, {
+              code: 'E_HEADER',
+              message: 'missing X-Picbed-UI: 1 header',
+            }));
+            return;
+          }
+          const ct = String(req.headers['content-type'] ?? '').split(';')[0].trim().toLowerCase();
+          if (ct !== 'application/json') {
+            send(415, envelope(false, 'api.content-type', undefined, {
+              code: 'E_CONTENT_TYPE',
+              message: 'POST requires Content-Type: application/json',
+            }));
+            return;
+          }
+        }
+      }
       if (req.method === 'GET' && (url.pathname === '/' || url.pathname === '/index.html')) {
         send(200, renderIndexHtml(detectUiDevMode(opts.uiDev)));
         return;
