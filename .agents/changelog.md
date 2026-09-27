@@ -93,3 +93,5 @@
 2026-09-27 | update | .agents/memory/{review-findings,decisions,open-items}.md | 评审 ③ 标记 closed（含残留 pivot 记录：.js+checkJs、type=module）；② 关闭、③ HTTP 加固为下一项 | User: 请逐项来（评审 ②）
 2026-09-27 | update | docs/{features-index,design/module-webui,html/index,architecture,design/wireframes/ui-shell} | F17/扫描来源收窄：拖放仅图片或文档（拒文件夹）；预览=拖入图+拖入文档引用图；sync 按工作集作用域；00857b1→docs/design→develop | User: 改为只能拖图片或者文档
 2026-09-27 | update | src/app/{plan,sync}.ts + src/ui/{server,spa} + tests | 落地：drop 拒 type=dir；session/images 只列工作集图；scanIntoPreview 不再扩根；runSync includeDocs/includeImages；64/64 + tsc 绿；49a28c3→feature/drop-images-docs-only→develop d36a934 | User: 拖入后点预览冒出不明图片
+2026-09-27 | update | docs/{features-index,design/module-webui,design/wireframes/ui-shell} | F17 扫描结果呈现改为照片墙（瀑布流图块+文件名浮层）；4d08837→docs/design→develop 9de1917 | User: 扫描后获取到图片后应以照片墙形式呈现
+2026-09-27 | update | src/ui/spa/{index,styles,app.js} + tests/desktop.test.ts | 落地照片墙：has-photos 态隐藏空态英雄，multi-column 瀑布流 tile（自然比例/r14/hover 文件名）；65/65 + tsc 绿；feature/photo-wall | User: 扫描后获取到图片后应以照片墙形式呈现

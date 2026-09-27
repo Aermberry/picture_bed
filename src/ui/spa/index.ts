@@ -95,14 +95,18 @@ export const INDEX_HTML = `<!DOCTYPE html>
     <section class="content" id="view-upload">
       <div class="dropzone" id="dropzone">
         <div class="big-ico"><svg><use href="#i-image"/></svg></div>
-        <h2 id="dropTitle">将文件拖放到此处</h2>
-        <p>拖拽图片或 md / html 文档 · 自动扫描图片</p>
-        <span class="hint">支持 JPG / PNG / GIF / WebP · 仅图片或文档，不接受文件夹</span>
-        <div class="preview-grid" id="previewGrid" hidden></div>
-        <div class="row" id="previewActions" style="justify-content:center" hidden>
-          <button class="btn btn-ghost" id="btnReset" type="button">重置</button>
-          <button class="btn btn-primary" id="btnUpload" type="button">上传</button>
+        <div class="dz-head">
+          <h2 id="dropTitle">将文件拖放到此处</h2>
+          <div class="row" id="previewActions" hidden>
+            <button class="btn btn-ghost" id="btnReset" type="button">重置</button>
+            <button class="btn btn-primary" id="btnUpload" type="button">上传</button>
+          </div>
         </div>
+        <div class="drop-hero" id="dropHero">
+          <p>拖拽图片或 md / html 文档 · 自动扫描图片</p>
+          <span class="hint">支持 JPG / PNG / GIF / WebP · 仅图片或文档，不接受文件夹</span>
+        </div>
+        <div class="photo-wall" id="previewGrid" hidden></div>
       </div>
     </section>
 
