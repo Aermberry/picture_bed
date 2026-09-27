@@ -87,7 +87,7 @@ idle（拖放提示）
 - **扫描结果呈现（2026-09-27 · 照片墙 / 2026-09-28 对齐 Material Tailwind Masonry）**：扫描成功后拖放区进入 `has-photos` 态——隐藏空态英雄区，以 **CSS multi-column 瀑布流照片墙**展示图块（排列对齐 [Material Tailwind Gallery · Masonry Grid](https://www.material-tailwind.com/docs/v3/html/gallery)）：
   - 布局：响应式列数 **2 / 3 / 4**（窄 / 中 / 宽），`column-gap:16`；图块 `break-inside:avoid` 且 `margin-bottom:16`。
   - 图块：`width:100%; height:auto`（**自然宽高比**，不裁切）；圆角 **16**（对齐 MT `rounded-2xl`）；彩色柔影；hover 上浮 + 底部文件名浮层。
-  - 操作条与标题同排：「扫描到 N 张图片」+「重置」「上传」。
+  - 操作条与标题同排：「扫描到 N 张图片」+「重置」「上传」。**操作条仅在照片墙实际有图块时显示**（`#previewActions`；空态/全部加载失败时隐藏）。CSS 须保证 `[hidden]{display:none!important}`，避免 `.row{display:flex}` 压过 `hidden`。
   - **连续拖入累加**：后续 drop **不得清空**已有图块；新图按 `abs`/路径去重后并入；标题 = 墙上实际张数。单图加载失败移除该图块，不拖垮整墙。
   - 不做灯箱/多选/排序（本期仅呈现）。
 - **扫描来源（2026-09-27 收窄）**：**本次拖入的图片文件** + **本次拖入文档**内图片引用（`/api/plan` 后按 `doc` 过滤到工作集文档）。**不**罗列扫描根下未拖入的其它图片（`GET /api/session/images` 不得再用于扩大预览）。
