@@ -48,6 +48,26 @@ Every behavioral change to code **must** land design updates first, then impleme
 2. Then implement `src/**` + tests to match the revised design on the **topic `feature/*` branch**.
 3. Do not ship code whose behavior is not described in the design pack (or an explicit, dated exception noted in changelog + open-items).
 
+## Docs trio sync (MANDATORY, 2026-09-27)
+
+**每次交付可见行为/架构/安装使用方式变更时，三份文档必须一并更新并检查是否过期**，禁止只改实现或只改其中一份：
+
+| 文档 | 路径 | 覆盖 |
+|------|------|------|
+| **设计稿** | `docs/features-index.md` + `docs/design/module-*.md` + 必要时 `architecture.md` / `wireframes/` | AC、模块契约、架构选型 |
+| **HTML 文档** | `docs/html/index.html`（及 `styles.css`/`app.js` 若呈现变） | 评审用总览、功能表、架构图、开放问题、版本号 |
+| **README** | `README.md` | 安装、命令、使用流程、开发调试、版本示例 |
+
+清单（交付前勾一遍）：
+
+1. 功能/AC 变了 → `features-index` + 对应 `module-*`；
+2. 交互/视觉/栈变了 → 上表设计稿 + `docs/html` + `README`（用户可见流程）；
+3. 命令/脚本/发版变了 → `README` 必改；
+4. 版本日期/开放问题/文档地图 → `docs/html` 必刷；
+5. 设计类改动仍先落 `docs/design` → 合入 `develop`（见上节）。
+
+Evidence: user standing instruction, 2026-09-27（「请记住更新文档设计稿、html文档和readme」）；此前多次漏更 `docs/html` / `README` 被用户点名补齐。
+
 Evidence: user standing instruction, 2026-09-22（「每次在改动代码的实现时，都必须要先修改设计文档，然后再做代码实现」）.
 
 ## Commit after every change
