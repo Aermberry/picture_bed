@@ -52,7 +52,7 @@ describe('F24 desktop shell', () => {
     const handler = spaApp.slice(spaApp.indexOf('dz.addEventListener("drop"'));
     expect(handler).not.toBe('');
     const collect = handler.indexOf('collectDropItems(e.dataTransfer)');
-    const render = handler.indexOf('setPreviewImages(blobPreviews)');
+    const render = handler.indexOf('mergeWallItems(blobPreviews)');
     const submit = handler.indexOf('await submitDrop(items)');
     expect(collect).toBeGreaterThan(-1);
     expect(render).toBeGreaterThan(collect);
@@ -94,6 +94,24 @@ describe('F24 desktop shell', () => {
     expect(spaApp).toContain('$("dropTitle").textContent = photoWallTitle()');
     // failed image removes its tile and refreshes the count
     expect(spaApp).toContain('img.addEventListener("error"');
+  });
+
+  it('later drops accumulate into the photo wall instead of replacing it', () => {
+    expect(spaApp).toContain('wallItems');
+    expect(spaApp).toContain('mergeWallItems');
+    // drop merges blobs; scan merges results — neither assigns a fresh list over the wall
+    expect(spaApp).toContain('mergeWallItems(blobPreviews)');
+    expect(spaApp).toContain('mergeWallItems(paths)');
+    // reset/upload still clear the wall
+    expect(spaApp).toContain('wallItems = []');
+    // desktop drop test previously asserted setPreviewImages(blobPreviews) order; that path now merges
+    const handler = spaApp.slice(spaApp.indexOf('dz.addEventListener("drop"'));
+    const collect = handler.indexOf('collectDropItems(e.dataTransfer)');
+    const render = handler.indexOf('mergeWallItems(blobPreviews)');
+    const submit = handler.indexOf('await submitDrop(items)');
+    expect(collect).toBeGreaterThan(-1);
+    expect(render).toBeGreaterThan(collect);
+    expect(submit).toBeGreaterThan(render);
   });
 
   it('served scripts are syntactically valid (app.ts stays plain JS; inline scripts stay tiny)', () => {
