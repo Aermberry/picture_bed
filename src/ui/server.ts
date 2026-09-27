@@ -51,20 +51,19 @@ export function detectUiDevMode(explicit?: boolean): boolean {
 }
 
 function renderIndexHtml(dev: boolean): string {
-  return INDEX_HTML.replace('__PICBED_UI_DEV_FLAG__', dev ? 'true' : 'false');
+  return INDEX_HTML.replace(
+    'window.__PICBED_UI_DEV__ = window.__PICBED_UI_DEV__ ?? false;',
+    `window.__PICBED_UI_DEV__ = ${dev ? 'true' : 'false'};`,
+  );
 }
 
-// Read on each request when possible: under vitest the import resolves to src/
-// where app.js does not exist; desktop:dev reloads the window against fresh bytes.
-let spaAppJsCache: string | null | undefined;
-function spaAppJs(): string | null {
+/** Renderer entry JS (Vite root `renderer/main.js`). Re-read so desktop reloads stay fresh. */
+function rendererMainJs(): string | null {
   try {
-    return fs.readFileSync(fileURLToPath(new URL('./spa/app.js', import.meta.url)), 'utf8');
+    // server.ts lives at src/ui/server.ts (or dist/ui/server.js) → ../../renderer
+    return fs.readFileSync(fileURLToPath(new URL('../../renderer/main.js', import.meta.url)), 'utf8');
   } catch {
-    // fall through to one-shot cache probe for missing-file cases
-    if (spaAppJsCache !== undefined) return spaAppJsCache;
-    spaAppJsCache = null;
-    return spaAppJsCache;
+    return null;
   }
 }
 
@@ -143,11 +142,25 @@ export function createUiServer(opts: UiServerOptions): {
       }
 
       if (req.method === 'GET' && url.pathname === '/app.js') {
-        const js = spaAppJs();
+        const js = rendererMainJs();
         if (js === null) {
           send(500, envelope(false, 'api.static', undefined, {
             code: 'E_STATIC',
-            message: 'spa/app.js missing; run npm run build first',
+            message: 'renderer/main.js missing; run scripts/extract-renderer.mjs',
+          }));
+          return;
+        }
+        res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'no-store' });
+        res.end(js);
+        return;
+      }
+
+      if (req.method === 'GET' && url.pathname === '/main.js') {
+        const js = rendererMainJs();
+        if (js === null) {
+          send(500, envelope(false, 'api.static', undefined, {
+            code: 'E_STATIC',
+            message: 'renderer/main.js missing; run scripts/extract-renderer.mjs',
           }));
           return;
         }

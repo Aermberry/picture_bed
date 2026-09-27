@@ -1,11 +1,12 @@
 /**
  * Launch Electron shell for local desktop dev with hot rebuild.
  *
- * Supervisor contract (module-desktop · 本地开发热更新):
- * - tsc --watch keeps running across Electron restarts.
- * - Electron exits (relaunch / crash) → respawn; do NOT kill the harness.
- * - PICBED_DESKTOP_SUPERVISED=1 tells main.mjs to app.exit(0) instead of
- *   app.relaunch(), so this process owns the lifecycle (single instance).
+ * Layering (module-desktop · electron-vite):
+ * - tsc -w           → CLI/app core (dist/) used by createUiServer
+ * - electron-vite dev → main/preload restart + renderer Vite HMR
+ *
+ * PICBED_DESKTOP_SUPERVISED=1 is set so main.mjs yields lifecycle to us
+ * if it must process-restart (fallback path). Renderer HMR does not restart Electron.
  */
 import { spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -14,19 +15,16 @@ import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const distMain = path.join(root, 'desktop', 'main.mjs');
-const electron =
-  process.platform === 'win32'
-    ? path.join(root, 'node_modules', 'electron', 'dist', 'electron.exe')
-    : path.join(root, 'node_modules', 'electron', 'dist', 'electron');
 const tscJs = path.join(root, 'node_modules', 'typescript', 'bin', 'tsc');
+const electronVite = path.join(root, 'node_modules', 'electron-vite', 'bin', 'electron-vite.js');
 const node = process.execPath;
 
 if (!fs.existsSync(distMain)) {
   console.error(`missing ${distMain}`);
   process.exit(1);
 }
-if (!fs.existsSync(electron)) {
-  console.error(`missing electron binary at ${electron} — run: npm install electron`);
+if (!fs.existsSync(electronVite)) {
+  console.error(`missing electron-vite — run: npm install -D electron-vite vite`);
   process.exit(1);
 }
 
@@ -37,7 +35,7 @@ if (first.status !== 0) {
   process.exit(first.status ?? 1);
 }
 
-console.log('[desktop:dev] tsc --watch (hot rebuild)');
+console.log('[desktop:dev] tsc --watch (core dist/)');
 const watch = spawn(node, [tscJs, '-w', '-p', 'tsconfig.json'], { cwd: root, stdio: 'inherit' });
 
 /** @type {import('node:child_process').ChildProcess | null} */
@@ -45,28 +43,28 @@ let child = null;
 let shuttingDown = false;
 let respawnTimer = null;
 
-function spawnElectron() {
-  console.log('[desktop:dev] electron (tiered hot reload: app.js reload · dist UI restart · desktop relaunch)');
-  child = spawn(electron, [distMain], {
+function spawnElectronVite() {
+  console.log('[desktop:dev] electron-vite dev (renderer HMR + main/preload restart)');
+  child = spawn(node, [electronVite, 'dev'], {
     cwd: root,
     stdio: 'inherit',
     env: {
       ...process.env,
       PICBED_UI_DEV: process.env.PICBED_UI_DEV ?? '1',
       PICBED_DESKTOP_SUPERVISED: '1',
+      PICBED_DESKTOP_DEV: '1',
     },
   });
   child.on('exit', (code, signal) => {
     child = null;
     if (shuttingDown) return;
-    // Relaunch/crash must NOT take down tsc --watch or this supervisor.
-    if (signal) console.error('[desktop:dev] electron exited with signal', signal);
-    else console.log('[desktop:dev] electron exited code', code, '— respawning…');
+    if (signal) console.error('[desktop:dev] electron-vite exited with signal', signal);
+    else console.log('[desktop:dev] electron-vite exited code', code, '— respawning…');
     if (respawnTimer) clearTimeout(respawnTimer);
     respawnTimer = setTimeout(() => {
       respawnTimer = null;
-      if (!shuttingDown) spawnElectron();
-    }, 200);
+      if (!shuttingDown) spawnElectronVite();
+    }, 300);
   });
 }
 
@@ -86,7 +84,7 @@ function shutdown(code) {
   process.exit(code ?? 0);
 }
 
-spawnElectron();
+spawnElectronVite();
 
 watch.on('exit', (code) => {
   if (shuttingDown) return;

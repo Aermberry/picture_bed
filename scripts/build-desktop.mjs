@@ -30,6 +30,8 @@ const result = await build({
     files: [
       'dist/**/*',
       'desktop/**/*',
+      'renderer/**/*',
+      'out/**/*',
       'package.json',
       '!**/*.map',
       '!**/node_modules/**/{test,tests,__tests__,docs,doc}/**',

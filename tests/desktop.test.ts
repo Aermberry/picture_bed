@@ -7,7 +7,7 @@ import { SPA_CSS } from '../src/ui/spa/styles.js';
 import { detectUiDevMode } from '../src/ui/server.js';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const spaApp = fs.readFileSync(path.join(repoRoot, 'src/ui/spa/app.js'), 'utf8');
+const spaApp = fs.readFileSync(path.join(repoRoot, 'renderer', 'main.js'), 'utf8');
 
 describe('F24 desktop shell', () => {
   it('ships desktop sources and builder config', () => {
@@ -39,13 +39,16 @@ describe('F24 desktop shell', () => {
     expect(INDEX_HTML).not.toContain('id="scan"');
   });
 
-  it('SPA is split out of the template into served modules', () => {
-    expect(INDEX_HTML).toContain('href="/styles.css"');
-    expect(INDEX_HTML).toContain('type="module" src="/app.js"');
-    expect(INDEX_HTML).not.toContain('collectDropItems'); // logic lives in app.ts, not markup
+  it('SPA lives in renderer/ (Vite root) and is served as modules', () => {
+    expect(INDEX_HTML).toContain('styles.css');
+    expect(INDEX_HTML).toMatch(/src="\.\/main\.js"/);
+    expect(INDEX_HTML).not.toContain('collectDropItems'); // logic lives in main.js, not markup
     expect(spaApp).toContain('collectDropItems');
     expect(SPA_CSS).toContain('Design Tokens');
     expect(SPA_CSS).not.toContain('`');
+    expect(fs.existsSync(path.join(repoRoot, 'renderer', 'index.html'))).toBe(true);
+    expect(fs.existsSync(path.join(repoRoot, 'renderer', 'styles.css'))).toBe(true);
+    expect(fs.existsSync(path.join(repoRoot, 'renderer', 'main.js'))).toBe(true);
   });
 
   it('drop renders local blob previews before awaiting the server', () => {
@@ -87,6 +90,17 @@ describe('F24 desktop shell', () => {
     expect(spaApp).toContain('photoWallTitle');
   });
 
+  it('photo wall follows Material Tailwind masonry gallery: 2/3/4 cols, gap 16, r16', () => {
+    // responsive column ladder (mobile → tablet → desktop)
+    expect(SPA_CSS).toContain('columns:2');
+    expect(SPA_CSS).toContain('.photo-wall{columns:3}');
+    expect(SPA_CSS).toContain('.photo-wall{columns:4}');
+    // MT rounded-2xl + gap-4 rhythm
+    expect(SPA_CSS).toContain('column-gap:16px');
+    expect(SPA_CSS).toContain('margin:0 0 16px');
+    expect(SPA_CSS).toContain('border-radius:16px');
+  });
+
   it('photo wall count matches tiles: doc drop is not previewed, failed loads update the headline', () => {
     // previewPath must be image-only (server + client)
     expect(spaApp).toContain('pp && isImageName(pp)');
@@ -114,25 +128,26 @@ describe('F24 desktop shell', () => {
     expect(submit).toBeGreaterThan(render);
   });
 
-  it('desktop:dev supervisor respawns Electron and keeps tsc --watch (no harness kill on relaunch)', () => {
+  it('desktop:dev uses electron-vite (renderer HMR) with supervised respawn', () => {
     const dev = fs.readFileSync(path.join(repoRoot, 'scripts', 'desktop-dev.mjs'), 'utf8');
+    expect(dev).toContain('electron-vite');
     expect(dev).toContain('PICBED_DESKTOP_SUPERVISED');
-    expect(dev).toContain('spawnElectron');
+    expect(dev).toContain('spawnElectronVite');
     // must NOT treat child exit as terminal shutdown (root cause of broken hot reload)
     expect(dev).toContain('respawning');
     expect(dev).toMatch(/shuttingDown/);
+    expect(fs.existsSync(path.join(repoRoot, 'electron.vite.config.mjs'))).toBe(true);
   });
 
-  it('main.mjs tiered hot reload: app.js reload · dist UI restart · desktop process restart', () => {
+  it('main.mjs loads Vite dev URL in dev and local UI server in prod', () => {
     const main = fs.readFileSync(path.join(repoRoot, 'desktop', 'main.mjs'), 'utf8');
-    expect(main).toContain('installDevHotReload');
-    expect(main).toContain('restartUiServer');
+    expect(main).toContain('ELECTRON_RENDERER_URL');
+    expect(main).toContain('startUiServer');
     expect(main).toContain('PICBED_DESKTOP_SUPERVISED');
-    expect(main).toContain('webContents.reload');
-    expect(main).toContain('spa/app.js');
     expect(main).toContain('processExitForReload');
-    // packaged builds must not watch
+    // packaged builds must not load the Vite dev URL
     expect(main).toContain('app.isPackaged');
+    expect(main).toContain('uiHandle.url');
   });
 
   it('served scripts are syntactically valid (app.ts stays plain JS; inline scripts stay tiny)', () => {
@@ -148,7 +163,7 @@ describe('F24 desktop shell', () => {
   it('「规范」nav is hidden by default and gated on __PICBED_UI_DEV__', () => {
     expect(INDEX_HTML).toContain('id="navDoc"');
     expect(INDEX_HTML).toMatch(/id="navDoc"[^>]*\bhidden\b/);
-    expect(INDEX_HTML).toContain('__PICBED_UI_DEV_FLAG__');
+    expect(INDEX_HTML).toContain('PICBED_UI_DEV_FLAG');
     expect(INDEX_HTML).toContain('__PICBED_UI_DEV__');
     // packaged installs must not reveal via source-only tree marker in HTML
     expect(INDEX_HTML).not.toContain('src/ui/static.ts');
@@ -181,7 +196,7 @@ describe('F24 desktop shell', () => {
   it('desktop main hosts same createUiServer contract on loopback', () => {
     const main = fs.readFileSync(path.join(repoRoot, 'desktop/main.mjs'), 'utf8');
     expect(main).toContain('createUiServer');
-    expect(main).toContain("listen(0, '127.0.0.1')");
+    expect(main).toContain("listen(port, '127.0.0.1')");
     expect(main).toContain('dialog:selectDirectory');
     expect(main).toMatch(/contextIsolation:\s*true/);
     expect(main).toMatch(/nodeIntegration:\s*false/);

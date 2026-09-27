@@ -98,3 +98,5 @@
 2026-09-27 | fix(ui) | 照片墙计数4≠3 | drop 文档误写 previewPath→多计1张且加载失败被移除；server 仅图片返回 previewPath，client isImageName 过滤，headline=活 tile 数；67/67 | User: 扫描到4张但预览3张
 2026-09-27 | fix(ui) | 二次拖入清空照片墙 | scanIntoPreview/drop 整表替换→wallItems 累加去重；重置/上传成功才清空；68/68 | User: 再拖入后之前预览图片不见了
 2026-09-27 | fix(desktop) | desktop:dev 热更新失效 | 根因 app.relaunch 后 supervisor 误杀 tsc/自身；改为 supervisor respawn + 分层重载（app.js reload / dist UI 重启 / desktop 进程重启）；70/70 | User: Electron 本地调试无法热更新
+2026-09-28 | update | docs/design/{module-webui,wireframes/ui-shell} + renderer/styles.css + tests/desktop.test.ts | 照片墙对齐 Material Tailwind Masonry 画廊：响应式 2/3/4 列、gap 16、图块 r16；photo-wall 4 测试绿 + tsc 绿；7a64492→feature/electron-vite | User: 拖拽扫描后的图片预览效果参考 material-tailwind gallery 排列
+2026-09-27 | feat(desktop) | electron-vite 迁移 | renderer/ 单源；desktop:dev=electron-vite HMR + tsc -w；71/71 + build 绿 | User: 请迁移 electron-vite

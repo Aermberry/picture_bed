@@ -10,7 +10,7 @@ import { loadConfig } from '../src/config.js';
 import { runSync } from '../src/app/sync.js';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const spaApp = fs.readFileSync(path.join(repoRoot, 'src', 'ui', 'spa', 'app.js'), 'utf8');
+const spaApp = fs.readFileSync(path.join(repoRoot, 'renderer', 'main.js'), 'utf8');
 
 function tmp(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'picbed-ui-'));
@@ -282,20 +282,23 @@ describe('ui server F16–F18', () => {
     expect(spaApp).not.toMatch(/querySelector\("\.bg"\)\.setAttribute/);
   });
 
-  it('serves SPA assets as external routes (/styles.css, /app.js)', async () => {
+  it('serves SPA assets as external routes (/styles.css, /main.js)', async () => {
     const html = await (await fetch(base + '/')).text();
-    expect(html).toContain('href="/styles.css"');
-    expect(html).toContain('type="module" src="/app.js"');
+    expect(html).toContain('styles.css');
+    expect(html).toMatch(/src="\.\/main\.js"|src="\/main\.js"|src="\/app\.js"/);
 
     const css = await fetch(base + '/styles.css');
     expect(css.status).toBe(200);
     expect(css.headers.get('content-type')).toContain('text/css');
     expect(await css.text()).toBe(SPA_CSS);
 
-    // under vitest, import.meta.url resolves to src/, so the server reads src/ui/spa/app.js
-    const js = await fetch(base + '/app.js');
+    // renderer/main.js is the Vite root entry (also served at /app.js for older clients)
+    const js = await fetch(base + '/main.js');
     expect(js.status).toBe(200);
     expect(js.headers.get('content-type')).toContain('javascript');
     expect(await js.text()).toBe(spaApp);
+    const legacy = await fetch(base + '/app.js');
+    expect(legacy.status).toBe(200);
+    expect(await legacy.text()).toBe(spaApp);
   });
 });
