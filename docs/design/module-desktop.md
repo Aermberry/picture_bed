@@ -127,6 +127,13 @@ scripts/desktop-dev.mjs（supervisor）
 3. 子进程快速失败 → 退避 respawn（300ms×n，上限 2s，最多 5 次）后退出；**禁止**因退出杀掉 `tsc -w`。
 4. `SIGINT`/`SIGTERM` → 杀子进程与 tsc → 退出 0。
 
+### 主进程与 Vite HMR（禁止抢窗口）
+
+1. 窗口 URL 优先 `ELECTRON_RENDERER_URL`（Vite）；否则 `uiHandle.url`。
+2. **Vite 会话中禁止 `loadURL(uiHandle.url)`**——那会离开 HMR 页，热更新表现为「改了没反应」。
+3. `fs.watch` 在 Vite 会话下：`dist/` 变更只**重启 API 服务**（窗口不动）；`desktop/` 交给 electron-vite，不自行 relaunch。
+4. 启动日志打印当前 renderer 来源（Vite / 本地 UI 服务），便于排查。
+
 ### Electron 入口契约（`desktop/main.mjs`）
 
 1. **入口文件**：`desktop/main.mjs`（`package.json.main` 与 `ELECTRON_ENTRY` 一致）。不用 rollup 打包后的 `out/main`（Electron 33 ESM/CJS 互操作不稳）。
