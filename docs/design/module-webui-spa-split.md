@@ -1,9 +1,14 @@
 # webui SPA 拆分设计（评审 ②：SPA 出模板串）
 
+> **状态：历史文档（2026-09-27）**  
+> 本方案（`src/ui/spa/` TS 模块 + tsc 直发）已被 **`renderer/` 单源 + electron-vite** 取代。  
+> **当前权威**：[`module-desktop.md`](module-desktop.md) · UI 文件：`renderer/{index.html,styles.css,main.js}`。  
+> 保留本文仅作决策轨迹：模板串事故根因、为何曾冻结「不引入 Vite」、以及后续为何又迁移 electron-vite。
+
 > 归属：F16–F23 本地 Web 控制台前端交付形态；F24 桌面壳加载同一 SPA。
 > 背景：2026-09-27 架构评审发现 3（见 `.agents/memory/review-findings.md`）。
 > 架构见 [`../architecture.md`](../architecture.md) §7.1；宿主模块见 [`module-webui.md`](module-webui.md)。
-> 方案已与用户确认：**最小拆分 · 独立 TS 模块**（不引入 Vite/React，沿用现有 tsc）。
+> 方案已与用户确认：**最小拆分 · 独立 TS 模块**（当时不引入 Vite/React，沿用 tsc）。
 
 ## 背景与问题
 
