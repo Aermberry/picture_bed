@@ -60,7 +60,7 @@ sync、config、doctor、revert、watch/start、watch/stop），不按"是否写
 
 ### SPA 与测试适配
 
-- `src/ui/spa/app.js` 的 `api()` 是唯一 fetch 出口：加 `X-Picbed-UI: 1` 头（一处修改，
+- `renderer/main.js` 的 `api()` 是唯一 fetch 出口：加 `X-Picbed-UI: 1` 头（一处修改，
   全部 20+ 调用点生效）。Electron 内 Chromium fetch 同源发 Origin 与自定义头无额外限制。
 - `tests/ui.test.ts` / `tests/ui-panels.test.ts` 的 POST 调用统一过测试侧 helper 补头；
   新增负例：跨源 Origin 403、缺头 403、错 Content-Type 415、超限体 413、畸形 Host 400、

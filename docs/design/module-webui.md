@@ -3,8 +3,8 @@
 > 归属功能点：F16 本地 Web 控制台服务、F17 目录/拖拽与计划工作台、F18 一键同步、F19 回滚面板、F20 配置与自检面板、F21 审计与报告、F22 监听控制台、F23 控制台壳层与视觉重设计。
 > 架构见 [`../architecture.md`](../architecture.md)；定义见 [`../features-index.md`](../features-index.md)；全局契约见 [`cross-cutting.md`](cross-cutting.md)。
 > 壳层布局与主题令牌见 [`wireframes/ui-shell.md`](wireframes/ui-shell.md)（F23 视格权威）。
-> SPA 前端交付形态（拆分出模板串：`src/ui/spa/` TS 模块 + 静态路由下发）见 [`module-webui-spa-split.md`](module-webui-spa-split.md)（2026-09-27 评审 ②）。
-> 栈无关；接口为意图伪码。**本期只设计，不实现业务/UI 代码。**
+> **UI 渲染层单源 `renderer/`（electron-vite）**：目录与热更新见 [`module-desktop.md`](module-desktop.md#渲染层electron-vite当前权威)。历史「SPA 出模板串」见 [`module-webui-spa-split.md`](module-webui-spa-split.md)（已被 `renderer/` 取代）。
+> 栈无关；接口为意图伪码。
 
 ## 目的
 
@@ -120,7 +120,7 @@ WebUI SPA **同时**服务浏览器（`picbed ui`）与 Electron 壳（[`module-
 
 | 场景 | 显示？ | 判定 |
 |------|--------|------|
-| 源码树 `picbed ui` / `npm run desktop:dev` | 是 | 包根存在 `src/ui/static.ts`，或 Electron `!app.isPackaged` |
+| 源码树 `picbed ui` / `npm run desktop:dev` | 是 | 包根存在 `src/ui/static.ts`（兼容标记），或 Electron `!app.isPackaged` |
 | `PICBED_UI_DEV=1` | 是 | 环境变量强制开 |
 | `npm i -g picbed` / `picbed-setup.exe` | **否** | 无 `src/`；打包 `app.isPackaged` |
 | `PICBED_UI_DEV=0` | **否** | 环境变量强制关（优先于自动探测） |

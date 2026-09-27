@@ -2,11 +2,26 @@
 
 > 面向：**第一次接触** picture_bed / picbed 设计文档的人  
 > 写法：先讲清文档里**标识体系**（`F`、`P`、模块名、`AC`…）各自是什么、为何存在，再讲它们如何组合，最后才落到具体条目。  
-> 版本：2026-09-22（与当前 `docs/` 结构对齐）
+> 版本：2026-09-27（与 electron-vite / `renderer/` 单源对齐）
 
 ---
 
-## 0. 阅读路径（总览）
+## 0. 文档地图（先看谁）
+
+| 文件 | 角色 | 何时读 |
+|------|------|--------|
+| [`features-index.md`](features-index.md) | **AC 权威** · F/P/模块归属 | 要知道「做成什么样才算完」 |
+| [`architecture.md`](architecture.md) | 分层、选型、分期、开放问题 | 要知道「为何这样分」 |
+| [`design/cross-cutting.md`](design/cross-cutting.md) | 退出码 / JSON 信封 / 确认门 | 跨模块契约 |
+| `design/module-*.md` | 各限界上下文详设 | 实现/评审某一块 |
+| [`design/wireframes/ui-shell.md`](design/wireframes/ui-shell.md) | F23 视格与主题令牌 | 改 UI 视觉 |
+| [`design/module-desktop.md`](design/module-desktop.md) | 桌面壳 + **`renderer/` 单源 + electron-vite** | 改 UI 结构 / 热更新 / 打包 |
+| `design/module-webui-spa-split.md` | **历史**（SPA 出模板串） | 只读决策轨迹 |
+| 本文 | 标识体系怎么读 | 第一次打开 `docs/` |
+
+---
+
+## 0.1 阅读路径（总览）
 
 | 层级 | 你将建立的认识 | 对应章节 |
 |------|----------------|----------|
@@ -141,6 +156,7 @@
 | 模块详设 | `design/module-*.md` |
 | 横切约定 | [`design/cross-cutting.md`](design/cross-cutting.md) |
 | UI 视格（F23） | [`design/wireframes/ui-shell.md`](design/wireframes/ui-shell.md) |
+| UI 渲染层 / 桌面开发（F24） | [`design/module-desktop.md`](design/module-desktop.md)（`renderer/` + electron-vite） |
 | 阅读指南 | 本文 |
 
 ---

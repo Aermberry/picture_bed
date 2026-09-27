@@ -217,7 +217,7 @@ Web API 信封与退出码语义对齐 [`design/cross-cutting.md`](design/cross-
 | 项 | 推荐 | 备选 | 理由 |
 |----|------|------|------|
 | 服务 | Node `http` / 轻量路由（与 CLI 同进程可 spawn） | fastify | 本地单用户，无需重框架 |
-| 前端 | 原生 SPA 拆分为 `src/ui/spa/` 真实 TS 模块，tsc 直编、静态路由下发（**已冻结**；不引入 React/Vite，见 [`design/module-webui-spa-split.md`](design/module-webui-spa-split.md)） | React / Vite | 拖拽 + 列表工作台足够；避免重依赖与构建链 |
+| 前端 | **`renderer/` 单源 + electron-vite**（Vite HMR；`picbed ui` / 安装包静态下发同一套）（**已迁移 2026-09-27**，见 [`design/module-desktop.md`](design/module-desktop.md)） | React | 仍为原生 HTML/CSS/JS；Vite 只做开发构建，不引入组件框架 |
 | 实时进度 | SSE | 轮询 | sync/watch 推送简单 |
 | 拖拽路径 | 根绑定 + 相对路径解析（**策略 A，已冻结**） | File System Access 预览暂存（不纳入） | 浏览器不给绝对路径；原地回写必须服务端可解析真实路径 |
 
@@ -228,8 +228,9 @@ Web API 信封与退出码语义对齐 [`design/cross-cutting.md`](design/cross-
 | 桌面框架 | **Electron + electron-builder** | Tauri + Node sidecar | 复用 Node 核心与现有 WebUI，改动最小；Tauri 需 sidecar 重打包，链路更复杂 |
 | 首发平台 | **Windows NSIS `.exe`** | macOS DMG / Linux AppImage | 用户确认 Windows 优先；同一 builder 可后扩 |
 | 壳能力 | 完整控制台 + 原生目录对话框 + 窗口状态记忆 | 仅包一层窗口 | 用户确认要原生体验 |
-| 依赖归属 | `electron`/`electron-builder` 仅 devDependencies | 进 dependencies | `npm i -g picbed` 不应携带桌面运行时 |
-| 运行模型 | 内嵌 `createUiServer` → `127.0.0.1` 随机端口 → BrowserWindow | 自定义 protocol | 复用既有 HTTP API，契约零改动 |
+| 依赖归属 | `electron`/`electron-builder`/`electron-vite`/`vite` 仅 devDependencies | 进 dependencies | `npm i -g picbed` 不应携带桌面运行时 |
+| 运行模型 | 内嵌 `createUiServer` → `127.0.0.1` → BrowserWindow；dev 加载 Vite（HMR），prod 加载同源静态 UI | 自定义 protocol | 复用既有 HTTP API，契约零改动 |
+| 开发工具链 | **electron-vite**（渲染 HMR + main/preload 重启） | 手写 `fs.watch` relaunch | 见 [`design/module-desktop.md`](design/module-desktop.md) |
 
 ---
 
@@ -269,6 +270,7 @@ Web API 信封与退出码语义对齐 [`design/cross-cutting.md`](design/cross-
 | M8 Web 完备 | F19–F22 revert/config/doctor/审计/watch | P1–P2 | **done** |
 | M9 UI 壳层重设计 | F23 四视图「上传/管理/设置/规范」+ 晨雾蓝×落日暖 | P0 | **done** |
 | M10 桌面壳 | F24 Electron 壳 + Windows 安装包 + 原生对话框 | P0 | **done** |
+| M11 渲染层 electron-vite | `renderer/` 单源 + Vite HMR + 照片墙等 UI 迭代 | P0 | **done** |
 
 具体功能点、AC 与模块归属：[`features-index.md`](features-index.md)。
 
@@ -283,7 +285,7 @@ Web API 信封与退出码语义对齐 [`design/cross-cutting.md`](design/cross-
 5. 是否增加更多 HostAdapter（对象存储等）？  
 6. ~~是否发布到 npm 官方源？（当前仅 GitHub Release tarball）~~ **已启用双通道**（2026-09-23，用户已注册 npm 账号）：GitHub Release tarball **+** `npm publish`（`npx picbed` / `npm i -g picbed`）。  
 7. ~~Web 子命令名：`ui` 还是 `serve`？~~ **已冻结为 `ui`**（2026-09-23，用户确认）；不为 `serve` 保留别名。  
-8. ~~Web 前端栈：原生 / 轻量 Vite / React？~~ **已冻结为原生 SPA + `src/ui/spa/` TS 模块 tsc 直发（不引入 React/Vite）**（2026-09-23 初冻结"轻量 Vite"；2026-09-27 依评审 ② 修正——Vite 从未落地且模板串承载整页 SPA 引发线上语法事故，改为模块化直发，见 [`design/module-webui-spa-split.md`](design/module-webui-spa-split.md)）。  
+8. ~~Web 前端栈：原生 / 轻量 Vite / React？~~ **演进完毕（2026-09-27）**：模板串 SPA → `src/ui/spa/` 模块（评审 ②）→ **`renderer/` 单源 + electron-vite**（Vite HMR，不引入 React）。当前权威见 [`design/module-desktop.md`](design/module-desktop.md)；历史见 [`design/module-webui-spa-split.md`](design/module-webui-spa-split.md)。  
 9. ~~拖拽后「无 root」时：强制先绑根，还是允许暂存预览（策略 B）？~~ **已冻结为策略 A：强制先绑根**（2026-09-23）；未绑根不得进入 scan/plan/sync；暂存预览不纳入本期。  
 10. ~~watch 在 UI 默认模式：`preview` / `confirm-each` / `auto`？~~ **已冻结为默认 `preview`**（2026-09-23，采纳建议）；`auto` 须显式打开并仍写 RunRecord。
 11. **F23 UI 壳层**：草图已锁定双栏「管理 / 设置」+ 主区「文件放置」；主题与布局细则见 [`design/wireframes/ui-shell.md`](design/wireframes/ui-shell.md)。开放：刷新后 root 自动读入策略、管理页 TOC、深色主题、侧栏图标风格（见该文件 §10）。
