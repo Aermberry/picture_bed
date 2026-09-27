@@ -369,41 +369,64 @@
     return { dropped, err, previewPaths, dropDocs };
   }
 
-  function setPreviewIdle() {
+  /** @param {string=} title */
+  function setPreviewIdle(title) {
     const g = $("previewGrid");
     const a = $("previewActions");
+    const dz = $("dropzone");
     if (g) {
       g.hidden = true;
       g.innerHTML = "";
     }
     if (a) a.hidden = true;
-    $("dropTitle").textContent = "将文件拖放到此处";
+    if (dz) dz.classList.remove("has-photos");
+    $("dropTitle").textContent = title || "将文件拖放到此处";
   }
 
   /** @param {any[]} items */
   function setPreviewImages(items) {
     const g = $("previewGrid");
     const a = $("previewActions");
+    const dz = $("dropzone");
     if (!g || !a) return;
     if (!items || !items.length) {
-      g.hidden = true;
-      g.innerHTML = "";
-      a.hidden = true;
+      setPreviewIdle();
       return;
     }
     g.innerHTML = items
       .map((p) => {
         let src = "";
-        if (p && typeof p === "object" && p.src) src = p.src;
-        else if (typeof p === "string" && p.indexOf("blob:") === 0) src = p;
-        else if (typeof p === "string" && p.indexOf("data:") === 0) src = p;
-        else if (typeof p === "string") src = "/api/preview?path=" + encodeURIComponent(p);
-        return '<img alt="" loading="lazy" src="' + src + '" onerror="this.remove()" />';
+        let name = "";
+        if (p && typeof p === "object") {
+          src = p.src || "";
+          name = p.name || (p.abs ? String(p.abs).split(/[\\/]/).pop() || "" : "");
+        } else if (typeof p === "string") {
+          if (p.indexOf("blob:") === 0 || p.indexOf("data:") === 0) src = p;
+          else {
+            src = "/api/preview?path=" + encodeURIComponent(p);
+            name = String(p).split(/[\\/]/).pop() || "";
+          }
+        }
+        if (!src) return "";
+        return (
+          '<figure class="tile">' +
+          '<img alt="" loading="lazy" src="' + src + '" onerror="this.parentNode&&this.parentNode.remove()" />' +
+          (name ? '<figcaption class="name">' + esc(name) + "</figcaption>" : "") +
+          "</figure>"
+        );
       })
       .join("");
     g.hidden = false;
     a.hidden = false;
+    if (dz) dz.classList.add("has-photos");
     $("dropTitle").textContent = "扫描到 " + items.length + " 张图片";
+  }
+
+  /** @returns {string} */
+  function photoWallTitle() {
+    const g = $("previewGrid");
+    const n = g ? g.querySelectorAll(".tile").length : 0;
+    return "扫描到 " + n + " 张图片";
   }
 
   /** @param {any=} dropInfo */
@@ -493,7 +516,8 @@
       dz.classList.remove("drag");
       if (ev === "dragleave" && !upTimer) {
         logoState(null);
-        $("dropTitle").textContent = "将文件拖放到此处";
+        if (dz.classList.contains("has-photos")) $("dropTitle").textContent = photoWallTitle();
+        else $("dropTitle").textContent = "将文件拖放到此处";
       }
     })
   );

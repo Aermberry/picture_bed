@@ -71,6 +71,22 @@ describe('F24 desktop shell', () => {
     expect(spaApp).toContain('docSet');
   });
 
+  it('scan results render as a photo wall (masonry tiles + filename overlay)', () => {
+    expect(INDEX_HTML).toContain('class="photo-wall"');
+    expect(INDEX_HTML).toContain('id="previewGrid"');
+    expect(INDEX_HTML).toContain('id="dropHero"');
+    expect(INDEX_HTML).toContain('id="previewActions"');
+    expect(SPA_CSS).toContain('.photo-wall');
+    expect(SPA_CSS).toContain('.photo-wall .tile');
+    expect(SPA_CSS).toContain('columns:');
+    expect(SPA_CSS).toContain('break-inside:avoid');
+    expect(SPA_CSS).toContain('.photo-wall .tile .name');
+    expect(SPA_CSS).toContain('has-photos');
+    expect(spaApp).toContain('class="tile"');
+    expect(spaApp).toContain('has-photos');
+    expect(spaApp).toContain('photoWallTitle');
+  });
+
   it('served scripts are syntactically valid (app.ts stays plain JS; inline scripts stay tiny)', () => {
     expect(() => new Function(spaApp)).not.toThrow();
     const scripts = [...INDEX_HTML.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]);

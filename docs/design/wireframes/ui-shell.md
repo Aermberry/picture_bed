@@ -30,10 +30,8 @@ App (flex, height 100vh)
 ### 1.1 上传视图（默认）
 
 1. **DropZone 英雄区**（min-height 420）：拖入 **图片或 md/html 文档**（不接受文件夹）；2px 虚线、圆角 16。
-2. **根绑定行**：服务端路径输入 +「绑定」+ 状态徽章（未绑根不进 scan/plan）。
-3. **工作集**：拖入项列表（名称/相对路径/类型/状态）。
-4. **操作条**：`scan` · `plan` · `sync --dry-run` · **确认并 sync**。
-5. **计划分组** + **结果**（F17/F18）。
+2. **扫描结果 · 照片墙**（`has-photos`）：隐藏空态英雄；顶部「扫描到 N 张图片」+「重置」「上传」；主体 CSS multi-column 瀑布流（列宽 ≈160px，gap 12）——图块自然宽高比、r14、彩色柔影、hover 上浮 + 文件名浮层。仍可继续拖入。
+3. ~~根绑定行 / 工作集 / scan 按钮组 / 计划分组表~~（2026-09-26 收窄移除；扫描结果改照片墙 2026-09-27）。
 
 ### 1.2 管理视图
 
@@ -126,7 +124,8 @@ App (flex, height 100vh)
 | 组件 | 规格 | 状态 |
 |------|------|------|
 | NavItem | 宽 56，图标 22 + 标签 12 | default / hover / active |
-| DropZone | min-h 420，2px dashed，r16 | idle / hover / dragging / uploaded |
+| DropZone | min-h 420，2px dashed，r16 | idle / hover / dragging / has-photos |
+| PhotoWall | multi-column 瀑布流，列宽 160，gap 12；图块 r14 自然比例 | hover 上浮 + 文件名浮层 |
 | FileCard | 缩略 110 + meta pad 12，网格 4 列 gap 16 | hover 上浮 2px + shadow-2 |
 | StatCard | 标签 13 + 数值 22/700 | — |
 | Toggle | **36×20**，滑块 16，r999，**flex-shrink:0** | on / off |

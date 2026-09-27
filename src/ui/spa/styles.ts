@@ -196,6 +196,22 @@ export const SPA_CSS = `    /* ========== Design Tokens · 晴空蓝 × 夕照�
     .dropzone:hover,.dropzone.drag{
       border-color:var(--c-primary); background:var(--c-primary-soft);
     }
+    .dropzone.has-photos{
+      justify-content:flex-start; align-items:stretch;
+      cursor:default;
+    }
+    .dropzone.has-photos:hover{background:var(--c-surface)}
+    .dropzone.has-photos .big-ico,
+    .dropzone.has-photos .drop-hero{display:none}
+    .dropzone .dz-head{
+      width:100%; display:flex; flex-direction:column; align-items:center; gap:var(--sp-3);
+    }
+    .dropzone.has-photos .dz-head{
+      flex-direction:row; align-items:center; justify-content:space-between;
+    }
+    .dropzone .drop-hero{
+      display:flex; flex-direction:column; align-items:center; gap:var(--sp-2);
+    }
     .dropzone .big-ico{
       width:88px;height:88px;border-radius:var(--r-full);
       background:var(--c-primary-soft); display:flex;align-items:center;justify-content:center;
@@ -203,18 +219,41 @@ export const SPA_CSS = `    /* ========== Design Tokens · 晴空蓝 × 夕照�
     .dropzone .big-ico svg{width:52px;height:52px}
     .dropzone h2{font-size:18px}
     .dropzone p{color:var(--c-text-2)}
-    .preview-grid{
-      display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));
-      gap:10px;margin:18px 0 12px;max-height:280px;overflow:auto;
+    /* 扫描结果 · 照片墙（瀑布流） */
+    .photo-wall{
+      width:100%;
+      columns:4 160px;
+      column-gap:12px;
+      margin-top:var(--sp-2);
     }
-    .preview-grid img{
-      width:100%;height:88px;object-fit:cover;border-radius:10px;
-      border:1px solid var(--c-border);background:var(--c-surface);
+    .photo-wall .tile{
+      break-inside:avoid;
+      margin:0 0 12px;
+      border-radius:14px;
+      overflow:hidden;
+      position:relative;
+      background:var(--c-surface);
+      box-shadow:var(--shadow-1);
+      transition:transform .15s, box-shadow .2s;
     }
-    .preview-grid .miss{
-      height:88px;border-radius:10px;border:1px dashed var(--c-border);
-      display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--c-text-3);
+    .photo-wall .tile:hover{
+      transform:translateY(-2px);
+      box-shadow:var(--shadow-2);
     }
+    .photo-wall .tile img{
+      width:100%; height:auto; display:block;
+      background:var(--c-primary-soft);
+    }
+    .photo-wall .tile .name{
+      position:absolute; left:0; right:0; bottom:0;
+      padding:20px 10px 8px;
+      background:linear-gradient(transparent, rgba(40,60,90,.55));
+      color:#fff; font-size:11px;
+      opacity:0; transition:opacity .15s;
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+      pointer-events:none;
+    }
+    .photo-wall .tile:hover .name{opacity:1}
 
     .btn{
       padding:10px 24px; border-radius:var(--r-md); border:none;
