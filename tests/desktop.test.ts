@@ -124,19 +124,25 @@ describe('F24 desktop shell', () => {
     expect(SPA_CSS).not.toMatch(/\.photo-wall \.tile:hover\{[^}]*transform/);
   });
 
-  it('photo wall hover focus: neighbours shrink and push away to keep a gap', () => {
+  it('photo wall hover focus: neighbours never sit under the enlarged tile', () => {
     expect(spaApp).toContain('function applyWallFocus');
-    // distance falloff: closer tiles shrink more and slide out
-    expect(spaApp).toContain('strength');
-    expect(spaApp).toContain('0.06');
-    // push is proportional to hovered width so the zoom keeps a clear gap
-    expect(spaApp).toContain('hr.width * 0.22');
-    expect(spaApp).toContain('pushBase');
+    // enlarged bounds + gap define a clearance zone neighbours must exit
+    expect(spaApp).toContain('GAP');
+    expect(spaApp).toContain('0.61');
+    expect(spaApp).toContain('oX');
+    expect(spaApp).toContain('oY');
+    // MTV push: exit along the cheaper axis, away from the hovered centre
+    expect(spaApp).toContain('pushX');
+    expect(spaApp).toContain('pushY');
+    // offset* geometry ignores transforms so mid-tween offsets don't skew
+    expect(spaApp).toContain('offsetLeft');
+    expect(spaApp).toContain('offsetWidth');
+    // hovered draws above while zooming; cleared on leave
+    expect(spaApp).toContain('zIndex');
+    expect(spaApp).toContain('applyWallFocus(null)');
     // composite transform: translate + scale
     expect(spaApp).toContain('translate(');
     expect(spaApp).toContain(') scale(');
-    // reset path restores every tile
-    expect(spaApp).toContain('applyWallFocus(null)');
   });
 
   it('photo wall count matches tiles: doc drop is not previewed, failed loads update the headline', () => {
