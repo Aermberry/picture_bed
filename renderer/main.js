@@ -86,13 +86,15 @@
   }
 
   /**
-   * Photo-wall hover focus (scan-frame safe):
-   * - hovered grows toward the scan-area centre (never clipped by the dashed frame)
-   * - scale adapts to available room, up to 1.22
-   * - neighbours exit the enlarged box (MTV + gap); no extra drift (no right-rail gap)
-   * Layout boxes are measured with transforms temporarily cleared.
+   * Photo-wall hover focus (two-phase, no overlap):
+   * 1) hovered grows; neighbours SHRINK first (phase 1)
+   * 2) then neighbours SHIFT clear of the enlarged box (phase 2)
+   * Geometric rule: only grow into free room; dashed-line edges stay pinned.
    * @param {HTMLElement | null} hovered  null → reset every tile
    */
+  /** @type {number | null} */
+  let wallFocusPhase2 = null;
+
   function applyWallFocus(hovered) {
     const wall = $("previewGrid");
     const dz = $("dropzone");
@@ -101,6 +103,14 @@
     const HOVER_SCALE = 1.22;
     const MARGIN = 8;
     const GAP = 12;
+    const SHRINK = 0.88;
+    const PHASE1 = 0.18;
+    const PHASE2 = 0.22;
+
+    if (wallFocusPhase2 != null) {
+      clearTimeout(wallFocusPhase2);
+      wallFocusPhase2 = null;
+    }
 
     if (!hovered) {
       tiles.forEach((t) => {
@@ -149,180 +159,232 @@
     const h = boxes.find((b) => b.el === hovered);
     if (!h) return;
 
-    // Enlarge only away from dashed lines the tile already hugs (per edge).
-    // - one edge near → that edge pinned (origin on it), grow the other way
-    // - opposite edges both near → that axis does not expand (sx/sy = 1)
-    // - free sides keep the original centre-origin zoom (scale up to 1.22)
+    // Per-edge dashed-line pin (one edge near → grow away; opposite edges → freeze axis).
     const NEAR = 28;
     const nearLeft = h.left <= MARGIN + NEAR;
     const nearRight = maxW - (h.left + h.width) <= MARGIN + NEAR;
     const nearTop = h.top <= MARGIN + NEAR;
     const nearBottom = maxH - (h.top + h.height) <= MARGIN + NEAR;
-
-    /** origin fraction on each axis: 0 / 0.5 / 1 */
-    let oxn = 0.5;
-    let oyn = 0.5;
-    /** false = that axis must not expand */
     let allowX = true;
     let allowY = true;
+    /** @type {0 | 0.5 | 1} */
+    let oxn = 0.5;
+    /** @type {0 | 0.5 | 1} */
+    let oyn = 0.5;
 
     if (nearLeft && nearRight) {
       allowX = false;
       oxn = 0.5;
     } else if (nearLeft) {
-      oxn = 0; // pin left edge, grow right
+      oxn = 0;
     } else if (nearRight) {
-      oxn = 1; // pin right edge, grow left
-    } else {
-      // free: grow toward the scan-area centre (original interaction)
-      oxn = h.cx < maxW / 2 ? 0 : 1;
+      oxn = 1;
     }
-
     if (nearTop && nearBottom) {
       allowY = false;
       oyn = 0.5;
     } else if (nearTop) {
-      oyn = 0; // pin top edge, grow down
+      oyn = 0;
     } else if (nearBottom) {
-      oyn = 1; // pin bottom edge, grow up
-    } else {
-      oyn = h.cy < maxH / 2 ? 0 : 1;
+      oyn = 1;
     }
 
+    // Free room to the frame and to SHRUNK neighbours (phase-1 geometry).
+    let freeL = h.left - MARGIN;
+    let freeR = maxW - MARGIN - (h.left + h.width);
+    let freeT = h.top - MARGIN;
+    let freeB = maxH - MARGIN - (h.top + h.height);
+    boxes.forEach((b) => {
+      if (b.el === hovered) return;
+      const halfW = b.hw * SHRINK;
+      const halfH = b.hh * SHRINK;
+      const bL = b.cx - halfW;
+      const bR = b.cx + halfW;
+      const bT = b.cy - halfH;
+      const bB = b.cy + halfH;
+      const vO = Math.min(h.top + h.height, bB) - Math.max(h.top, bT);
+      const hO = Math.min(h.left + h.width, bR) - Math.max(h.left, bL);
+      if (vO > 0) {
+        if (bR <= h.left) freeL = Math.min(freeL, h.left - bR - GAP);
+        if (bL >= h.left + h.width) freeR = Math.min(freeR, bL - (h.left + h.width) - GAP);
+      }
+      if (hO > 0) {
+        if (bB <= h.top) freeT = Math.min(freeT, h.top - bB - GAP);
+        if (bT >= h.top + h.height) freeB = Math.min(freeB, bT - (h.top + h.height) - GAP);
+      }
+    });
+    freeL = Math.max(0, freeL);
+    freeR = Math.max(0, freeR);
+    freeT = Math.max(0, freeT);
+    freeB = Math.max(0, freeB);
+
+    // Origin: pinned edge wins; otherwise the roomier side (toward free space).
+    if (allowX && !nearLeft && !nearRight) oxn = freeR >= freeL ? 0 : 1;
+    if (allowY && !nearTop && !nearBottom) oyn = freeB >= freeT ? 0 : 1;
     hovered.style.transformOrigin = (oxn * 100) + "% " + (oyn * 100) + "%";
     hovered.style.zIndex = "3";
 
-    // max scale per axis so the enlarged box stays inside the frame (MARGIN)
-    function maxScaleAxis(origin, pos, size, total) {
-      if (origin === 0) return 1 + (total - MARGIN - pos - size) / size;
-      if (origin === 1) return 1 + (pos - MARGIN) / size;
-      const room = Math.min(pos - MARGIN, total - MARGIN - pos - size);
-      return 1 + 2 * Math.max(0, room) / size;
+    /** @param {0 | 0.5 | 1} origin @param {number} before @param {number} after @param {number} size */
+    function scaleFromRoom(origin, before, after, size) {
+      if (origin === 0) return 1 + after / size;
+      if (origin === 1) return 1 + before / size;
+      return 1 + 2 * Math.min(before, after) / size;
     }
-    let maxSx = allowX ? maxScaleAxis(oxn, h.left, h.width, maxW) : 1;
-    let maxSy = allowY ? maxScaleAxis(oyn, h.top, h.height, maxH) : 1;
-    maxSx = Math.max(1, maxSx);
-    maxSy = Math.max(1, maxSy);
-    let targetSx = allowX ? Math.min(HOVER_SCALE, maxSx) : 1;
-    let targetSy = allowY ? Math.min(HOVER_SCALE, maxSy) : 1;
+    let targetSx = allowX ? Math.min(HOVER_SCALE, scaleFromRoom(oxn, freeL, freeR, h.width)) : 1;
+    let targetSy = allowY ? Math.min(HOVER_SCALE, scaleFromRoom(oyn, freeT, freeB, h.height)) : 1;
+    targetSx = Math.max(1, targetSx);
+    targetSy = Math.max(1, targetSy);
 
-    /** @param {number} sx @param {number} sy */
-    function zoneFor(sx, sy) {
-      return {
-        l: h.left - h.width * oxn * (sx - 1) - GAP,
-        r: h.left + h.width + h.width * (1 - oxn) * (sx - 1) + GAP,
-        t: h.top - h.height * oyn * (sy - 1) - GAP,
-        b: h.top + h.height + h.height * (1 - oyn) * (sy - 1) + GAP,
-      };
-    }
+    // Enlarged box (non-centre origin) + gap — where neighbours must end up outside of.
+    const enL = h.left - h.width * oxn * (targetSx - 1) - GAP;
+    const enR = h.left + h.width + h.width * (1 - oxn) * (targetSx - 1) + GAP;
+    const enT = h.top - h.height * oyn * (targetSy - 1) - GAP;
+    const enB = h.top + h.height + h.height * (1 - oyn) * (targetSy - 1) + GAP;
 
     /**
-     * Place a neighbour clear of `zone` (dominant-axis MTV, then alternate).
-     * Uses the post-scale visual box. `ok` = residual overlap == 0.
-     * @param {ReturnType<typeof measure>} b
-     * @param {{l:number,r:number,t:number,b:number}} zone
-     * @param {number} shrink
+     * Phase-2 shift: place the SHRUNK visual box clear of [enL,enR]x[enT,enB],
+     * then run pairwise separation so shifted tiles never cover each other.
      */
-    function placeNeighbour(b, zone, shrink) {
-      const sw = b.hw * shrink;
-      const sh = b.hh * shrink;
+    /** @type {{el:HTMLElement, cx:number, cy:number, hw:number, hh:number, x:number, y:number}[]} */
+    const bodies = [];
+    boxes.forEach((b) => {
+      if (b.el === hovered) return;
+      const sw = b.hw * SHRINK;
+      const sh = b.hh * SHRINK;
       const minX = MARGIN + sw - b.cx;
       const maxX = maxW - MARGIN - sw - b.cx;
       const minY = MARGIN + sh - b.cy;
       const maxY = maxH - MARGIN - sh - b.cy;
       let pushX = 0;
       let pushY = 0;
-
       /** @param {number} px @param {number} py */
-      function overlapAt(px, py) {
+      function ov(px, py) {
         const l = b.cx + px - sw;
         const r = b.cx + px + sw;
         const t = b.cy + py - sh;
         const bm = b.cy + py + sh;
         return {
-          oX: Math.min(r, zone.r) - Math.max(l, zone.l),
-          oY: Math.min(bm, zone.b) - Math.max(t, zone.t),
+          oX: Math.min(r, enR) - Math.max(l, enL),
+          oY: Math.min(bm, enB) - Math.max(t, enT),
           l: l, r: r, t: t, bm: bm,
         };
       }
-
-      const first = overlapAt(0, 0);
+      const first = ov(0, 0);
       if (first.oX > 0 && first.oY > 0) {
-        // dominant axis = the side the neighbour sits on
         const preferX = Math.abs(b.cx - h.cx) >= Math.abs(b.cy - h.cy);
-        /**
-         * @param {number} o
-         * @param {boolean} horizontal
-         */
+        /** @param {ReturnType<typeof ov>} o @param {boolean} horizontal */
         function exit(o, horizontal) {
-          if (horizontal) {
-            const goRight = b.cx >= h.cx;
-            return goRight ? zone.r - o.l : -(o.r - zone.l);
-          }
-          const goDown = b.cy >= h.cy;
-          return goDown ? zone.b - o.t : -(o.bm - zone.t);
+          if (horizontal) return b.cx >= h.cx ? enR - o.l : -(o.r - enL);
+          return b.cy >= h.cy ? enB - o.t : -(o.bm - enT);
         }
         if (preferX) {
           pushX = exit(first, true);
           pushX = Math.min(Math.max(pushX, minX), Math.max(minX, maxX));
-          const second = overlapAt(pushX, 0);
+          const second = ov(pushX, 0);
           if (second.oX > 0 && second.oY > 0) {
-            // horizontal exit was clamped — try vertical
             pushY = exit(second, false);
             pushY = Math.min(Math.max(pushY, minY), Math.max(minY, maxY));
           }
         } else {
           pushY = exit(first, false);
           pushY = Math.min(Math.max(pushY, minY), Math.max(minY, maxY));
-          const second = overlapAt(0, pushY);
+          const second = ov(0, pushY);
           if (second.oX > 0 && second.oY > 0) {
             pushX = exit(second, true);
             pushX = Math.min(Math.max(pushX, minX), Math.max(minX, maxX));
           }
         }
       }
+      bodies.push({ el: b.el, cx: b.cx, cy: b.cy, hw: sw, hh: sh, x: pushX, y: pushY });
+    });
 
-      const fin = overlapAt(pushX, pushY);
-      const ok = !(fin.oX > 0 && fin.oY > 0);
-      return { x: pushX, y: pushY, scale: shrink, ok: ok };
+    // Pairwise separation: shifted tiles must not cover each other either.
+    // Hovered is a static obstacle (enlarged box); only neighbours absorb MTV.
+    for (let iter = 0; iter < 8; iter++) {
+      let dirty = false;
+      // each neighbour vs the enlarged hovered box
+      for (const a of bodies) {
+        let l = a.cx + a.x - a.hw;
+        let r = a.cx + a.x + a.hw;
+        let t = a.cy + a.y - a.hh;
+        let bm = a.cy + a.y + a.hh;
+        const oX = Math.min(r, enR) - Math.max(l, enL);
+        const oY = Math.min(bm, enB) - Math.max(t, enT);
+        if (oX > 0 && oY > 0) {
+          const preferX = oX < oY;
+          if (preferX) {
+            a.x += a.cx + a.x >= h.cx ? oX : -oX;
+          } else {
+            a.y += a.cy + a.y >= h.cy ? oY : -oY;
+          }
+          dirty = true;
+        }
+      }
+      // neighbour vs neighbour (split MTV)
+      for (let i = 0; i < bodies.length; i++) {
+        for (let j = i + 1; j < bodies.length; j++) {
+          const a = bodies[i];
+          const b = bodies[j];
+          const al = a.cx + a.x - a.hw;
+          const ar = a.cx + a.x + a.hw;
+          const at = a.cy + a.y - a.hh;
+          const ab = a.cy + a.y + a.hh;
+          const bl = b.cx + b.x - b.hw;
+          const br = b.cx + b.x + b.hw;
+          const bt = b.cy + b.y - b.hh;
+          const bb = b.cy + b.y + b.hh;
+          const oX = Math.min(ar, br) - Math.max(al, bl);
+          const oY = Math.min(ab, bb) - Math.max(at, bt);
+          if (oX > 0 && oY > 0) {
+            const preferX = oX < oY;
+            const halfX = oX / 2;
+            const halfY = oY / 2;
+            if (preferX) {
+              const dir = a.cx + a.x >= b.cx + b.x ? 1 : -1;
+              a.x += dir * halfX;
+              b.x -= dir * halfX;
+            } else {
+              const dir = a.cy + a.y >= b.cy + b.y ? 1 : -1;
+              a.y += dir * halfY;
+              b.y -= dir * halfY;
+            }
+            dirty = true;
+          }
+        }
+      }
+      // clamp everyone back into the frame
+      for (const a of bodies) {
+        const minX = MARGIN + a.hw - a.cx;
+        const maxX = maxW - MARGIN - a.hw - a.cx;
+        const minY = MARGIN + a.hh - a.cy;
+        const maxY = maxH - MARGIN - a.hh - a.cy;
+        a.x = Math.min(Math.max(a.x, minX), Math.max(minX, maxX));
+        a.y = Math.min(Math.max(a.y, minY), Math.max(minY, maxY));
+      }
+      if (!dirty) break;
     }
 
-    // Shrink non-hovered tiles a little; the loop may rely on it for clearance.
-    /** @param {ReturnType<typeof measure>} b */
-    function shrinkFor(b) {
-      const dist = Math.sqrt((b.cx - h.cx) * (b.cx - h.cx) + (b.cy - h.cy) * (b.cy - h.cy)) || 1;
-      const strength = Math.max(0, 1 - dist / 420);
-      return 1 - 0.08 * strength;
-    }
+    /** @type {{el:HTMLElement, x:number, y:number}[]} */
+    const shifts = bodies.map((a) => ({ el: a.el, x: a.x, y: a.y }));
 
-    // If any neighbour cannot clear the zone (boxed in), step down the hovered
-    // growth axes until there is no residual overlap (or scale hits 1).
-    /** @type {{b:ReturnType<typeof measure>, x:number, y:number, scale:number, ok:boolean}[]} */
-    let placements = [];
-    for (let iter = 0; iter < 10; iter++) {
-      const zone = zoneFor(targetSx, targetSy);
-      placements = boxes
-        .filter((b) => b.el !== hovered)
-        .map((b) => {
-          const shrink = shrinkFor(b);
-          const p = placeNeighbour(b, zone, shrink);
-          return { b: b, x: p.x, y: p.y, scale: p.scale, ok: p.ok };
-        });
-      if (placements.every((p) => p.ok)) break;
-      // reduce only the axes that are allowed to grow
-      if (allowX && targetSx > 1.001) targetSx = Math.max(1, 1 + (targetSx - 1) * 0.72);
-      if (allowY && targetSy > 1.001) targetSy = Math.max(1, 1 + (targetSy - 1) * 0.72);
-      if ((!allowX || targetSx <= 1.001) && (!allowY || targetSy <= 1.001)) break;
-    }
-
-    dotween(hovered, { sx: targetSx, sy: targetSy, x: 0, y: 0 }, { ease: "outCubic", duration: 0.28 });
-
-    placements.forEach((p) => {
-      const el = p.b.el;
+    // ---- Phase 1: neighbours shrink first, hovered grows ----
+    boxes.forEach((b) => {
+      if (b.el === hovered) return;
+      const el = b.el;
       el.style.zIndex = "1";
       el.style.transformOrigin = "50% 50%";
-      dotween(el, { sx: p.scale, sy: p.scale, x: p.x, y: p.y }, { ease: "inOutSine", duration: 0.32 });
+      dotween(el, { sx: SHRINK, sy: SHRINK, x: 0, y: 0 }, { ease: "outCubic", duration: PHASE1 });
     });
+    dotween(hovered, { sx: targetSx, sy: targetSy, x: 0, y: 0 }, { ease: "outCubic", duration: 0.28 });
+
+    // ---- Phase 2: after shrink completes, neighbours shift clear ----
+    wallFocusPhase2 = window.setTimeout(() => {
+      wallFocusPhase2 = null;
+      if (!hovered.isConnected) return;
+      shifts.forEach((s) => {
+        dotween(s.el, { sx: SHRINK, sy: SHRINK, x: s.x, y: s.y }, { ease: "inOutSine", duration: PHASE2 });
+      });
+    }, Math.round(PHASE1 * 1000));
   }
 
   /** @type {string[]} */
