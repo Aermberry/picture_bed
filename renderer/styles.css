@@ -268,6 +268,24 @@
       pointer-events:none;
     }
     .photo-wall .tile:hover .name{opacity:1}
+    /* 点选批量删除 */
+    .photo-wall .tile{
+      cursor:pointer;
+      user-select:none;
+    }
+    .photo-wall .tile.selected{
+      outline:3px solid var(--c-primary);
+      outline-offset:-3px;
+    }
+    .photo-wall .tile .check{
+      position:absolute; top:8px; right:8px;
+      width:22px;height:22px;border-radius:var(--r-full);
+      background:var(--c-primary); color:#fff; font-size:12px;
+      display:flex; align-items:center; justify-content:center;
+      opacity:0; transform:scale(.6); transition:opacity .15s, transform .15s;
+      pointer-events:none; z-index:2;
+    }
+    .photo-wall .tile.selected .check{opacity:1; transform:scale(1)}
 
     .btn{
       padding:10px 24px; border-radius:var(--r-md); border:none;

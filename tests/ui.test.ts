@@ -142,6 +142,24 @@ describe('ui server F16–F18', () => {
     expect(String(drop.data.error.message)).toMatch(/image or document/i);
   });
 
+  it('F17 session/remove batch-deletes workset items by key', async () => {
+    await api('/api/session/reset', {});
+    await api('/api/session/drop', {
+      name: 'post.md',
+      relativePath: 'post.md',
+      type: 'file',
+    });
+    const before = await api('/api/session');
+    expect(before.data.data.workset.length).toBeGreaterThan(0);
+    const bad = await api('/api/session/remove', { keys: [] });
+    expect(bad.status).toBe(400);
+    const rm = await api('/api/session/remove', { keys: ['post.md'] });
+    expect(rm.data.ok).toBe(true);
+    expect(rm.data.data.removed).toBe(1);
+    const after = await api('/api/session');
+    expect(after.data.data.workset.some((w: { name?: string }) => w.name === 'post.md')).toBe(false);
+  });
+
   it('F17 drop of a document does not set previewPath (photo wall is images only)', async () => {
     await api('/api/session/reset', {});
     await api('/api/session/bind-root', { root: path.join(cwd, 'docs') });
