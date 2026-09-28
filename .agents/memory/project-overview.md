@@ -41,7 +41,8 @@ Current project artifacts win over this memory. `AGENTS.md` (AgentGo v1.15.1) is
 - **Commit 后必须自动 push**：每次 git commit / commit-tree 落地后立即推送对应分支到 origin，无需再问；**仅 release（tag / GitHub Release / npm publish）需用户审核**（2026-09-25）。
 - **发版顺序禁止颠倒**：必须 `feature/*` → `develop` → `main` → 再 tag 发布。v0.4.0 曾从 feature 直接 tag 发包、事后才合 develop（用户 2026-09-26 指出）；见 `.agents/rules/delivery.md`。
 - **文档三件套同步（2026-09-27）**：行为/架构/安装使用变更后，必须**同时**更新 **设计稿**（features-index + module-*）、**`docs/html/index.html`**、**`README.md`**；禁止漏更新其中任何一份（用户 2026-09-27 明确要求）。详见 `.agents/rules/delivery.md`「Docs trio sync」。
-- **Bug 修复单独开分支（2026-09-27）**：未发版 → `feature/fix-<slug>`（自 `develop`）；已发版 → `hotfix/<slug>`（自 `main`，合回 `main` 后**必须**再合 `develop`）。禁止堆进无关 `feature/*`。详见 `.agents/rules/delivery.md`「Bugfix Git Flow」。
+- **Bug 修复必须用 `hotfix/*`，禁止开 `feature/*`（2026-09-28 修订）**：任何 bug 修复一律 `hotfix/<slug>`，**不得**使用 `feature/fix-*` 或堆进无关 `feature/*`（用户 2026-09-28 纠正：「根据 git flow 你应该使用 Hotfix 分支修复 bug 而不是开启 feature 分支」）。已发版（`main`/用户已装包）→ 自 `main` 开，合 `main`（可打补丁 `v*`）→ **必须再合** `develop`；未发版（仅在 `develop`）→ 自 `develop` 开，测试绿 → `develop`。功能/增强才用 `feature/<topic>`。详见 `.agents/rules/delivery.md`「Bugfix Git Flow」。
+- **合并后切回 `develop` 并删已合入分支（2026-09-28）**：每次任务完成、内容合入 `develop` 后，必须**切换到 `develop` 分支**，并**删除已完全合入的 topic 分支**（`feature/*`、`hotfix/*`、`docs/<topic>`）；保留 `develop`/`main`/`docs/design`。禁止留悬空 topic 分支（用户 2026-09-28 要求）。
 
 ## Notes
 

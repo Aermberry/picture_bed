@@ -110,3 +110,6 @@
 2026-09-27 | fix(ui) | 上传/重置常显 | .row display:flex 压过 hidden；[hidden]!important + syncWallChrome 按 tile 数显隐；73/73 | User: 重置和上传按钮只有扫描出图片并预览出来时才显示
 2026-09-27 | update | .agents/rules/delivery.md | 新增 Bugfix Git Flow：feature/fix-* / hotfix/* 分流，一 bug 一支 | User: 是的
 2026-09-27 | fix(desktop) | Vite HMR 不生效 | fs.watch 在 dist 变更后 loadURL(uiHandle.url) 把窗口拽离 Vite；Vite 会话禁止导航、desktop/* 交 electron-vite；74/74 | User: 热更新还是没有生效
+2026-09-28 | merge | feature/fix-vite-hmr-window-url → develop @ d7d96b4 | photo wall DOTween hover zoom 集成；commit-tree+fetch 落地（隔离 worktree 禁 checkout）；origin/develop 已推 | User: 为什么完成后没有自动合并到 develop
+2026-09-28 | update | .agents/rules/delivery.md + memory/project-overview.md + outcomes.md | Bugfix Git Flow 修订：删除 feature/fix-* 路径，bug 一律 hotfix/<slug>；记录 standing correction | User: 根据 git flow 你应该使用 Hotfix 分支修复 bug 而不是开启 feature 分支
+2026-09-28 | update | delivery.md + project-overview.md + outcomes.md | 合并后收尾规则：切回 develop + 删除已合入 topic 分支；记录 standing correction | User: 合并到 develop 后应切换到 develop 并删除已归入的分支

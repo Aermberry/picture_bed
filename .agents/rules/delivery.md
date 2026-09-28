@@ -23,15 +23,16 @@ Rules:
 2. 命名：**实现**用 `feature/<topic>`；**纯文档/设计**用 `docs/<topic>`（违规示例：文档迁移用了 `feature/design-html-path`）。
 3. 集成到 `develop` 前：设计已在 `docs/design` 落地（或本次即文档变更）、测试全绿。
 4. 隔离 worktree 不能 `checkout` 时：仍须**逻辑上**按 topic 分支；可用 `git commit-tree` / `git fetch . <sha>:refs/heads/feature/<topic>` 创建，或明确记录「本环境无法建分支」并合并前由主 checkout 拆分。
+5. **合并后的收尾（MANDATORY，2026-09-28）**：内容合入 `develop` 后，必须**切换到 `develop` 分支**，并**删除已完全合入 `develop` 的 topic 分支**（`feature/*`、`hotfix/*`、`docs/<topic>`）。保留主线：`develop`、`main`、`docs/design`。禁止留下已合入的悬空 topic 分支。
 
-## Bugfix Git Flow (MANDATORY, 2026-09-27)
+## Bugfix Git Flow (MANDATORY, 2026-09-27 · revised 2026-09-28)
 
-**禁止把 bug 修复堆进无关的长期 `feature/*`**（违规示例：照片墙按钮显隐修在 `feature/electron-vite` 上）。按是否已发版分流：
+**Bug 修复一律走 `hotfix/*`，禁止开 `feature/*`**（含 `feature/fix-*` 这种伪 feature 命名）。功能/增强才用 `feature/<topic>`。禁止把 bug 修复堆进无关 `feature/*`（违规示例：照片墙按钮显隐修在 `feature/electron-vite` 上；HMR 修复开在 `feature/fix-vite-hmr-window-url`）。
 
 | 场景 | 分支 | 起点 | 合入 |
 |------|------|------|------|
-| **未发版**（只在 `develop` / 未进 `main`） | `feature/fix-<slug>` | `develop` | 测试绿 → `develop` |
 | **已发版**（`main` / 用户已安装包） | `hotfix/<slug>` | `main` | 合 `main`（可打补丁 `v*`）→ **必须再合** `develop` |
+| **未发版**（只在 `develop` / 未进 `main`） | `hotfix/<slug>` | `develop` | 测试绿 → `develop` |
 
 规则：
 
@@ -42,7 +43,7 @@ Rules:
 5. 交付前跑测试并附命令证据；commit 后自动 push。
 6. `hotfix` 补丁发版顺序不变：合入 `main` → **再** tag `v*`（禁止先 tag 后补分支）。
 
-Evidence: user standing instruction, 2026-09-27（「如果是修复bug，根据git flow 你应该怎么做」→ 确认写入规则）。
+Evidence: user standing instruction, 2026-09-27（「如果是修复bug，根据git flow 你应该怎么做」）；2026-09-28 修订（「你应该使用 Hotfix 分支修复 bug 而不是开启 feature 分支」→ 删除 `feature/fix-*` 路径）。
 
 ## GitHub Release (MANDATORY when shipping)
 

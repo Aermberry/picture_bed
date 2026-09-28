@@ -19,3 +19,6 @@ Ledger schema: `date`, `capability` (when applicable), `result` (`helped | hurt 
 | 2026-09-23 | delivery-git-flow 0.2.0 + project-design 0.5.0 | helped | Branch prefix by change nature (feature vs docs); docs/html/ in design map |
 | 2026-09-23 | git-github-init 0.3.0 + delivery-git-flow 0.2.1 | helped | Init must create develop; delete topic branches after merge |
 | 2026-09-27 | Docs trio sync rule | helped | user: 记住更新设计稿/html/readme；写入 delivery.md + standing corrections |
+| 2026-09-28 | Bugfix Git Flow (`feature/fix-*` 路径) | corrected | user: bug 应走 hotfix/* 而非 feature；删除 feature/fix-* 规则，一律 hotfix/<slug> |
+| 2026-09-28 | feature/fix-vite-hmr-window-url 分支使用 | corrected | 功能（Masonry/DOTween）堆在 fix 分支；bug 修复应用 hotfix/*，功能开独立 feature/<topic> |
+| 2026-09-28 | 合并后分支收尾 | corrected | user: 合入 develop 后须切回 develop 并删除已合入 topic 分支；写入 delivery.md 规则 5 |
