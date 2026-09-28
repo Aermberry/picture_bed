@@ -203,62 +203,125 @@
     let maxSy = allowY ? maxScaleAxis(oyn, h.top, h.height, maxH) : 1;
     maxSx = Math.max(1, maxSx);
     maxSy = Math.max(1, maxSy);
-    const targetSx = allowX ? Math.min(HOVER_SCALE, maxSx) : 1;
-    const targetSy = allowY ? Math.min(HOVER_SCALE, maxSy) : 1;
-    dotween(hovered, { sx: targetSx, sy: targetSy, x: 0, y: 0 }, { ease: "outCubic", duration: 0.28 });
+    let targetSx = allowX ? Math.min(HOVER_SCALE, maxSx) : 1;
+    let targetSy = allowY ? Math.min(HOVER_SCALE, maxSy) : 1;
 
-    // Enlarged box of the hovered tile (non-centre origin, per-axis scale) + clearance gap
-    const sx = targetSx;
-    const sy = targetSy;
-    const enL = h.left - h.width * oxn * (sx - 1) - GAP;
-    const enR = h.left + h.width + h.width * (1 - oxn) * (sx - 1) + GAP;
-    const enT = h.top - h.height * oyn * (sy - 1) - GAP;
-    const enB = h.top + h.height + h.height * (1 - oyn) * (sy - 1) + GAP;
+    /** @param {number} sx @param {number} sy */
+    function zoneFor(sx, sy) {
+      return {
+        l: h.left - h.width * oxn * (sx - 1) - GAP,
+        r: h.left + h.width + h.width * (1 - oxn) * (sx - 1) + GAP,
+        t: h.top - h.height * oyn * (sy - 1) - GAP,
+        b: h.top + h.height + h.height * (1 - oyn) * (sy - 1) + GAP,
+      };
+    }
 
-    boxes.forEach((b) => {
-      if (b.el === hovered) return;
-      const el = b.el;
-      el.style.zIndex = "1";
-      el.style.transformOrigin = "50% 50%";
-
-      // neighbour box vs enlarged exclusion zone
-      const nL = b.left;
-      const nR = b.left + b.width;
-      const nT = b.top;
-      const nB = b.top + b.height;
-      const oX = Math.min(nR, enR) - Math.max(nL, enL);
-      const oY = Math.min(nB, enB) - Math.max(nT, enT);
-      let pushX = 0;
-      let pushY = 0;
-      if (oX > 0 && oY > 0) {
-        // MTV: exit along the cheaper axis, away from the hovered centre
-        const left = nR - enL;
-        const right = enR - nL;
-        const up = nB - enT;
-        const down = enB - nT;
-        if (oX < oY) {
-          pushX = b.cx >= h.cx ? right : -left;
-        } else {
-          pushY = b.cy >= h.cy ? down : -up;
-        }
-      }
-
-      // mild shrink only — no extra drift (drift caused right-rail gaps / collisions)
-      const dist = Math.sqrt((b.cx - h.cx) * (b.cx - h.cx) + (b.cy - h.cy) * (b.cy - h.cy)) || 1;
-      const strength = Math.max(0, 1 - dist / 420);
-      const scale = 1 - 0.05 * strength;
-
-      // clamp the post-transform box inside the frame (MARGIN)
-      const sw = b.hw * scale;
-      const sh = b.hh * scale;
+    /**
+     * Place a neighbour clear of `zone` (dominant-axis MTV, then alternate).
+     * Uses the post-scale visual box. `ok` = residual overlap == 0.
+     * @param {ReturnType<typeof measure>} b
+     * @param {{l:number,r:number,t:number,b:number}} zone
+     * @param {number} shrink
+     */
+    function placeNeighbour(b, zone, shrink) {
+      const sw = b.hw * shrink;
+      const sh = b.hh * shrink;
       const minX = MARGIN + sw - b.cx;
       const maxX = maxW - MARGIN - sw - b.cx;
       const minY = MARGIN + sh - b.cy;
       const maxY = maxH - MARGIN - sh - b.cy;
-      const clampedX = Math.min(Math.max(pushX, minX), Math.max(minX, maxX));
-      const clampedY = Math.min(Math.max(pushY, minY), Math.max(minY, maxY));
+      let pushX = 0;
+      let pushY = 0;
 
-      dotween(el, { sx: scale, sy: scale, x: clampedX, y: clampedY }, { ease: "inOutSine", duration: 0.32 });
+      /** @param {number} px @param {number} py */
+      function overlapAt(px, py) {
+        const l = b.cx + px - sw;
+        const r = b.cx + px + sw;
+        const t = b.cy + py - sh;
+        const bm = b.cy + py + sh;
+        return {
+          oX: Math.min(r, zone.r) - Math.max(l, zone.l),
+          oY: Math.min(bm, zone.b) - Math.max(t, zone.t),
+          l: l, r: r, t: t, bm: bm,
+        };
+      }
+
+      const first = overlapAt(0, 0);
+      if (first.oX > 0 && first.oY > 0) {
+        // dominant axis = the side the neighbour sits on
+        const preferX = Math.abs(b.cx - h.cx) >= Math.abs(b.cy - h.cy);
+        /**
+         * @param {number} o
+         * @param {boolean} horizontal
+         */
+        function exit(o, horizontal) {
+          if (horizontal) {
+            const goRight = b.cx >= h.cx;
+            return goRight ? zone.r - o.l : -(o.r - zone.l);
+          }
+          const goDown = b.cy >= h.cy;
+          return goDown ? zone.b - o.t : -(o.bm - zone.t);
+        }
+        if (preferX) {
+          pushX = exit(first, true);
+          pushX = Math.min(Math.max(pushX, minX), Math.max(minX, maxX));
+          const second = overlapAt(pushX, 0);
+          if (second.oX > 0 && second.oY > 0) {
+            // horizontal exit was clamped — try vertical
+            pushY = exit(second, false);
+            pushY = Math.min(Math.max(pushY, minY), Math.max(minY, maxY));
+          }
+        } else {
+          pushY = exit(first, false);
+          pushY = Math.min(Math.max(pushY, minY), Math.max(minY, maxY));
+          const second = overlapAt(0, pushY);
+          if (second.oX > 0 && second.oY > 0) {
+            pushX = exit(second, true);
+            pushX = Math.min(Math.max(pushX, minX), Math.max(minX, maxX));
+          }
+        }
+      }
+
+      const fin = overlapAt(pushX, pushY);
+      const ok = !(fin.oX > 0 && fin.oY > 0);
+      return { x: pushX, y: pushY, scale: shrink, ok: ok };
+    }
+
+    // Shrink non-hovered tiles a little; the loop may rely on it for clearance.
+    /** @param {ReturnType<typeof measure>} b */
+    function shrinkFor(b) {
+      const dist = Math.sqrt((b.cx - h.cx) * (b.cx - h.cx) + (b.cy - h.cy) * (b.cy - h.cy)) || 1;
+      const strength = Math.max(0, 1 - dist / 420);
+      return 1 - 0.08 * strength;
+    }
+
+    // If any neighbour cannot clear the zone (boxed in), step down the hovered
+    // growth axes until there is no residual overlap (or scale hits 1).
+    /** @type {{b:ReturnType<typeof measure>, x:number, y:number, scale:number, ok:boolean}[]} */
+    let placements = [];
+    for (let iter = 0; iter < 10; iter++) {
+      const zone = zoneFor(targetSx, targetSy);
+      placements = boxes
+        .filter((b) => b.el !== hovered)
+        .map((b) => {
+          const shrink = shrinkFor(b);
+          const p = placeNeighbour(b, zone, shrink);
+          return { b: b, x: p.x, y: p.y, scale: p.scale, ok: p.ok };
+        });
+      if (placements.every((p) => p.ok)) break;
+      // reduce only the axes that are allowed to grow
+      if (allowX && targetSx > 1.001) targetSx = Math.max(1, 1 + (targetSx - 1) * 0.72);
+      if (allowY && targetSy > 1.001) targetSy = Math.max(1, 1 + (targetSy - 1) * 0.72);
+      if ((!allowX || targetSx <= 1.001) && (!allowY || targetSy <= 1.001)) break;
+    }
+
+    dotween(hovered, { sx: targetSx, sy: targetSy, x: 0, y: 0 }, { ease: "outCubic", duration: 0.28 });
+
+    placements.forEach((p) => {
+      const el = p.b.el;
+      el.style.zIndex = "1";
+      el.style.transformOrigin = "50% 50%";
+      dotween(el, { sx: p.scale, sy: p.scale, x: p.x, y: p.y }, { ease: "inOutSine", duration: 0.32 });
     });
   }
 
