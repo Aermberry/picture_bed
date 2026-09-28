@@ -113,6 +113,14 @@ describe('F24 desktop shell', () => {
     expect(spaApp).toContain('layoutWallTimer');
   });
 
+  it('photo wall action bar stays visible while scrolling (sticky)', () => {
+    expect(SPA_CSS).toMatch(/\.dropzone \.dz-head\{[\s\S]*position:sticky/);
+    expect(SPA_CSS).toMatch(/\.dropzone \.dz-head\{[\s\S]*top:0/);
+    expect(SPA_CSS).toMatch(/\.dropzone \.dz-head\{[\s\S]*z-index:10/);
+    // quota meter is gone from the shell
+    expect(INDEX_HTML).not.toContain('quota');
+  });
+
   it('photo wall supports click-select batch delete of preview tiles', () => {
     // selection state + chrome
     expect(spaApp).toContain('selectedKeys');
