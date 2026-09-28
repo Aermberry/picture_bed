@@ -13,39 +13,111 @@
     /** @param {number} t */
     inOutSine: (t) => -(Math.cos(Math.PI * t) - 1) / 2,
   };
-  /** @type {WeakMap<object, number>} */
-  const tweenScaleVal = new WeakMap();
+  /** @type {WeakMap<object, {scale:number,x:number,y:number}>} */
+  const tweenVal = new WeakMap();
   /** @type {WeakMap<object, number>} */
   const tweenRaf = new WeakMap();
 
+  /** @param {HTMLElement} el */
+  function tweenState(el) {
+    return tweenVal.get(el) || { scale: 1, x: 0, y: 0 };
+  }
+
+  /** @param {HTMLElement} el @param {{scale:number,x:number,y:number}} s */
+  function applyTransform(el, s) {
+    tweenVal.set(el, s);
+    el.style.transform = "translate(" + s.x + "px," + s.y + "px) scale(" + s.scale + ")";
+  }
+
   /**
-   * DOScale: tween an element's uniform scale (DOTween-style).
+   * DOTween-style tween of scale + translate (one rAF per element).
    * A new call cancels the in-flight frame and continues from the live value.
    * @param {HTMLElement} el
-   * @param {number} to
+   * @param {{ scale?: number, x?: number, y?: number }} to
    * @param {{ duration?: number, ease?: "outCubic" | "inOutSine" }} [opts]
    */
-  function doscale(el, to, opts) {
+  function dotween(el, to, opts) {
     const duration = (opts && opts.duration) || 0.28;
     const easeFn = opts && opts.ease === "inOutSine" ? Ease.inOutSine : Ease.outCubic;
     const prev = tweenRaf.get(el);
     if (prev != null) cancelAnimationFrame(prev);
-    const from = tweenScaleVal.has(el) ? /** @type {number} */ (tweenScaleVal.get(el)) : 1;
-    if (Math.abs(from - to) < 0.001) {
-      tweenScaleVal.set(el, to);
-      el.style.transform = "scale(" + to + ")";
+    const from = tweenState(el);
+    const target = {
+      scale: to.scale != null ? to.scale : from.scale,
+      x: to.x != null ? to.x : from.x,
+      y: to.y != null ? to.y : from.y,
+    };
+    const done =
+      Math.abs(from.scale - target.scale) < 0.001 &&
+      Math.abs(from.x - target.x) < 0.01 &&
+      Math.abs(from.y - target.y) < 0.01;
+    if (done) {
+      applyTransform(el, target);
       return;
     }
     const t0 = performance.now();
     const step = (/** @type {number} */ now) => {
       const t = Math.min(1, (now - t0) / (duration * 1000));
-      const v = from + (to - from) * easeFn(t);
-      tweenScaleVal.set(el, v);
-      el.style.transform = "scale(" + v + ")";
+      const k = easeFn(t);
+      applyTransform(el, {
+        scale: from.scale + (target.scale - from.scale) * k,
+        x: from.x + (target.x - from.x) * k,
+        y: from.y + (target.y - from.y) * k,
+      });
       if (t < 1) tweenRaf.set(el, requestAnimationFrame(step));
       else tweenRaf.delete(el);
     };
     tweenRaf.set(el, requestAnimationFrame(step));
+  }
+
+  /**
+   * DOScale: tween an element's uniform scale (DOTween-style).
+   * @param {HTMLElement} el
+   * @param {number} to
+   * @param {{ duration?: number, ease?: "outCubic" | "inOutSine" }} [opts]
+   */
+  function doscale(el, to, opts) {
+    dotween(el, { scale: to }, opts);
+  }
+
+  /**
+   * Photo-wall hover focus: hovered tile grows, neighbours shrink + push away
+   * (distance-falloff) so the zoom has room. DOTween-style, interruptible.
+   * @param {HTMLElement | null} hovered  null → reset every tile
+   */
+  function applyWallFocus(hovered) {
+    const wall = $("previewGrid");
+    if (!wall) return;
+    const tiles = wall.querySelectorAll(".tile");
+    if (!hovered) {
+      tiles.forEach((t) => {
+        dotween(/** @type {HTMLElement} */ (t), { scale: 1, x: 0, y: 0 }, { ease: "inOutSine", duration: 0.32 });
+      });
+      return;
+    }
+    const hr = hovered.getBoundingClientRect();
+    const hcx = hr.left + hr.width / 2;
+    const hcy = hr.top + hr.height / 2;
+    tiles.forEach((t) => {
+      const el = /** @type {HTMLElement} */ (t);
+      if (el === hovered) {
+        dotween(el, { scale: 1.08, x: 0, y: 0 }, { ease: "outCubic", duration: 0.28 });
+        return;
+      }
+      const r = el.getBoundingClientRect();
+      const dx = r.left + r.width / 2 - hcx;
+      const dy = r.top + r.height / 2 - hcy;
+      const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+      // closer tiles shrink more and slide farther out
+      const strength = Math.max(0, 1 - dist / 420);
+      const push = 20 * strength;
+      const scale = 1 - 0.06 * strength;
+      dotween(
+        el,
+        { scale: scale, x: (dx / dist) * push, y: (dy / dist) * push },
+        { ease: "inOutSine", duration: 0.32 },
+      );
+    });
   }
 
   /** @type {string[]} */
@@ -493,14 +565,11 @@
         syncWallChrome();
       });
     });
-    // DOTween hover zoom: enter → scale(1.08), leave → scale(1); interruptible.
+    // DOTween hover focus: hovered grows, neighbours shrink + push away.
     g.querySelectorAll(".tile").forEach((tile) => {
-      tile.addEventListener("mouseenter", () => {
-        doscale(/** @type {HTMLElement} */ (tile), 1.08, { ease: "outCubic" });
-      });
-      tile.addEventListener("mouseleave", () => {
-        doscale(/** @type {HTMLElement} */ (tile), 1, { ease: "inOutSine" });
-      });
+      const el = /** @type {HTMLElement} */ (tile);
+      el.addEventListener("mouseenter", () => applyWallFocus(el));
+      el.addEventListener("mouseleave", () => applyWallFocus(null));
     });
     syncWallChrome();
   }
