@@ -104,6 +104,15 @@ describe('F24 desktop shell', () => {
     expect(spaApp).toContain('resize');
   });
 
+  it('photo wall never accumulates empty columns (load must not shrink tiles)', () => {
+    // old .pw-col wrappers are stripped before re-stack
+    expect(spaApp).toContain('querySelectorAll(".pw-col")');
+    expect(spaApp).toContain('removeChild(c)');
+    // load/resize go through a debounced scheduler
+    expect(spaApp).toContain('schedulePhotoWallLayout');
+    expect(spaApp).toContain('layoutWallTimer');
+  });
+
   it('photo wall has no hover zoom / neighbour shift (feature cancelled)', () => {
     // no tween engine or focus layout left in the SPA
     expect(spaApp).not.toContain('applyWallFocus');
