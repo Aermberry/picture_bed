@@ -117,6 +117,9 @@ describe('F24 desktop shell', () => {
     expect(SPA_CSS).toMatch(/\.dropzone \.dz-head\{[\s\S]*position:sticky/);
     expect(SPA_CSS).toMatch(/\.dropzone \.dz-head\{[\s\S]*top:0/);
     expect(SPA_CSS).toMatch(/\.dropzone \.dz-head\{[\s\S]*z-index:10/);
+    // cover the padding strip so tiles never peek above the sticky bar
+    expect(SPA_CSS).toMatch(/\.dropzone \.dz-head::before/);
+    expect(SPA_CSS).toMatch(/has-photos\{[\s\S]*padding-top:0/);
     // quota meter is gone from the shell
     expect(INDEX_HTML).not.toContain('quota');
   });

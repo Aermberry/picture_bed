@@ -192,6 +192,7 @@
     .dropzone.has-photos{
       justify-content:flex-start; align-items:stretch;
       cursor:default;
+      padding-top:0;
     }
     .dropzone.has-photos:hover{background:var(--c-surface)}
     .dropzone.has-photos .big-ico,
@@ -204,6 +205,15 @@
       padding:8px 0 12px;
       margin:-8px 0 0;
       box-shadow:0 6px 12px -8px rgba(90,130,170,.35);
+    }
+    /* cover the scrollport padding strip so tiles never peek above the bar */
+    .dropzone .dz-head::before{
+      content:"";
+      position:absolute;
+      left:0; right:0;
+      top:calc(-1 * var(--sp-8));
+      height:var(--sp-8);
+      background:var(--c-surface);
     }
     .dropzone.has-photos .dz-head{
       flex-direction:row; align-items:center; justify-content:space-between;

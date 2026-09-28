@@ -133,3 +133,4 @@
 2026-09-28 | fix(ui) | 点选时与邻图重叠 | 去掉外扩 box-shadow 环与 translateY；改 inset 三环描边；24/24+ tsc 绿；dba3fdc→feature/photo-wall-hover-focus | User: 图片被点选上时会有重叠现象
 2026-09-28 | update | renderer/{index.html,styles.css,main.js} + tests/ui.test.ts | 移除顶栏容量条「已用 0/200」及 CSS/JS；78/78+ tsc 绿；e0e0b68→feature/photo-wall-hover-focus | User: 去除这部分 UI（已用 0/200）
 2026-09-28 | update | docs/design + renderer/styles.css + tests | 照片墙操作条 sticky 吸顶，滚动时不再被卷走；25/25+ tsc 绿；623ff8e→feature/photo-wall-hover-focus | User: 当上下翻滚滑动照片墙时会看不到这部分的UI
+2026-09-28 | fix(ui) | 吸顶操作条与顶部有空隙 | has-photos padding-top:0 + dz-head::before 延伸底板盖住滚动 padding 带；25/25+ tsc 绿；219834b→feature/photo-wall-hover-focus | User: 扫描到N与顶部有空隙
