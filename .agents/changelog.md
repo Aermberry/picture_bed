@@ -131,3 +131,4 @@
 2026-09-28 | update | features-index F17 + module-webui + ui-shell + server + renderer + tests | 点选批量删除预览图：tile 多选+角标、删除 N、POST /api/session/remove 同步工作集；78/78+ tsc 绿；93b764f→feature/photo-wall-hover-focus | User: 用户可以通过点选图片批量删除照片墙的预览图片
 2026-09-28 | update | renderer/{styles.css,main.js} + docs + tests | 点选态强化：白+主色双描边、色罩、大勾选角标、左下「已选」胶囊；24/24+ tsc 绿；cb68d4a→feature/photo-wall-hover-focus | User: 照片墙预览图片被点选时要显示被点选上的状态
 2026-09-28 | fix(ui) | 点选时与邻图重叠 | 去掉外扩 box-shadow 环与 translateY；改 inset 三环描边；24/24+ tsc 绿；dba3fdc→feature/photo-wall-hover-focus | User: 图片被点选上时会有重叠现象
+2026-09-28 | update | renderer/{index.html,styles.css,main.js} + tests/ui.test.ts | 移除顶栏容量条「已用 0/200」及 CSS/JS；78/78+ tsc 绿；e0e0b68→feature/photo-wall-hover-focus | User: 去除这部分 UI（已用 0/200）

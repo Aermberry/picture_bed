@@ -167,17 +167,6 @@
     .ico-muted{fill:var(--ico-muted,#C3D5EC); stroke:var(--ico-stroke,#2E4B7E)}
     .ico-dot{fill:var(--ico-dot,#FFC978)}
 
-    /* 顶栏容量进度条：主色填充 + Primary-Soft 轨道，>80% 转 Danger */
-    .quota{display:flex; align-items:center; gap:8px; min-width:180px}
-    .quota .lbl{font-size:12px; color:var(--c-text-3); white-space:nowrap}
-    .quota .bar{
-      flex:1; height:6px; border-radius:var(--r-full);
-      background:var(--c-primary-soft); overflow:hidden;
-    }
-    .quota .fill{height:100%; width:24%; border-radius:var(--r-full); background:var(--c-primary); transition:width .3s, background .2s}
-    .quota.hot .fill{background:var(--c-danger)}
-    .quota .val{font-size:12px; color:var(--c-text-2); white-space:nowrap}
-
     .theme-pills{display:flex; gap:6px}
     .pill{
       font-size:11px; padding:4px 10px; border-radius:var(--r-full);

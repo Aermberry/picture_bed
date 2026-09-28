@@ -207,14 +207,6 @@
     el.style.color = cls === "ok" ? "var(--c-success)" : cls === "bad" ? "var(--c-danger)" : "var(--c-text-3)";
   }
 
-  /** @param {number} used @param {number} total */
-  function setQuota(used, total) {
-    const pct = total > 0 ? Math.min(100, Math.round((used / total) * 100)) : 0;
-    $("quotaFill").style.width = pct + "%";
-    $("quotaVal").textContent = used + " / " + total;
-    $("quota").classList.toggle("hot", pct > 80);
-  }
-
   /* ── 导航 ── */
   // 「规范」仅本地调试显示（server 注入 __PICBED_UI_DEV__）
   (function showSpecNavIfDev() {
@@ -733,7 +725,6 @@
     });
     $("statTotal").textContent = String(items.length);
     $("statMapped").textContent = String((list || []).filter((e) => e.publicUrl).length);
-    setQuota(items.length, 200);
     titles.manage[1] = "共 " + items.length + " 个文件";
     if ($("view-manage").style.display !== "none") {
       $("pageCrumb").textContent = titles.manage[1];
@@ -871,5 +862,4 @@
   syncThemeUI();
   renderTokenSwatches();
   renderLogoVarRow();
-  setQuota(0, 200);
   refreshHealth();
