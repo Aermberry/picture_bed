@@ -248,6 +248,11 @@
       box-shadow:var(--shadow-1);
       transition:box-shadow .2s;
     }
+    /* 错落排版：宽度与左右偏移按序变化，打破均一列宽 */
+    .photo-wall .tile:nth-child(4n+1){ width:100%; margin-left:0; margin-bottom:18px; }
+    .photo-wall .tile:nth-child(4n+2){ width:90%; margin-left:8%; margin-bottom:26px; }
+    .photo-wall .tile:nth-child(4n+3){ width:96%; margin-left:2%; margin-bottom:14px; }
+    .photo-wall .tile:nth-child(4n){ width:86%; margin-left:0; margin-bottom:22px; }
     .photo-wall .tile:hover{
       box-shadow:var(--shadow-2);
     }

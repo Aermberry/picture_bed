@@ -408,6 +408,33 @@
     $("dropTitle").textContent = title || "将文件拖放到此处";
   }
 
+  /**
+   * 错落排版：每列第一张图按列序增加 margin-top，形成参差列顶。
+   * 在渲染、图片加载、窗口 resize 后调用。
+   */
+  function staggerPhotoWall() {
+    const g = $("previewGrid");
+    if (!g || g.hidden) return;
+    const tiles = g.querySelectorAll(".tile");
+    /** @type {Set<number>} */
+    const seenLeft = new Set();
+    let colIndex = 0;
+    tiles.forEach((t) => {
+      const el = /** @type {HTMLElement} */ (t);
+      // clear first so re-measure is stable
+      el.style.marginTop = "";
+    });
+    tiles.forEach((t) => {
+      const el = /** @type {HTMLElement} */ (t);
+      const left = Math.round(el.getBoundingClientRect().left);
+      if (!seenLeft.has(left)) {
+        seenLeft.add(left);
+        el.style.marginTop = colIndex * 20 + "px";
+        colIndex += 1;
+      }
+    });
+  }
+
   /** @param {any[]} items */
   function setPreviewImages(items) {
     const g = $("previewGrid");
@@ -449,8 +476,11 @@
         const tile = img.parentNode;
         if (tile && tile.parentNode) tile.parentNode.removeChild(tile);
         syncWallChrome();
+        staggerPhotoWall();
       });
+      img.addEventListener("load", () => staggerPhotoWall());
     });
+    staggerPhotoWall();
     syncWallChrome();
   }
 
@@ -741,6 +771,16 @@
   if (themeSelect) {
     themeSelect.addEventListener("change", () => setTheme(themeSelect.value || ""));
   }
+
+  // 列首错位需随列数变化重算
+  let staggerTimer = null;
+  window.addEventListener("resize", () => {
+    if (staggerTimer != null) clearTimeout(staggerTimer);
+    staggerTimer = window.setTimeout(() => {
+      staggerTimer = null;
+      staggerPhotoWall();
+    }, 120);
+  });
 
   // init
   try {
