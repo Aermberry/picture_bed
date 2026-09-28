@@ -120,3 +120,4 @@
 2026-09-28 | fix(ui) | 放大被虚线裁切/右侧重叠与空隙 | 去 overflow:hidden；origin 向扫描区中心+自适应 maxScale；measure 暂清 transform；邻图仅 MTV 净空不漂移；8 测试绿+ tsc 绿；fdeeade→feature/photo-wall-hover-focus | User: 效果比之前差了很多，被左侧虚线遮挡，右侧重叠且间距过大
 2026-09-28 | update | docs/design + renderer/main.js + tests/desktop.test.ts | 逐边放大约束：NEAR=28 贴边侧钉死不外扩；对边贴边则该轴 sx/sy=1；自由侧保持 origin+1.22+DOTween；9 测试绿+ tsc 绿；11787bc→feature/photo-wall-hover-focus | User: 贴近虚线的方向禁止延伸，坐标与尺寸保持不变
 2026-09-28 | fix(ui) | 放大图仍遮挡邻图 | placeNeighbour 按缩放后视觉盒主轴 MTV+次轴回退；残余重叠则回退悬停倍率(0.72x 步进)；10 测试绿+ tsc 绿；8417acb→feature/photo-wall-hover-focus | User: 仍会发生图片重叠
+2026-09-28 | fix(ui) | 移位邻图与自身邻图重叠 | 两阶段先缩后移(0.88/0.18s→移位/0.22s)；bodies 全体两两分离迭代(邻图vs放大盒+邻图vs邻图)；10 测试绿+ tsc 绿；f176d75→feature/photo-wall-hover-focus | User: 移位了的图片的临近图片还保持一样大小和位置所以才会发生遮挡
