@@ -97,8 +97,22 @@ describe('F24 desktop shell', () => {
     expect(SPA_CSS).toContain('.photo-wall{columns:4}');
     // MT rounded-2xl + gap-4 rhythm
     expect(SPA_CSS).toContain('column-gap:16px');
-    expect(SPA_CSS).toContain('margin:0 0 16px');
     expect(SPA_CSS).toContain('border-radius:16px');
+  });
+
+  it('photo wall layout is staggered (not uniform): column tops + width/gap variation', () => {
+    // column-start offsets via JS
+    expect(spaApp).toContain('staggerPhotoWall');
+    expect(spaApp).toContain('marginTop');
+    // CSS width / indent / margin rhythm variation
+    expect(SPA_CSS).toContain('nth-child(4n+1)');
+    expect(SPA_CSS).toContain('nth-child(4n+2)');
+    expect(SPA_CSS).toContain('nth-child(4n+3)');
+    expect(SPA_CSS).toMatch(/width:90%/);
+    expect(SPA_CSS).toMatch(/width:86%/);
+    // re-stagger after image load and resize
+    expect(spaApp).toContain('addEventListener("load"');
+    expect(spaApp).toContain('resize');
   });
 
   it('photo wall has no hover zoom / neighbour shift (feature cancelled)', () => {

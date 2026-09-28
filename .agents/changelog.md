@@ -123,3 +123,4 @@
 2026-09-28 | fix(ui) | 移位邻图与自身邻图重叠 | 两阶段先缩后移(0.88/0.18s→移位/0.22s)；bodies 全体两两分离迭代(邻图vs放大盒+邻图vs邻图)；10 测试绿+ tsc 绿；f176d75→feature/photo-wall-hover-focus | User: 移位了的图片的临近图片还保持一样大小和位置所以才会发生遮挡
 2026-09-28 | fix(ui) | 放大图遮挡重置/上传按钮 | 几何约束改用 previewGrid 盒而非整个 dropzone；.dz-head z-index:10；11 测试绿+ tsc 绿；0377323→feature/photo-wall-hover-focus | User: 图片放大时会把重置与上传按钮遮挡了
 2026-09-28 | update | docs/design + renderer/{main.js,styles.css} + tests | 取消图片悬停放大/邻图让位：删 tween+applyWallFocus+hover 绑定；仅留文件名浮层与阴影；6 测试绿+ tsc 绿；d9368e9→feature/photo-wall-hover-focus | User: 取消掉图片放大功能吧
+2026-09-28 | update | docs/design + renderer/{styles.css,main.js} + tests | 照片墙错落排版：列首 margin-top 0/20/40/60、nth-child 宽度 86-100%+左偏移、margin 14-26 交替；load/resize 重算；7 测试绿+ tsc 绿；6a45ca0→feature/photo-wall-hover-focus | User: 优化排版的错落关系，当前太连贯统一
