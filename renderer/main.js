@@ -82,7 +82,7 @@
 
   /**
    * Photo-wall hover focus: hovered tile grows, neighbours shrink + push away
-   * (distance-falloff) so the zoom has room. DOTween-style, interruptible.
+   * (distance-falloff) so the zoom keeps a clear gap. DOTween-style, interruptible.
    * @param {HTMLElement | null} hovered  null → reset every tile
    */
   function applyWallFocus(hovered) {
@@ -98,10 +98,12 @@
     const hr = hovered.getBoundingClientRect();
     const hcx = hr.left + hr.width / 2;
     const hcy = hr.top + hr.height / 2;
+    // growth of scale(1.22) is 0.11×size on each side; push ~0.22×width keeps a gap
+    const pushBase = hr.width * 0.22;
     tiles.forEach((t) => {
       const el = /** @type {HTMLElement} */ (t);
       if (el === hovered) {
-        dotween(el, { scale: 1.08, x: 0, y: 0 }, { ease: "outCubic", duration: 0.28 });
+        dotween(el, { scale: 1.22, x: 0, y: 0 }, { ease: "outCubic", duration: 0.28 });
         return;
       }
       const r = el.getBoundingClientRect();
@@ -110,7 +112,7 @@
       const dist = Math.sqrt(dx * dx + dy * dy) || 1;
       // closer tiles shrink more and slide farther out
       const strength = Math.max(0, 1 - dist / 420);
-      const push = 20 * strength;
+      const push = pushBase * strength;
       const scale = 1 - 0.06 * strength;
       dotween(
         el,
