@@ -201,7 +201,7 @@
       width:100%; display:flex; flex-direction:column; align-items:center; gap:var(--sp-3);
       /* stay above enlarged tiles so 重置/上传 are never covered */
       position:sticky; top:0; z-index:10;
-      background:var(--c-surface);
+      background:rgba(255,255,255,var(--dz-head-alpha,1));
       padding:8px 0 12px;
       margin:-8px 0 0;
       box-shadow:0 6px 12px -8px rgba(90,130,170,.35);
@@ -213,7 +213,7 @@
       left:0; right:0;
       top:calc(-1 * var(--sp-8));
       height:var(--sp-8);
-      background:var(--c-surface);
+      background:rgba(255,255,255,var(--dz-head-alpha,1));
     }
     .dropzone.has-photos .dz-head{
       flex-direction:row; align-items:center; justify-content:space-between;
