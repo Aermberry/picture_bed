@@ -81,10 +81,11 @@
   }
 
   /**
-   * Photo-wall hover focus: hovered tile grows to 1.22; neighbours are pushed
-   * out of the inflated bounds (MTV + gap) so the zoom never covers them.
-   * Push targets are clamped inside the dropzone content box so scale/move
-   * never paints past the dashed scan frame. Geometry uses offset* (no transform).
+   * Photo-wall hover focus (scan-frame safe):
+   * - hovered grows toward the scan-area centre (never clipped by the dashed frame)
+   * - scale adapts to available room, up to 1.22
+   * - neighbours exit the enlarged box (MTV + gap); no extra drift (no right-rail gap)
+   * Layout boxes are measured with transforms temporarily cleared.
    * @param {HTMLElement | null} hovered  null → reset every tile
    */
   function applyWallFocus(hovered) {
@@ -92,116 +93,126 @@
     const dz = $("dropzone");
     if (!wall || !dz) return;
     const tiles = wall.querySelectorAll(".tile");
+    const HOVER_SCALE = 1.22;
+    const MARGIN = 8;
+    const GAP = 12;
+
     if (!hovered) {
       tiles.forEach((t) => {
         const el = /** @type {HTMLElement} */ (t);
         el.style.zIndex = "";
+        el.style.transformOrigin = "";
         dotween(el, { scale: 1, x: 0, y: 0 }, { ease: "inOutSine", duration: 0.32 });
       });
       return;
     }
-    const GAP = 14;
-    // layout centres relative to the wall (offset* ignores transforms)
-    /** @param {HTMLElement} el */
-    function posIn(el) {
-      let x = 0;
-      let y = 0;
-      /** @type {HTMLElement | null} */ let n = el;
-      while (n && n !== wall) {
-        x += n.offsetLeft;
-        y += n.offsetTop;
-        n = n.offsetParent;
-      }
-      return { x: x + el.offsetWidth / 2, y: y + el.offsetHeight / 2, hw: el.offsetWidth / 2, hh: el.offsetHeight / 2 };
-    }
-    const h = posIn(hovered);
-    const hcx = h.x;
-    const hcy = h.y;
-    // enlarged half-extents of scale(1.22) plus clearance gap
-    const ehw = hovered.offsetWidth * 0.61 + GAP;
-    const ehh = hovered.offsetHeight * 0.61 + GAP;
-    // clamp pushes so the scaled tile stays inside the wall / dashed frame
-    const maxW = wall.clientWidth;
-    const maxH = wall.clientHeight;
+
+    // Coordinates relative to the dropzone padding edge (inside the dashed frame).
+    const dzRect = dz.getBoundingClientRect();
+    const originX = dzRect.left + dz.clientLeft;
+    const originY = dzRect.top + dz.clientTop;
+    const maxW = dz.clientWidth;
+    const maxH = dz.clientHeight;
+
     /**
-     * @param {number} cx layout centre x
-     * @param {number} cy layout centre y
-     * @param {number} hw half width at scale 1
-     * @param {number} hh half height at scale 1
-     * @param {number} scale
-     * @param {number} px
-     * @param {number} py
+     * @param {HTMLElement} el
+     * @returns {{el:HTMLElement,left:number,top:number,width:number,height:number,cx:number,cy:number,hw:number,hh:number}}
      */
-    function clampPush(cx, cy, hw, hh, scale, px, py) {
-      const sw = hw * scale;
-      const sh = hh * scale;
-      const minX = GAP + sw - cx;
-      const maxX = maxW - GAP - sw - cx;
-      const minY = GAP + sh - cy;
-      const maxY = maxH - GAP - sh - cy;
+    function measure(el) {
+      const saved = el.style.transform;
+      el.style.transform = "none";
+      const r = el.getBoundingClientRect();
+      el.style.transform = saved;
+      const left = r.left - originX;
+      const top = r.top - originY;
       return {
-        x: Math.min(Math.max(px, minX), Math.max(minX, maxX)),
-        y: Math.min(Math.max(py, minY), Math.max(minY, maxY)),
+        el: el,
+        left: left,
+        top: top,
+        width: r.width,
+        height: r.height,
+        cx: left + r.width / 2,
+        cy: top + r.height / 2,
+        hw: r.width / 2,
+        hh: r.height / 2,
       };
     }
 
-    tiles.forEach((t) => {
-      const el = /** @type {HTMLElement} */ (t);
-      if (el === hovered) {
-        el.style.zIndex = "3";
-        // keep the zoom itself inside the dashed frame (overflow:hidden is the hard stop)
-        const hv = clampPush(hcx, hcy, h.hw, h.hh, 1.22, 0, 0);
-        dotween(el, { scale: 1.22, x: hv.x, y: hv.y }, { ease: "outCubic", duration: 0.28 });
-        return;
-      }
+    /** @type {ReturnType<typeof measure>[]} */
+    const boxes = [];
+    tiles.forEach((t) => boxes.push(measure(/** @type {HTMLElement} */ (t))));
+    const h = boxes.find((b) => b.el === hovered);
+    if (!h) return;
+
+    // Grow toward the scan-area centre so edge tiles are not clipped.
+    const dzCx = maxW / 2;
+    const dzCy = maxH / 2;
+    const oxn = h.cx < dzCx ? 0 : 1; // 0 = grow right, 1 = grow left
+    const oyn = h.cy < dzCy ? 0 : 1; // 0 = grow down, 1 = grow up
+    hovered.style.transformOrigin = (oxn ? "100%" : "0%") + " " + (oyn ? "100%" : "0%");
+    hovered.style.zIndex = "3";
+
+    // max scale that keeps the enlarged box inside the frame (with MARGIN)
+    let maxS = HOVER_SCALE;
+    if (oxn === 1) maxS = Math.min(maxS, 1 + (h.left - MARGIN) / h.width);
+    else maxS = Math.min(maxS, 1 + (maxW - MARGIN - h.left - h.width) / h.width);
+    if (oyn === 1) maxS = Math.min(maxS, 1 + (h.top - MARGIN) / h.height);
+    else maxS = Math.min(maxS, 1 + (maxH - MARGIN - h.top - h.height) / h.height);
+    maxS = Math.max(1, maxS);
+    const targetS = Math.min(HOVER_SCALE, maxS);
+    dotween(hovered, { scale: targetS, x: 0, y: 0 }, { ease: "outCubic", duration: 0.28 });
+
+    // Enlarged box of the hovered tile (non-centre origin aware) + clearance gap
+    const s = targetS;
+    const enL = h.left - h.width * oxn * (s - 1) - GAP;
+    const enR = h.left + h.width + h.width * (1 - oxn) * (s - 1) + GAP;
+    const enT = h.top - h.height * oyn * (s - 1) - GAP;
+    const enB = h.top + h.height + h.height * (1 - oyn) * (s - 1) + GAP;
+
+    boxes.forEach((b) => {
+      if (b.el === hovered) return;
+      const el = b.el;
       el.style.zIndex = "1";
-      const p = posIn(el);
-      const ncx = p.x;
-      const ncy = p.y;
-      const nhw = p.hw;
-      const nhh = p.hh;
-      // neighbour box vs exclusion zone (enlarged hovered + gap)
-      const zoneL = hcx - ehw;
-      const zoneR = hcx + ehw;
-      const zoneT = hcy - ehh;
-      const zoneB = hcy + ehh;
-      const nL = ncx - nhw;
-      const nR = ncx + nhw;
-      const nT = ncy - nhh;
-      const nB = ncy + nhh;
-      const oX = Math.min(nR, zoneR) - Math.max(nL, zoneL);
-      const oY = Math.min(nB, zoneB) - Math.max(nT, zoneT);
+      el.style.transformOrigin = "50% 50%";
+
+      // neighbour box vs enlarged exclusion zone
+      const nL = b.left;
+      const nR = b.left + b.width;
+      const nT = b.top;
+      const nB = b.top + b.height;
+      const oX = Math.min(nR, enR) - Math.max(nL, enL);
+      const oY = Math.min(nB, enB) - Math.max(nT, enT);
       let pushX = 0;
       let pushY = 0;
       if (oX > 0 && oY > 0) {
-        // minimum translation vector — exit along the cheaper axis,
-        // in the direction away from the hovered centre
-        const left = nR - zoneL;
-        const right = zoneR - nL;
-        const up = nB - zoneT;
-        const down = zoneB - nT;
+        // MTV: exit along the cheaper axis, away from the hovered centre
+        const left = nR - enL;
+        const right = enR - nL;
+        const up = nB - enT;
+        const down = enB - nT;
         if (oX < oY) {
-          pushX = ncx >= hcx ? right : -left;
+          pushX = b.cx >= h.cx ? right : -left;
         } else {
-          pushY = ncy >= hcy ? down : -up;
+          pushY = b.cy >= h.cy ? down : -up;
         }
       }
-      // light distance-falloff recede for polish on top of clearance
-      const dist = Math.sqrt((ncx - hcx) * (ncx - hcx) + (ncy - hcy) * (ncy - hcy)) || 1;
+
+      // mild shrink only — no extra drift (drift caused right-rail gaps / collisions)
+      const dist = Math.sqrt((b.cx - h.cx) * (b.cx - h.cx) + (b.cy - h.cy) * (b.cy - h.cy)) || 1;
       const strength = Math.max(0, 1 - dist / 420);
-      const scale = 1 - 0.06 * strength;
-      if (!pushX && !pushY) {
-        // no overlap: gentle outer drift away from the focus
-        const push = 16 * strength;
-        pushX = ((ncx - hcx) / dist) * push;
-        pushY = ((ncy - hcy) / dist) * push;
-      }
-      const clamped = clampPush(ncx, ncy, nhw, nhh, scale, pushX, pushY);
-      dotween(
-        el,
-        { scale: scale, x: clamped.x, y: clamped.y },
-        { ease: "inOutSine", duration: 0.32 },
-      );
+      const scale = 1 - 0.05 * strength;
+
+      // clamp the post-transform box inside the frame (MARGIN)
+      const sw = b.hw * scale;
+      const sh = b.hh * scale;
+      const minX = MARGIN + sw - b.cx;
+      const maxX = maxW - MARGIN - sw - b.cx;
+      const minY = MARGIN + sh - b.cy;
+      const maxY = maxH - MARGIN - sh - b.cy;
+      const clampedX = Math.min(Math.max(pushX, minX), Math.max(minX, maxX));
+      const clampedY = Math.min(Math.max(pushY, minY), Math.max(minY, maxY));
+
+      dotween(el, { scale: scale, x: clampedX, y: clampedY }, { ease: "inOutSine", duration: 0.32 });
     });
   }
 

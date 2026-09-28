@@ -128,15 +128,14 @@ describe('F24 desktop shell', () => {
     expect(spaApp).toContain('function applyWallFocus');
     // enlarged bounds + gap define a clearance zone neighbours must exit
     expect(spaApp).toContain('GAP');
-    expect(spaApp).toContain('0.61');
     expect(spaApp).toContain('oX');
     expect(spaApp).toContain('oY');
     // MTV push: exit along the cheaper axis, away from the hovered centre
     expect(spaApp).toContain('pushX');
     expect(spaApp).toContain('pushY');
-    // offset* geometry ignores transforms so mid-tween offsets don't skew
-    expect(spaApp).toContain('offsetLeft');
-    expect(spaApp).toContain('offsetWidth');
+    // transform-free layout measurement (restore after read)
+    expect(spaApp).toContain('transform = "none"');
+    expect(spaApp).toContain('measure');
     // hovered draws above while zooming; cleared on leave
     expect(spaApp).toContain('zIndex');
     expect(spaApp).toContain('applyWallFocus(null)');
@@ -145,14 +144,21 @@ describe('F24 desktop shell', () => {
     expect(spaApp).toContain(') scale(');
   });
 
-  it('photo wall scale/move stays inside the dashed scan frame', () => {
-    // hard clip at the dropzone (dashed border) — nothing paints outside
-    expect(SPA_CSS).toContain('overflow:hidden');
-    expect(SPA_CSS).toMatch(/\.dropzone\{[^}]*overflow:hidden/);
-    // push targets clamped into the wall content box
-    expect(spaApp).toContain('function clampPush');
-    expect(spaApp).toContain('clampPush');
-    expect(spaApp).toContain('clientWidth');
+  it('photo wall zoom grows toward scan-area centre and never clips on the dashed frame', () => {
+    // no overflow:hidden — the dashed frame must not crop the zoom
+    const dropzoneRule = SPA_CSS.slice(
+      SPA_CSS.indexOf('.dropzone{'),
+      SPA_CSS.indexOf('.dropzone:hover'),
+    );
+    expect(dropzoneRule).not.toContain('overflow:hidden');
+    // adaptive scale + origin toward the frame centre
+    expect(spaApp).toContain('transformOrigin');
+    expect(spaApp).toContain('HOVER_SCALE');
+    expect(spaApp).toContain('maxS');
+    expect(spaApp).toContain('targetS');
+    // neighbour targets stay inside the frame without extra drift gaps
+    expect(spaApp).toContain('MARGIN');
+    expect(spaApp).toContain('clampedX');
   });
 
   it('photo wall count matches tiles: doc drop is not previewed, failed loads update the headline', () => {
