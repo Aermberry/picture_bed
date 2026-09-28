@@ -137,3 +137,4 @@
 2026-09-28 | update | docs/design + renderer/{styles.css,main.js} + tests | 吸顶条背景随滚动渐隐至 alpha 0.82（禁止全透明）；--dz-head-alpha + updateWallBarFade；25/25+ tsc 绿；d5bcd6b→feature/photo-wall-hover-focus | User: 绿色选框内背景随着滚动时逐渐变成透明但不能全透明
 2026-09-28 | fix(ui) | 滚动渐隐无变化 | rgba(var()) 不生效；改 opacity 图层+capture 滚动监听；25/25+ tsc 绿；2426758→feature/photo-wall-hover-focus | User: 没有发生变化
 2026-09-28 | fix(ui) | 吸顶条上方多一条白条 | ::before 负 top 伸出形成独立条；遮罩并入 padding 做成单块底板；25/25+ tsc 绿；59172d0→feature/photo-wall-hover-focus | User: 选框内多了一条白条
+2026-09-28 | fix(ui) | 白条仍未去除 | 根因 dz-head 40px 空顶距；改为贴合控件的 12px padding，content padding-top:0；25/25+ tsc 绿；333fc2d→feature/photo-wall-hover-focus | User: 没有去除掉
