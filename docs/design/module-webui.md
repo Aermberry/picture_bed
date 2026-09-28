@@ -85,11 +85,11 @@ idle（拖放提示）
 
 - 预览：`GET /api/preview?path=` 仅允许扫描根内图片扩展名；预览不上传。**`previewPath` 仅对图片文件返回**（文档拖入不得进入照片墙计数）。
 - **扫描结果呈现（2026-09-27 · 照片墙 / 2026-09-28 对齐 Material Tailwind Masonry）**：扫描成功后拖放区进入 `has-photos` 态——隐藏空态英雄区，以 **CSS multi-column 瀑布流照片墙**展示图块（排列对齐 [Material Tailwind Gallery · Masonry Grid](https://www.material-tailwind.com/docs/v3/html/gallery)）：
-  - 布局：响应式列数 **2 / 3 / 4**（窄 / 中 / 宽），`column-gap:8`；图块 `break-inside:avoid`、**宽 100%**（不留横向白缝）。
-  - **错落排版（2026-09-28 · 紧密）**：错落只来自**竖向节奏**，不缩宽度——
-    1. **列首错位**：每列第一张 `margin-top` 按列序 **0 / 8 / 16 / 24px**。
-    2. **底距微差**：`margin-bottom` **6 / 8 / 10 / 12px** 交替。
-    3. 图片保持自然宽高比、圆角 16；resize / 图片加载后重算列首错位。
+  - 布局：响应式列数 **2 / 3 / 4**（窄 / 中 / 宽），**JS 最短列优先瀑布流**（CSS multi-column 平衡分栏会在高度不一时留大洞，已弃用）；列间 `gap:6`，图块间距 `6px`，**满宽**。
+  - **错落排版（2026-09-28 · 密排）**：错落只来自**竖向微差**——
+    1. **列首错位**：第 2 列起 `margin-top` **0 / 6 / 12px**。
+    2. **底距微差**：图块间距 **4–8px**。
+    3. 图片保持自然宽高比、圆角 16；图片加载 / resize 后重分布到最短列。
   - 图块：`width:100%; height:auto`（**自然宽高比**，不裁切）；圆角 **16**（对齐 MT `rounded-2xl`）；彩色柔影；hover 上浮 + 底部文件名浮层。
   - **hover（2026-09-28 · 取消放大）**：**不做悬停放大/邻图让位**。悬停仅保留底部**文件名浮层**与轻微阴影（CSS）。图块始终 `scale(1)`、无平移。
   - 操作条与标题同排：「扫描到 N 张图片」+「重置」「上传」。**操作条仅在照片墙实际有图块时显示**（`#previewActions`；空态/全部加载失败时隐藏）。CSS 须保证 `[hidden]{display:none!important}`，避免 `.row{display:flex}` 压过 `hidden`。
