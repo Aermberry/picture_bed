@@ -500,6 +500,7 @@
           '<figure class="tile" data-key="' + esc(wallKey(p)) + '">' +
           '<img alt="" loading="lazy" src="' + src + '" />' +
           '<span class="check">✓</span>' +
+          '<span class="sel-tag">已选</span>' +
           (name ? '<figcaption class="name">' + esc(name) + "</figcaption>" : "") +
           "</figure>"
         );

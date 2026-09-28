@@ -268,7 +268,7 @@
       pointer-events:none;
     }
     .photo-wall .tile:hover .name{opacity:1}
-    /* 点选批量删除 */
+    /* 点选批量删除 —— 选中态必须一眼可见 */
     .photo-wall .tile{
       cursor:pointer;
       user-select:none;
@@ -276,16 +276,41 @@
     .photo-wall .tile.selected{
       outline:3px solid var(--c-primary);
       outline-offset:-3px;
+      box-shadow:
+        0 0 0 3px var(--c-surface),
+        0 0 0 6px var(--c-primary),
+        var(--shadow-2);
+      transform:translateY(-2px);
+    }
+    .photo-wall .tile.selected::after{
+      content:"";
+      position:absolute; inset:0;
+      background:rgba(78,147,192,.22);
+      pointer-events:none;
+      z-index:1;
     }
     .photo-wall .tile .check{
       position:absolute; top:8px; right:8px;
-      width:22px;height:22px;border-radius:var(--r-full);
-      background:var(--c-primary); color:#fff; font-size:12px;
+      width:28px;height:28px;border-radius:var(--r-full);
+      background:var(--c-primary); color:#fff; font-size:15px; font-weight:700;
       display:flex; align-items:center; justify-content:center;
-      opacity:0; transform:scale(.6); transition:opacity .15s, transform .15s;
-      pointer-events:none; z-index:2;
+      opacity:0; transform:scale(.5);
+      transition:opacity .15s, transform .18s;
+      pointer-events:none; z-index:3;
+      box-shadow:0 2px 8px rgba(78,147,192,.45);
+      border:2px solid #fff;
     }
     .photo-wall .tile.selected .check{opacity:1; transform:scale(1)}
+    .photo-wall .tile .sel-tag{
+      position:absolute; left:8px; bottom:8px;
+      padding:3px 10px; border-radius:var(--r-full);
+      background:var(--c-primary); color:#fff;
+      font-size:11px; font-weight:600;
+      opacity:0; transform:translateY(4px);
+      transition:opacity .15s, transform .15s;
+      pointer-events:none; z-index:3;
+    }
+    .photo-wall .tile.selected .sel-tag{opacity:1; transform:translateY(0)}
 
     .btn{
       padding:10px 24px; border-radius:var(--r-md); border:none;

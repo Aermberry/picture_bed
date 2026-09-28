@@ -120,7 +120,11 @@ describe('F24 desktop shell', () => {
     expect(spaApp).toContain('btnDelete');
     expect(spaApp).toContain('syncDeleteChrome');
     expect(INDEX_HTML).toContain('id="btnDelete"');
+    // selected state is obvious: ring + tint + badge + tag
     expect(SPA_CSS).toContain('.photo-wall .tile.selected');
+    expect(SPA_CSS).toContain('sel-tag');
+    expect(SPA_CSS).toMatch(/tile\.selected::after/);
+    expect(spaApp).toContain('已选');
     // delete removes from wall + session workset
     expect(spaApp).toContain('api/session/remove');
     expect(spaApp).toContain('clearSelection');
