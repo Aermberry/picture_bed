@@ -158,7 +158,7 @@ describe('F24 desktop shell', () => {
     expect(spaApp).toContain('targetS');
     // neighbour targets stay inside the frame without extra drift gaps
     expect(spaApp).toContain('MARGIN');
-    expect(spaApp).toContain('clampedX');
+    expect(spaApp).toContain('minX');
   });
 
   it('photo wall zoom pins edges that hug a dashed line (no expansion toward it)', () => {
@@ -177,6 +177,18 @@ describe('F24 desktop shell', () => {
     expect(spaApp).toContain('scale(" + s.sx + "," + s.sy + ")');
     // free sides still use the original up-to-1.22 zoom
     expect(spaApp).toContain('1.22');
+  });
+
+  it('photo wall never leaves a neighbour covered: MTV on scaled box + scale fallback', () => {
+    expect(spaApp).toContain('placeNeighbour');
+    expect(spaApp).toContain('zoneFor');
+    // dominant-axis exit, then alternate axis if clamped
+    expect(spaApp).toContain('preferX');
+    expect(spaApp).toContain('exit(');
+    // residual overlap steps down the hovered growth axes
+    expect(spaApp).toContain('placements');
+    expect(spaApp).toContain('every((p) => p.ok)');
+    expect(spaApp).toContain('0.72');
   });
 
   it('photo wall count matches tiles: doc drop is not previewed, failed loads update the headline', () => {
