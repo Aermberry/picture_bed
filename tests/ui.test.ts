@@ -289,8 +289,9 @@ describe('ui server F16–F18', () => {
     expect(SPA_CSS).toContain('rgba(var(--logo-ring');
     // icon tokens (no hardcoded stroke color in markup symbols)
     expect(SPA_CSS).toContain('--ico-stroke');
-    // topbar quota + theme pills stay in markup
-    expect(html).toContain('quota');
+    // topbar theme pills stay in markup; quota bar removed
+    expect(html).toContain('themePills');
+    expect(html).not.toContain('quota');
     expect(html).toContain('data-theme-btn');
     expect(html).toContain('class="ico-s"');
     expect(html).not.toContain('stroke="#2E4B7E"');
