@@ -101,107 +101,18 @@ describe('F24 desktop shell', () => {
     expect(SPA_CSS).toContain('border-radius:16px');
   });
 
-  it('photo wall hover zoom uses DOTween-style doscale (1→1.22→1, interruptible)', () => {
-    // rAF tween engine with DOTween-like easing
-    expect(spaApp).toContain('function doscale');
-    expect(spaApp).toContain('function dotween');
-    expect(spaApp).toContain('outCubic');
-    expect(spaApp).toContain('inOutSine');
-    expect(spaApp).toContain('requestAnimationFrame');
-    expect(spaApp).toContain('cancelAnimationFrame');
-    // hover wires: enter scale up, leave scale back
-    expect(spaApp).toContain('mouseenter');
-    expect(spaApp).toContain('mouseleave');
-    expect(spaApp).toContain('1.22');
-    // CSS must not fight the JS-driven transform (scoped to .photo-wall .tile)
-    expect(SPA_CSS).toContain('transform-origin:center center');
-    const tileRule = SPA_CSS.slice(
-      SPA_CSS.indexOf('.photo-wall .tile{'),
-      SPA_CSS.indexOf('.photo-wall .tile img'),
-    );
-    expect(tileRule).not.toContain('transition:transform');
-    expect(tileRule).not.toContain('transform:');
+  it('photo wall has no hover zoom / neighbour shift (feature cancelled)', () => {
+    // no tween engine or focus layout left in the SPA
+    expect(spaApp).not.toContain('applyWallFocus');
+    expect(spaApp).not.toContain('function dotween');
+    expect(spaApp).not.toContain('function doscale');
+    expect(spaApp).not.toContain('HOVER_SCALE');
+    expect(spaApp).not.toContain('wallFocusPhase2');
+    // tiles never get a JS transform
+    expect(spaApp).not.toContain('style.transform');
+    // hover keeps only the filename overlay + shadow
+    expect(SPA_CSS).toContain('.photo-wall .tile:hover .name');
     expect(SPA_CSS).not.toMatch(/\.photo-wall \.tile:hover\{[^}]*transform/);
-  });
-
-  it('photo wall hover focus: neighbours never sit under the enlarged tile', () => {
-    expect(spaApp).toContain('function applyWallFocus');
-    // enlarged bounds + gap define a clearance zone neighbours must exit
-    expect(spaApp).toContain('GAP');
-    expect(spaApp).toContain('oX');
-    expect(spaApp).toContain('oY');
-    // MTV push: exit along the cheaper axis, away from the hovered centre
-    expect(spaApp).toContain('pushX');
-    expect(spaApp).toContain('pushY');
-    // transform-free layout measurement (restore after read)
-    expect(spaApp).toContain('transform = "none"');
-    expect(spaApp).toContain('measure');
-    // hovered draws above while zooming; cleared on leave
-    expect(spaApp).toContain('zIndex');
-    expect(spaApp).toContain('applyWallFocus(null)');
-    // composite transform: translate + scale
-    expect(spaApp).toContain('translate(');
-    expect(spaApp).toContain(') scale(');
-  });
-
-  it('photo wall zoom grows toward scan-area centre and never clips on the dashed frame', () => {
-    // no overflow:hidden — the dashed frame must not crop the zoom
-    const dropzoneRule = SPA_CSS.slice(
-      SPA_CSS.indexOf('.dropzone{'),
-      SPA_CSS.indexOf('.dropzone:hover'),
-    );
-    expect(dropzoneRule).not.toContain('overflow:hidden');
-    // adaptive scale + origin toward the frame centre
-    expect(spaApp).toContain('transformOrigin');
-    expect(spaApp).toContain('HOVER_SCALE');
-    expect(spaApp).toContain('scaleFromRoom');
-    expect(spaApp).toContain('targetSx');
-    // neighbour targets stay inside the frame without extra drift gaps
-    expect(spaApp).toContain('MARGIN');
-    expect(spaApp).toContain('minX');
-  });
-
-  it('photo wall zoom pins edges that hug a dashed line (no expansion toward it)', () => {
-    // per-edge proximity gates which sides may expand
-    expect(spaApp).toContain('NEAR');
-    expect(spaApp).toContain('nearLeft');
-    expect(spaApp).toContain('nearRight');
-    expect(spaApp).toContain('nearTop');
-    expect(spaApp).toContain('nearBottom');
-    // opposite edges both near → that axis does not expand
-    expect(spaApp).toContain('allowX');
-    expect(spaApp).toContain('allowY');
-    expect(spaApp).toContain('targetSx');
-    expect(spaApp).toContain('targetSy');
-    // non-uniform scale keeps a pinned axis at 1
-    expect(spaApp).toContain('scale(" + s.sx + "," + s.sy + ")');
-    // free sides still use the original up-to-1.22 zoom
-    expect(spaApp).toContain('1.22');
-  });
-
-  it('photo wall never leaves a neighbour covered: shrink first, then shift + pairwise', () => {
-    // two-phase: shrink first, then move
-    expect(spaApp).toContain('PHASE1');
-    expect(spaApp).toContain('PHASE2');
-    expect(spaApp).toContain('SHRINK');
-    expect(spaApp).toContain('wallFocusPhase2');
-    // pairwise separation so a shifted tile never covers its own neighbours
-    expect(spaApp).toContain('bodies');
-    expect(spaApp).toContain('neighbour vs neighbour');
-    expect(spaApp).toContain('Pairwise separation');
-    // free-room-limited hover scale
-    expect(spaApp).toContain('freeR');
-    expect(spaApp).toContain('scaleFromRoom');
-  });
-
-  it('photo wall zoom never covers the 重置/上传 action bar', () => {
-    // geometry is bounded by the photo wall, not the whole dropzone
-    expect(spaApp).toContain('wall.clientLeft');
-    expect(spaApp).toContain('wall.clientWidth');
-    expect(spaApp).toContain('previewGrid');
-    // action bar stacks above tiles
-    expect(SPA_CSS).toContain('z-index:10');
-    expect(SPA_CSS).toMatch(/\.dropzone \.dz-head\{[^}]*z-index:10/);
   });
 
   it('photo wall count matches tiles: doc drop is not previewed, failed loads update the headline', () => {
