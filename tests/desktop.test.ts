@@ -81,8 +81,8 @@ describe('F24 desktop shell', () => {
     expect(INDEX_HTML).toContain('id="previewActions"');
     expect(SPA_CSS).toContain('.photo-wall');
     expect(SPA_CSS).toContain('.photo-wall .tile');
-    expect(SPA_CSS).toContain('columns:');
-    expect(SPA_CSS).toContain('break-inside:avoid');
+    expect(SPA_CSS).toContain('display:flex');
+    expect(SPA_CSS).toContain('.photo-wall .pw-col');
     expect(SPA_CSS).toContain('.photo-wall .tile .name');
     expect(SPA_CSS).toContain('has-photos');
     expect(spaApp).toContain('class="tile"');
@@ -90,25 +90,16 @@ describe('F24 desktop shell', () => {
     expect(spaApp).toContain('photoWallTitle');
   });
 
-  it('photo wall follows Material Tailwind masonry gallery: 2/3/4 cols, gap 16, r16', () => {
-    // responsive column ladder (mobile → tablet → desktop)
-    expect(SPA_CSS).toContain('columns:2');
-    expect(SPA_CSS).toContain('.photo-wall{columns:3}');
-    expect(SPA_CSS).toContain('.photo-wall{columns:4}');
-    // MT rounded-2xl; tight column gap
-    expect(SPA_CSS).toContain('column-gap:8px');
-    expect(SPA_CSS).toContain('border-radius:16px');
-  });
-
-  it('photo wall stagger uses full-width tiles (no side air) and tight vertical rhythm', () => {
-    expect(spaApp).toContain('staggerPhotoWall');
-    expect(spaApp).toContain('marginTop');
-    // tiles fill the column — width reduction would open white channels
-    expect(SPA_CSS).toMatch(/\.photo-wall \.tile:nth-child\(4n\+1\)\{ width:100%/);
-    expect(SPA_CSS).toMatch(/width:100%/);
-    expect(SPA_CSS).not.toMatch(/width:9[0-6]%/);
-    // compact bottom margins only
-    expect(SPA_CSS).toMatch(/margin-bottom:6px/);
+  it('photo wall follows shortest-column masonry with tight packing', () => {
+    // flex columns, not CSS multi-column (which leaves height-balance holes)
+    expect(SPA_CSS).toContain('display:flex');
+    expect(SPA_CSS).toContain('.photo-wall .pw-col');
+    expect(SPA_CSS).toContain('gap:6px');
+    // JS packs each tile into the currently shortest column
+    expect(spaApp).toContain('layoutPhotoWall');
+    expect(spaApp).toContain('pw-col');
+    expect(spaApp).toContain('offsetHeight');
+    // restack on image load and resize
     expect(spaApp).toContain('addEventListener("load"');
     expect(spaApp).toContain('resize');
   });

@@ -409,29 +409,36 @@
   }
 
   /**
-   * 错落排版：每列第一张图按列序增加 margin-top，形成参差列顶。
-   * 在渲染、图片加载、窗口 resize 后调用。
+   * 最短列优先瀑布流：把 tile 分进 N 个 flex 列，每张进当前最矮的列。
+   * 列首加轻微 margin-top 形成错落。图片 load / resize 后重跑。
    */
-  function staggerPhotoWall() {
+  function layoutPhotoWall() {
     const g = $("previewGrid");
     if (!g || g.hidden) return;
-    const tiles = g.querySelectorAll(".tile");
-    /** @type {Set<number>} */
-    const seenLeft = new Set();
-    let colIndex = 0;
+    const tiles = Array.from(g.querySelectorAll(".tile"));
+    if (!tiles.length) {
+      g.innerHTML = "";
+      return;
+    }
+    const w = g.clientWidth || 800;
+    const n = w < 640 ? 2 : w < 1000 ? 3 : 4;
+    /** @type {HTMLElement[]} */
+    const cols = [];
+    for (let i = 0; i < n; i++) {
+      const col = document.createElement("div");
+      col.className = "pw-col";
+      // 列首微错位
+      col.style.paddingTop = i * 6 + "px";
+      cols.push(col);
+      g.appendChild(col);
+    }
+    // 最短列优先：用图块已知高度（读一次布局）
+    const heights = new Array(n).fill(0);
     tiles.forEach((t) => {
-      const el = /** @type {HTMLElement} */ (t);
-      // clear first so re-measure is stable
-      el.style.marginTop = "";
-    });
-    tiles.forEach((t) => {
-      const el = /** @type {HTMLElement} */ (t);
-      const left = Math.round(el.getBoundingClientRect().left);
-      if (!seenLeft.has(left)) {
-        seenLeft.add(left);
-        el.style.marginTop = colIndex * 8 + "px";
-        colIndex += 1;
-      }
+      let best = 0;
+      for (let i = 1; i < n; i++) if (heights[i] < heights[best] - 0.5) best = i;
+      cols[best].appendChild(t);
+      heights[best] += (t.offsetHeight || t.getBoundingClientRect().height || 120) + 6;
     });
   }
 
@@ -445,6 +452,7 @@
       setPreviewIdle();
       return;
     }
+    // flat tiles first; layoutPhotoWall re-buckets them into columns
     g.innerHTML = items
       .map((p) => {
         let src = "";
@@ -470,17 +478,17 @@
       .join("");
     g.hidden = false;
     if (dz) dz.classList.add("has-photos");
+    layoutPhotoWall();
     // Keep the headline in sync with tiles actually in the wall (failed loads drop out).
     /** @type {NodeListOf<HTMLImageElement>} */ (g.querySelectorAll("img")).forEach((img) => {
       img.addEventListener("error", () => {
         const tile = img.parentNode;
         if (tile && tile.parentNode) tile.parentNode.removeChild(tile);
         syncWallChrome();
-        staggerPhotoWall();
+        layoutPhotoWall();
       });
-      img.addEventListener("load", () => staggerPhotoWall());
+      img.addEventListener("load", () => layoutPhotoWall());
     });
-    staggerPhotoWall();
     syncWallChrome();
   }
 
@@ -772,13 +780,13 @@
     themeSelect.addEventListener("change", () => setTheme(themeSelect.value || ""));
   }
 
-  // 列首错位需随列数变化重算
+  // 列数/最短列分布需随宽度变化重算
   let staggerTimer = null;
   window.addEventListener("resize", () => {
     if (staggerTimer != null) clearTimeout(staggerTimer);
     staggerTimer = window.setTimeout(() => {
       staggerTimer = null;
-      staggerPhotoWall();
+      layoutPhotoWall();
     }, 120);
   });
 

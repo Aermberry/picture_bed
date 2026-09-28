@@ -225,34 +225,32 @@
     .dropzone .big-ico svg{width:52px;height:52px}
     .dropzone h2{font-size:18px}
     .dropzone p{color:var(--c-text-2)}
-    /* 扫描结果 · 照片墙（Material Tailwind Masonry 画廊） */
+    /* 扫描结果 · 照片墙（最短列优先瀑布流，密排） */
     .photo-wall{
       width:100%;
-      columns:2;
-      column-gap:8px;
+      display:flex;
+      gap:6px;
       margin-top:var(--sp-2);
+      align-items:flex-start;
     }
-    @media (min-width:720px){
-      .photo-wall{columns:3}
-    }
-    @media (min-width:1100px){
-      .photo-wall{columns:4}
+    .photo-wall .pw-col{
+      flex:1 1 0;
+      min-width:0;
+      display:flex;
+      flex-direction:column;
+      gap:6px;
     }
     .photo-wall .tile{
-      break-inside:avoid;
-      margin:0 0 16px;
+      width:100%;
       border-radius:16px;
       overflow:hidden;
       position:relative;
       background:var(--c-surface);
       box-shadow:var(--shadow-1);
       transition:box-shadow .2s;
+      margin:0;
     }
-    /* 错落：只靠列顶/底距微差，宽度拉满避免横向白缝 */
-    .photo-wall .tile:nth-child(4n+1){ width:100%; margin-left:0; margin-bottom:8px; }
-    .photo-wall .tile:nth-child(4n+2){ width:100%; margin-left:0; margin-bottom:12px; }
-    .photo-wall .tile:nth-child(4n+3){ width:100%; margin-left:0; margin-bottom:6px; }
-    .photo-wall .tile:nth-child(4n){ width:100%; margin-left:0; margin-bottom:10px; }
+    /* 错落：仅列首微错位（JS 写 marginTop） */
     .photo-wall .tile:hover{
       box-shadow:var(--shadow-2);
     }
