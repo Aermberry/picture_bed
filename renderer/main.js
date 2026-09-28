@@ -122,12 +122,13 @@
       return;
     }
 
-    // Coordinates relative to the dropzone padding edge (inside the dashed frame).
-    const dzRect = dz.getBoundingClientRect();
-    const originX = dzRect.left + dz.clientLeft;
-    const originY = dzRect.top + dz.clientTop;
-    const maxW = dz.clientWidth;
-    const maxH = dz.clientHeight;
+    // Coordinates relative to the PHOTO WALL (not the whole dropzone) so
+    // enlarged/shifted tiles never paint over the 重置/上传 action bar.
+    const wallRect = wall.getBoundingClientRect();
+    const originX = wallRect.left + wall.clientLeft;
+    const originY = wallRect.top + wall.clientTop;
+    const maxW = wall.clientWidth;
+    const maxH = wall.clientHeight;
 
     /**
      * @param {HTMLElement} el

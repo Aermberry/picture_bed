@@ -194,6 +194,16 @@ describe('F24 desktop shell', () => {
     expect(spaApp).toContain('scaleFromRoom');
   });
 
+  it('photo wall zoom never covers the 重置/上传 action bar', () => {
+    // geometry is bounded by the photo wall, not the whole dropzone
+    expect(spaApp).toContain('wall.clientLeft');
+    expect(spaApp).toContain('wall.clientWidth');
+    expect(spaApp).toContain('previewGrid');
+    // action bar stacks above tiles
+    expect(SPA_CSS).toContain('z-index:10');
+    expect(SPA_CSS).toMatch(/\.dropzone \.dz-head\{[^}]*z-index:10/);
+  });
+
   it('photo wall count matches tiles: doc drop is not previewed, failed loads update the headline', () => {
     // previewPath must be image-only (server + client)
     expect(spaApp).toContain('pp && isImageName(pp)');
