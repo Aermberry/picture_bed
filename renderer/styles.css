@@ -199,21 +199,22 @@
     .dropzone.has-photos .drop-hero{display:none}
     .dropzone .dz-head{
       width:100%; display:flex; flex-direction:column; align-items:center; gap:var(--sp-3);
-      /* stay above enlarged tiles so 重置/上传 are never covered */
+      /* one continuous sticky plate (cover area folded into padding, no extra strip) */
       position:sticky; top:0; z-index:10;
-      background:rgba(255,255,255,var(--dz-head-alpha,1));
-      padding:8px 0 12px;
-      margin:-8px 0 0;
-      box-shadow:0 6px 12px -8px rgba(90,130,170,.35);
+      background:transparent;
+      padding:calc(var(--sp-8) + 8px) 0 12px;
+      margin:calc(-1 * var(--sp-8) - 8px) 0 0;
     }
-    /* cover the scrollport padding strip so tiles never peek above the bar */
+    /* single underlay covers plate + former strip; opacity fades on scroll */
     .dropzone .dz-head::before{
       content:"";
       position:absolute;
       left:0; right:0;
-      top:calc(-1 * var(--sp-8));
-      height:var(--sp-8);
-      background:rgba(255,255,255,var(--dz-head-alpha,1));
+      top:0; bottom:0;
+      background:#fff;
+      opacity:var(--dz-head-alpha, 1);
+      box-shadow:0 6px 12px -8px rgba(90,130,170,.35);
+      z-index:-1;
     }
     .dropzone.has-photos .dz-head{
       flex-direction:row; align-items:center; justify-content:space-between;

@@ -135,3 +135,5 @@
 2026-09-28 | update | docs/design + renderer/styles.css + tests | 照片墙操作条 sticky 吸顶，滚动时不再被卷走；25/25+ tsc 绿；623ff8e→feature/photo-wall-hover-focus | User: 当上下翻滚滑动照片墙时会看不到这部分的UI
 2026-09-28 | fix(ui) | 吸顶操作条与顶部有空隙 | has-photos padding-top:0 + dz-head::before 延伸底板盖住滚动 padding 带；25/25+ tsc 绿；219834b→feature/photo-wall-hover-focus | User: 扫描到N与顶部有空隙
 2026-09-28 | update | docs/design + renderer/{styles.css,main.js} + tests | 吸顶条背景随滚动渐隐至 alpha 0.82（禁止全透明）；--dz-head-alpha + updateWallBarFade；25/25+ tsc 绿；d5bcd6b→feature/photo-wall-hover-focus | User: 绿色选框内背景随着滚动时逐渐变成透明但不能全透明
+2026-09-28 | fix(ui) | 滚动渐隐无变化 | rgba(var()) 不生效；改 opacity 图层+capture 滚动监听；25/25+ tsc 绿；2426758→feature/photo-wall-hover-focus | User: 没有发生变化
+2026-09-28 | fix(ui) | 吸顶条上方多一条白条 | ::before 负 top 伸出形成独立条；遮罩并入 padding 做成单块底板；25/25+ tsc 绿；59172d0→feature/photo-wall-hover-focus | User: 选框内多了一条白条
