@@ -199,13 +199,12 @@
     .dropzone.has-photos .drop-hero{display:none}
     .dropzone .dz-head{
       width:100%; display:flex; flex-direction:column; align-items:center; gap:var(--sp-3);
-      /* sticky plate hugs the controls — no empty white strip above the text */
       position:sticky; top:0; z-index:10;
       background:transparent;
       padding:12px 0;
     }
-    /* underlay exactly matches the bar box; opacity fades on scroll */
-    .dropzone .dz-head::before{
+    /* plate only when the photo wall is showing — idle title stays on the blue dropzone */
+    .dropzone.has-photos .dz-head::before{
       content:"";
       position:absolute;
       left:0; right:0; top:0; bottom:0;

@@ -117,8 +117,8 @@ describe('F24 desktop shell', () => {
     expect(SPA_CSS).toMatch(/\.dropzone \.dz-head\{[\s\S]*position:sticky/);
     expect(SPA_CSS).toMatch(/\.dropzone \.dz-head\{[\s\S]*top:0/);
     expect(SPA_CSS).toMatch(/\.dropzone \.dz-head\{[\s\S]*z-index:10/);
-    // cover the padding strip so tiles never peek above the sticky bar
-    expect(SPA_CSS).toMatch(/\.dropzone \.dz-head::before/);
+    // plate only when photo wall is shown (idle title has no white bar)
+    expect(SPA_CSS).toMatch(/\.dropzone\.has-photos \.dz-head::before/);
     expect(SPA_CSS).toMatch(/has-photos\{[\s\S]*padding-top:0/);
     // background fades with scroll but never reaches full transparency
     expect(SPA_CSS).toContain('--dz-head-alpha');
