@@ -115,3 +115,4 @@
 2026-09-28 | update | delivery.md + project-overview.md + outcomes.md | 合并后收尾规则：切回 develop + 删除已合入 topic 分支；记录 standing correction | User: 合并到 develop 后应切换到 develop 并删除已归入的分支
 2026-09-28 | update | docs/design + renderer/main.js + tests/desktop.test.ts | 照片墙 hover 焦点扩散：主图 scale 1.08，邻图按距离衰减缩小(至 0.94)+外让位(至 20px)；dotween 复合变换；7 测试绿+ tsc 绿；382fbd7→feature/photo-wall-hover-focus | User: 悬停放大时邻近图片腾出位置或缩小，添加动效
 2026-09-28 | update | docs/design + renderer/main.js + tests/desktop.test.ts | hover 放大 1.08→1.22；邻图推距改按悬停图宽 0.22x 计算保间距；7 测试绿+ tsc 绿；5de29c5→feature/photo-wall-hover-focus | User: 被悬停放大的图片可以再放大一点，周围图片要与被悬停放大的图片保持一定的间距
+2026-09-28 | fix(ui) | 放大图遮挡邻图 | 改净空区（scale1.22 包围盒+GAP14）+ MTV 推离；offset* 量几何防 transform 干扰；z-index 仅叠放；7 测试绿+ tsc 绿；a9e489d→feature/photo-wall-hover-focus | User: 被鼠标悬停放大的图片不应该遮挡周围的图片
