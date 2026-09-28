@@ -89,6 +89,7 @@ idle（拖放提示）
   - 图块：`width:100%; height:auto`（**自然宽高比**，不裁切）；圆角 **16**（对齐 MT `rounded-2xl`）；彩色柔影；hover 上浮 + 底部文件名浮层。
   - **hover 缩放（2026-09-28 · DOTween）**：悬停图块以 **DOTween 风格补间**放大至 **`scale(1.22)`**（明显大于邻图），离开补间回 `scale(1)`；时长 0.28s、`easeOutCubic`（进入）/`easeInOutSine`（离开）；`requestAnimationFrame` 驱动、可打断（快速划过不排队）；变换原点居中。缩放由 JS tween 写 `transform`，CSS **不得**再用 `transition:transform` 或 `:hover{transform:...}` 抢跑。
   - **邻图让位（2026-09-28 · 焦点扩散 · 不遮挡）**：悬停放大时**其余图块不得被放大图遮挡**。以悬停图 `scale(1.22)` 后的包围盒外扩 **GAP=14px** 为**净空区**；与净空区相交的邻图按**最小分离向量（MTV）**补间推出至完全分离（优先沿远离悬停中心方向）；未相交的邻图按距离衰减做轻量外让（`0.06` 缩放衰减）。悬停图临时 `z-index:3`（仅作叠放顺序，不依赖它遮挡）。离开后全部补间回 `scale(1)` / 位移 `(0,0)` / 清除 `z-index`。几何测量用 `offsetLeft/Top/Width/Height`（**不含 transform**），避免位移后误判。DOTween 风格（`inOutSine`/`outCubic`，0.28–0.32s），可打断。
+  - **不得溢出扫描区（2026-09-28）**：缩放/移位过程中图块视觉**不得超出拖放区 2px 虚线框**。拖放区 `overflow:hidden`（含 `border-radius` 裁切）作硬约束；JS 侧将邻图位移目标**钳制**在拖放区内容盒内（再退让 `GAP`），避免「推到边界被硬切」。悬停放大若贴边则由裁切兜底，仍不越界。
   - 操作条与标题同排：「扫描到 N 张图片」+「重置」「上传」。**操作条仅在照片墙实际有图块时显示**（`#previewActions`；空态/全部加载失败时隐藏）。CSS 须保证 `[hidden]{display:none!important}`，避免 `.row{display:flex}` 压过 `hidden`。
   - **连续拖入累加**：后续 drop **不得清空**已有图块；新图按 `abs`/路径去重后并入；标题 = 墙上实际张数。单图加载失败移除该图块，不拖垮整墙。
   - 不做灯箱/多选/排序（本期仅呈现）。

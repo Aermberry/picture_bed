@@ -145,6 +145,16 @@ describe('F24 desktop shell', () => {
     expect(spaApp).toContain(') scale(');
   });
 
+  it('photo wall scale/move stays inside the dashed scan frame', () => {
+    // hard clip at the dropzone (dashed border) — nothing paints outside
+    expect(SPA_CSS).toContain('overflow:hidden');
+    expect(SPA_CSS).toMatch(/\.dropzone\{[^}]*overflow:hidden/);
+    // push targets clamped into the wall content box
+    expect(spaApp).toContain('function clampPush');
+    expect(spaApp).toContain('clampPush');
+    expect(spaApp).toContain('clientWidth');
+  });
+
   it('photo wall count matches tiles: doc drop is not previewed, failed loads update the headline', () => {
     // previewPath must be image-only (server + client)
     expect(spaApp).toContain('pp && isImageName(pp)');

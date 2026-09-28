@@ -83,12 +83,14 @@
   /**
    * Photo-wall hover focus: hovered tile grows to 1.22; neighbours are pushed
    * out of the inflated bounds (MTV + gap) so the zoom never covers them.
-   * Uses offset* geometry (transform-free) so mid-animation offsets don't skew.
+   * Push targets are clamped inside the dropzone content box so scale/move
+   * never paints past the dashed scan frame. Geometry uses offset* (no transform).
    * @param {HTMLElement | null} hovered  null → reset every tile
    */
   function applyWallFocus(hovered) {
     const wall = $("previewGrid");
-    if (!wall) return;
+    const dz = $("dropzone");
+    if (!wall || !dz) return;
     const tiles = wall.querySelectorAll(".tile");
     if (!hovered) {
       tiles.forEach((t) => {
@@ -99,25 +101,65 @@
       return;
     }
     const GAP = 14;
-    // layout centres (offset* ignores transforms)
-    const hcx = hovered.offsetLeft + hovered.offsetWidth / 2;
-    const hcy = hovered.offsetTop + hovered.offsetHeight / 2;
+    // layout centres relative to the wall (offset* ignores transforms)
+    /** @param {HTMLElement} el */
+    function posIn(el) {
+      let x = 0;
+      let y = 0;
+      /** @type {HTMLElement | null} */ let n = el;
+      while (n && n !== wall) {
+        x += n.offsetLeft;
+        y += n.offsetTop;
+        n = n.offsetParent;
+      }
+      return { x: x + el.offsetWidth / 2, y: y + el.offsetHeight / 2, hw: el.offsetWidth / 2, hh: el.offsetHeight / 2 };
+    }
+    const h = posIn(hovered);
+    const hcx = h.x;
+    const hcy = h.y;
     // enlarged half-extents of scale(1.22) plus clearance gap
     const ehw = hovered.offsetWidth * 0.61 + GAP;
     const ehh = hovered.offsetHeight * 0.61 + GAP;
+    // clamp pushes so the scaled tile stays inside the wall / dashed frame
+    const maxW = wall.clientWidth;
+    const maxH = wall.clientHeight;
+    /**
+     * @param {number} cx layout centre x
+     * @param {number} cy layout centre y
+     * @param {number} hw half width at scale 1
+     * @param {number} hh half height at scale 1
+     * @param {number} scale
+     * @param {number} px
+     * @param {number} py
+     */
+    function clampPush(cx, cy, hw, hh, scale, px, py) {
+      const sw = hw * scale;
+      const sh = hh * scale;
+      const minX = GAP + sw - cx;
+      const maxX = maxW - GAP - sw - cx;
+      const minY = GAP + sh - cy;
+      const maxY = maxH - GAP - sh - cy;
+      return {
+        x: Math.min(Math.max(px, minX), Math.max(minX, maxX)),
+        y: Math.min(Math.max(py, minY), Math.max(minY, maxY)),
+      };
+    }
 
     tiles.forEach((t) => {
       const el = /** @type {HTMLElement} */ (t);
       if (el === hovered) {
         el.style.zIndex = "3";
-        dotween(el, { scale: 1.22, x: 0, y: 0 }, { ease: "outCubic", duration: 0.28 });
+        // keep the zoom itself inside the dashed frame (overflow:hidden is the hard stop)
+        const hv = clampPush(hcx, hcy, h.hw, h.hh, 1.22, 0, 0);
+        dotween(el, { scale: 1.22, x: hv.x, y: hv.y }, { ease: "outCubic", duration: 0.28 });
         return;
       }
       el.style.zIndex = "1";
-      const ncx = el.offsetLeft + el.offsetWidth / 2;
-      const ncy = el.offsetTop + el.offsetHeight / 2;
-      const nhw = el.offsetWidth / 2;
-      const nhh = el.offsetHeight / 2;
+      const p = posIn(el);
+      const ncx = p.x;
+      const ncy = p.y;
+      const nhw = p.hw;
+      const nhh = p.hh;
       // neighbour box vs exclusion zone (enlarged hovered + gap)
       const zoneL = hcx - ehw;
       const zoneR = hcx + ehw;
@@ -154,9 +196,10 @@
         pushX = ((ncx - hcx) / dist) * push;
         pushY = ((ncy - hcy) / dist) * push;
       }
+      const clamped = clampPush(ncx, ncy, nhw, nhh, scale, pushX, pushY);
       dotween(
         el,
-        { scale: scale, x: pushX, y: pushY },
+        { scale: scale, x: clamped.x, y: clamped.y },
         { ease: "inOutSine", duration: 0.32 },
       );
     });
