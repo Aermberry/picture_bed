@@ -125,7 +125,7 @@ App (flex, height 100vh)
 |------|------|------|
 | NavItem | 宽 56，图标 22 + 标签 12 | default / hover / active |
 | DropZone | min-h 420，2px dashed，r16 | idle / hover / dragging / has-photos |
-| PhotoWall | 最短列瀑布流 2/3/4 列，gap 6；图块满宽 r16 | 点选多选 + 删除 N；hover 文件名浮层（无放大） |
+| PhotoWall | 最短列瀑布流 2/3/4 列，gap 6；图块满宽 r16 | 操作条 sticky 吸顶；点选多选 + 删除 N；hover 文件名浮层 |
 | FileCard | 缩略 110 + meta pad 12，网格 4 列 gap 16 | hover 上浮 2px + shadow-2 |
 | StatCard | 标签 13 + 数值 22/700 | — |
 | Toggle | **36×20**，滑块 16，r999，**flex-shrink:0** | on / off |
