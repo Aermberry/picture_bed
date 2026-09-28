@@ -855,15 +855,19 @@
   // 吸顶条背景随滚动渐隐（最低 0.82，禁止全透明）
   function updateWallBarFade() {
     const head = document.querySelector(".dz-head");
-    const scroller = document.querySelector(".content");
     if (!head) return;
-    const y = Math.max(0, (scroller && scroller.scrollTop) || window.scrollY || 0);
+    // find the deepest scrolling offset above the bar
+    let y = window.scrollY || document.documentElement.scrollTop || 0;
+    const scrollers = document.querySelectorAll(".content, .main, .dropzone");
+    scrollers.forEach((s) => {
+      if (s.scrollTop > y) y = s.scrollTop;
+    });
     const minA = 0.82;
     const a = Math.max(minA, 1 - Math.min(1 - minA, y / 240 * (1 - minA)));
     head.style.setProperty("--dz-head-alpha", String(a));
   }
-  const wallFadeTargets = [document.querySelector(".content"), window].filter(Boolean);
-  wallFadeTargets.forEach((el) => el.addEventListener("scroll", updateWallBarFade, { passive: true }));
+  // capture:true so any scrolling ancestor notifies us
+  window.addEventListener("scroll", updateWallBarFade, { passive: true, capture: true });
   updateWallBarFade();
 
   // init
