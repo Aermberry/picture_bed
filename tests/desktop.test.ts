@@ -120,11 +120,19 @@ describe('F24 desktop shell', () => {
     expect(spaApp).toContain('btnDelete');
     expect(spaApp).toContain('syncDeleteChrome');
     expect(INDEX_HTML).toContain('id="btnDelete"');
-    // selected state is obvious: ring + tint + badge + tag
+    // selected state is obvious but stays inside the tile (no overlap)
     expect(SPA_CSS).toContain('.photo-wall .tile.selected');
     expect(SPA_CSS).toContain('sel-tag');
     expect(SPA_CSS).toMatch(/tile\.selected::after/);
+    expect(SPA_CSS).toMatch(/inset 0 0 0 3px/);
     expect(spaApp).toContain('已选');
+    // outer ring / lift must not exist (they covered neighbours)
+    const selRule = SPA_CSS.slice(
+      SPA_CSS.indexOf('.photo-wall .tile.selected{'),
+      SPA_CSS.indexOf('.photo-wall .tile.selected::after'),
+    );
+    expect(selRule).not.toContain('translateY');
+    expect(selRule).not.toMatch(/box-shadow:\s*\n?\s*0 0 0/);
     // delete removes from wall + session workset
     expect(spaApp).toContain('api/session/remove');
     expect(spaApp).toContain('clearSelection');

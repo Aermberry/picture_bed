@@ -274,13 +274,12 @@
       user-select:none;
     }
     .photo-wall .tile.selected{
-      outline:3px solid var(--c-primary);
-      outline-offset:-3px;
+      /* inset only — outer rings/translate would paint over neighbours */
       box-shadow:
-        0 0 0 3px var(--c-surface),
-        0 0 0 6px var(--c-primary),
+        inset 0 0 0 3px var(--c-primary),
+        inset 0 0 0 6px var(--c-surface),
+        inset 0 0 0 9px var(--c-primary),
         var(--shadow-2);
-      transform:translateY(-2px);
     }
     .photo-wall .tile.selected::after{
       content:"";
