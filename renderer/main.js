@@ -13,27 +13,27 @@
     /** @param {number} t */
     inOutSine: (t) => -(Math.cos(Math.PI * t) - 1) / 2,
   };
-  /** @type {WeakMap<object, {scale:number,x:number,y:number}>} */
+  /** @type {WeakMap<object, {sx:number,sy:number,x:number,y:number}>} */
   const tweenVal = new WeakMap();
   /** @type {WeakMap<object, number>} */
   const tweenRaf = new WeakMap();
 
   /** @param {HTMLElement} el */
   function tweenState(el) {
-    return tweenVal.get(el) || { scale: 1, x: 0, y: 0 };
+    return tweenVal.get(el) || { sx: 1, sy: 1, x: 0, y: 0 };
   }
 
-  /** @param {HTMLElement} el @param {{scale:number,x:number,y:number}} s */
+  /** @param {HTMLElement} el @param {{sx:number,sy:number,x:number,y:number}} s */
   function applyTransform(el, s) {
     tweenVal.set(el, s);
-    el.style.transform = "translate(" + s.x + "px," + s.y + "px) scale(" + s.scale + ")";
+    el.style.transform = "translate(" + s.x + "px," + s.y + "px) scale(" + s.sx + "," + s.sy + ")";
   }
 
   /**
    * DOTween-style tween of scale + translate (one rAF per element).
    * A new call cancels the in-flight frame and continues from the live value.
    * @param {HTMLElement} el
-   * @param {{ scale?: number, x?: number, y?: number }} to
+   * @param {{ sx?: number, sy?: number, scale?: number, x?: number, y?: number }} to
    * @param {{ duration?: number, ease?: "outCubic" | "inOutSine" }} [opts]
    */
   function dotween(el, to, opts) {
@@ -42,13 +42,17 @@
     const prev = tweenRaf.get(el);
     if (prev != null) cancelAnimationFrame(prev);
     const from = tweenState(el);
+    // `scale` is shorthand for uniform sx/sy
+    const uni = to.scale != null ? to.scale : null;
     const target = {
-      scale: to.scale != null ? to.scale : from.scale,
+      sx: to.sx != null ? to.sx : uni != null ? uni : from.sx,
+      sy: to.sy != null ? to.sy : uni != null ? uni : from.sy,
       x: to.x != null ? to.x : from.x,
       y: to.y != null ? to.y : from.y,
     };
     const done =
-      Math.abs(from.scale - target.scale) < 0.001 &&
+      Math.abs(from.sx - target.sx) < 0.001 &&
+      Math.abs(from.sy - target.sy) < 0.001 &&
       Math.abs(from.x - target.x) < 0.01 &&
       Math.abs(from.y - target.y) < 0.01;
     if (done) {
@@ -60,7 +64,8 @@
       const t = Math.min(1, (now - t0) / (duration * 1000));
       const k = easeFn(t);
       applyTransform(el, {
-        scale: from.scale + (target.scale - from.scale) * k,
+        sx: from.sx + (target.sx - from.sx) * k,
+        sy: from.sy + (target.sy - from.sy) * k,
         x: from.x + (target.x - from.x) * k,
         y: from.y + (target.y - from.y) * k,
       });
@@ -102,7 +107,7 @@
         const el = /** @type {HTMLElement} */ (t);
         el.style.zIndex = "";
         el.style.transformOrigin = "";
-        dotween(el, { scale: 1, x: 0, y: 0 }, { ease: "inOutSine", duration: 0.32 });
+        dotween(el, { sx: 1, sy: 1, x: 0, y: 0 }, { ease: "inOutSine", duration: 0.32 });
       });
       return;
     }
@@ -144,30 +149,71 @@
     const h = boxes.find((b) => b.el === hovered);
     if (!h) return;
 
-    // Grow toward the scan-area centre so edge tiles are not clipped.
-    const dzCx = maxW / 2;
-    const dzCy = maxH / 2;
-    const oxn = h.cx < dzCx ? 0 : 1; // 0 = grow right, 1 = grow left
-    const oyn = h.cy < dzCy ? 0 : 1; // 0 = grow down, 1 = grow up
-    hovered.style.transformOrigin = (oxn ? "100%" : "0%") + " " + (oyn ? "100%" : "0%");
+    // Enlarge only away from dashed lines the tile already hugs (per edge).
+    // - one edge near → that edge pinned (origin on it), grow the other way
+    // - opposite edges both near → that axis does not expand (sx/sy = 1)
+    // - free sides keep the original centre-origin zoom (scale up to 1.22)
+    const NEAR = 28;
+    const nearLeft = h.left <= MARGIN + NEAR;
+    const nearRight = maxW - (h.left + h.width) <= MARGIN + NEAR;
+    const nearTop = h.top <= MARGIN + NEAR;
+    const nearBottom = maxH - (h.top + h.height) <= MARGIN + NEAR;
+
+    /** origin fraction on each axis: 0 / 0.5 / 1 */
+    let oxn = 0.5;
+    let oyn = 0.5;
+    /** false = that axis must not expand */
+    let allowX = true;
+    let allowY = true;
+
+    if (nearLeft && nearRight) {
+      allowX = false;
+      oxn = 0.5;
+    } else if (nearLeft) {
+      oxn = 0; // pin left edge, grow right
+    } else if (nearRight) {
+      oxn = 1; // pin right edge, grow left
+    } else {
+      // free: grow toward the scan-area centre (original interaction)
+      oxn = h.cx < maxW / 2 ? 0 : 1;
+    }
+
+    if (nearTop && nearBottom) {
+      allowY = false;
+      oyn = 0.5;
+    } else if (nearTop) {
+      oyn = 0; // pin top edge, grow down
+    } else if (nearBottom) {
+      oyn = 1; // pin bottom edge, grow up
+    } else {
+      oyn = h.cy < maxH / 2 ? 0 : 1;
+    }
+
+    hovered.style.transformOrigin = (oxn * 100) + "% " + (oyn * 100) + "%";
     hovered.style.zIndex = "3";
 
-    // max scale that keeps the enlarged box inside the frame (with MARGIN)
-    let maxS = HOVER_SCALE;
-    if (oxn === 1) maxS = Math.min(maxS, 1 + (h.left - MARGIN) / h.width);
-    else maxS = Math.min(maxS, 1 + (maxW - MARGIN - h.left - h.width) / h.width);
-    if (oyn === 1) maxS = Math.min(maxS, 1 + (h.top - MARGIN) / h.height);
-    else maxS = Math.min(maxS, 1 + (maxH - MARGIN - h.top - h.height) / h.height);
-    maxS = Math.max(1, maxS);
-    const targetS = Math.min(HOVER_SCALE, maxS);
-    dotween(hovered, { scale: targetS, x: 0, y: 0 }, { ease: "outCubic", duration: 0.28 });
+    // max scale per axis so the enlarged box stays inside the frame (MARGIN)
+    function maxScaleAxis(origin, pos, size, total) {
+      if (origin === 0) return 1 + (total - MARGIN - pos - size) / size;
+      if (origin === 1) return 1 + (pos - MARGIN) / size;
+      const room = Math.min(pos - MARGIN, total - MARGIN - pos - size);
+      return 1 + 2 * Math.max(0, room) / size;
+    }
+    let maxSx = allowX ? maxScaleAxis(oxn, h.left, h.width, maxW) : 1;
+    let maxSy = allowY ? maxScaleAxis(oyn, h.top, h.height, maxH) : 1;
+    maxSx = Math.max(1, maxSx);
+    maxSy = Math.max(1, maxSy);
+    const targetSx = allowX ? Math.min(HOVER_SCALE, maxSx) : 1;
+    const targetSy = allowY ? Math.min(HOVER_SCALE, maxSy) : 1;
+    dotween(hovered, { sx: targetSx, sy: targetSy, x: 0, y: 0 }, { ease: "outCubic", duration: 0.28 });
 
-    // Enlarged box of the hovered tile (non-centre origin aware) + clearance gap
-    const s = targetS;
-    const enL = h.left - h.width * oxn * (s - 1) - GAP;
-    const enR = h.left + h.width + h.width * (1 - oxn) * (s - 1) + GAP;
-    const enT = h.top - h.height * oyn * (s - 1) - GAP;
-    const enB = h.top + h.height + h.height * (1 - oyn) * (s - 1) + GAP;
+    // Enlarged box of the hovered tile (non-centre origin, per-axis scale) + clearance gap
+    const sx = targetSx;
+    const sy = targetSy;
+    const enL = h.left - h.width * oxn * (sx - 1) - GAP;
+    const enR = h.left + h.width + h.width * (1 - oxn) * (sx - 1) + GAP;
+    const enT = h.top - h.height * oyn * (sy - 1) - GAP;
+    const enB = h.top + h.height + h.height * (1 - oyn) * (sy - 1) + GAP;
 
     boxes.forEach((b) => {
       if (b.el === hovered) return;
@@ -212,7 +258,7 @@
       const clampedX = Math.min(Math.max(pushX, minX), Math.max(minX, maxX));
       const clampedY = Math.min(Math.max(pushY, minY), Math.max(minY, maxY));
 
-      dotween(el, { scale: scale, x: clampedX, y: clampedY }, { ease: "inOutSine", duration: 0.32 });
+      dotween(el, { sx: scale, sy: scale, x: clampedX, y: clampedY }, { ease: "inOutSine", duration: 0.32 });
     });
   }
 

@@ -161,6 +161,24 @@ describe('F24 desktop shell', () => {
     expect(spaApp).toContain('clampedX');
   });
 
+  it('photo wall zoom pins edges that hug a dashed line (no expansion toward it)', () => {
+    // per-edge proximity gates which sides may expand
+    expect(spaApp).toContain('NEAR');
+    expect(spaApp).toContain('nearLeft');
+    expect(spaApp).toContain('nearRight');
+    expect(spaApp).toContain('nearTop');
+    expect(spaApp).toContain('nearBottom');
+    // opposite edges both near → that axis does not expand
+    expect(spaApp).toContain('allowX');
+    expect(spaApp).toContain('allowY');
+    expect(spaApp).toContain('targetSx');
+    expect(spaApp).toContain('targetSy');
+    // non-uniform scale keeps a pinned axis at 1
+    expect(spaApp).toContain('scale(" + s.sx + "," + s.sy + ")');
+    // free sides still use the original up-to-1.22 zoom
+    expect(spaApp).toContain('1.22');
+  });
+
   it('photo wall count matches tiles: doc drop is not previewed, failed loads update the headline', () => {
     // previewPath must be image-only (server + client)
     expect(spaApp).toContain('pp && isImageName(pp)');
