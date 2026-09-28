@@ -410,16 +410,28 @@
 
   /**
    * 最短列优先瀑布流：把 tile 分进 N 个 flex 列，每张进当前最矮的列。
-   * 列首加轻微 margin-top 形成错落。图片 load / resize 后重跑。
+   * 必须先清掉旧 pw-col，否则 load 事件会不断堆空列把内容挤没。
    */
+  let layoutWallTimer = null;
+  function schedulePhotoWallLayout() {
+    if (layoutWallTimer != null) clearTimeout(layoutWallTimer);
+    layoutWallTimer = window.setTimeout(() => {
+      layoutWallTimer = null;
+      layoutPhotoWall();
+    }, 40);
+  }
+
   function layoutPhotoWall() {
     const g = $("previewGrid");
     if (!g || g.hidden) return;
     const tiles = Array.from(g.querySelectorAll(".tile"));
-    if (!tiles.length) {
-      g.innerHTML = "";
-      return;
-    }
+    // drop previous column wrappers so they cannot accumulate as empty flex tracks
+    g.querySelectorAll(".pw-col").forEach((c) => {
+      const parent = c.parentNode;
+      while (c.firstChild) parent.insertBefore(c.firstChild, c);
+      if (parent) parent.removeChild(c);
+    });
+    if (!tiles.length) return;
     const w = g.clientWidth || 800;
     const n = w < 640 ? 2 : w < 1000 ? 3 : 4;
     /** @type {HTMLElement[]} */
@@ -427,12 +439,10 @@
     for (let i = 0; i < n; i++) {
       const col = document.createElement("div");
       col.className = "pw-col";
-      // 列首微错位
       col.style.paddingTop = i * 6 + "px";
       cols.push(col);
       g.appendChild(col);
     }
-    // 最短列优先：用图块已知高度（读一次布局）
     const heights = new Array(n).fill(0);
     tiles.forEach((t) => {
       let best = 0;
@@ -485,9 +495,9 @@
         const tile = img.parentNode;
         if (tile && tile.parentNode) tile.parentNode.removeChild(tile);
         syncWallChrome();
-        layoutPhotoWall();
+        schedulePhotoWallLayout();
       });
-      img.addEventListener("load", () => layoutPhotoWall());
+      img.addEventListener("load", () => schedulePhotoWallLayout());
     });
     syncWallChrome();
   }
@@ -786,7 +796,7 @@
     if (staggerTimer != null) clearTimeout(staggerTimer);
     staggerTimer = window.setTimeout(() => {
       staggerTimer = null;
-      layoutPhotoWall();
+      schedulePhotoWallLayout();
     }, 120);
   });
 

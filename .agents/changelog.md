@@ -127,3 +127,4 @@
 2026-09-28 | fix(ui) | 照片墙间距过大 | column-gap 16→10；底距 8-14；宽 94-100%/偏移 0-3%；列顶 0/12/24/36；7 测试绿+ tsc 绿；befaa9b→feature/photo-wall-hover-focus | User: 效果不理想，图片间的间距太大了
 2026-09-28 | fix(ui) | 照片墙空隙仍过多 | 宽度回 100% 消横向白缝；column-gap 8；底距 6-12；列顶 0/8/16/24；错落仅竖向；7 测试绿+ tsc 绿；c6970de→feature/photo-wall-hover-focus | User: 太多空隙了
 2026-09-28 | fix(ui) | 照片墙仍有很大空隙 | 根因 CSS columns 平衡分栏留洞；改 JS 最短列优先 flex 瀑布流，gap 6；6 测试绿+ tsc 绿；710a8c5→feature/photo-wall-hover-focus | User: 还是有很大的空隙
+2026-09-28 | fix(ui) | 图片被缩到看不见 | layoutPhotoWall 每次 load 新建 pw-col 未清理→空 flex 轨挤扁内容；改为先卸旧列+防抖重排；7 测试绿+ tsc 绿；a61885d→feature/photo-wall-hover-focus | User: 图片都被缩到看不到了
