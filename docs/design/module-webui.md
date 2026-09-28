@@ -87,8 +87,8 @@ idle（拖放提示）
 - **扫描结果呈现（2026-09-27 · 照片墙 / 2026-09-28 对齐 Material Tailwind Masonry）**：扫描成功后拖放区进入 `has-photos` 态——隐藏空态英雄区，以 **CSS multi-column 瀑布流照片墙**展示图块（排列对齐 [Material Tailwind Gallery · Masonry Grid](https://www.material-tailwind.com/docs/v3/html/gallery)）：
   - 布局：响应式列数 **2 / 3 / 4**（窄 / 中 / 宽），`column-gap:16`；图块 `break-inside:avoid` 且 `margin-bottom:16`。
   - 图块：`width:100%; height:auto`（**自然宽高比**，不裁切）；圆角 **16**（对齐 MT `rounded-2xl`）；彩色柔影；hover 上浮 + 底部文件名浮层。
-  - **hover 缩放（2026-09-28 · DOTween）**：悬停图块以 **DOTween 风格补间**放大至 `scale(1.08)`，离开补间回 `scale(1)`；时长 0.28s、`easeOutCubic`（进入）/`easeInOutSine`（离开）；`requestAnimationFrame` 驱动、可打断（快速划过不排队）；变换原点居中。缩放由 JS tween 写 `transform`，CSS **不得**再用 `transition:transform` 或 `:hover{transform:...}` 抢跑。
-  - **邻图让位（2026-09-28 · 焦点扩散）**：悬停时**其余图块**按与悬停中心的距离衰减，自动**缩小**（最近 `scale≈0.94`）并**向外让位**（最近位移 ≈20px，方向 = 远离悬停中心），为放大图腾出空间；离开后全部补间回 `scale(1)` / 位移 `(0,0)`。邻图动效与主图同为 DOTween 风格（`inOutSine`，0.32s），可打断。
+  - **hover 缩放（2026-09-28 · DOTween）**：悬停图块以 **DOTween 风格补间**放大至 **`scale(1.22)`**（明显大于邻图），离开补间回 `scale(1)`；时长 0.28s、`easeOutCubic`（进入）/`easeInOutSine`（离开）；`requestAnimationFrame` 驱动、可打断（快速划过不排队）；变换原点居中。缩放由 JS tween 写 `transform`，CSS **不得**再用 `transition:transform` 或 `:hover{transform:...}` 抢跑。
+  - **邻图让位（2026-09-28 · 焦点扩散）**：悬停时**其余图块**按与悬停中心的距离衰减，自动**缩小**（最近 `scale≈0.94`）并向外让位，**推距按悬停图半宽计算**（≈`0.22 × width × strength`），保证放大图与邻图之间仍有**清晰间距**（不与放大后的图块相接）；离开后全部补间回 `scale(1)` / 位移 `(0,0)`。邻图动效与主图同为 DOTween 风格（`inOutSine`，0.32s），可打断。
   - 操作条与标题同排：「扫描到 N 张图片」+「重置」「上传」。**操作条仅在照片墙实际有图块时显示**（`#previewActions`；空态/全部加载失败时隐藏）。CSS 须保证 `[hidden]{display:none!important}`，避免 `.row{display:flex}` 压过 `hidden`。
   - **连续拖入累加**：后续 drop **不得清空**已有图块；新图按 `abs`/路径去重后并入；标题 = 墙上实际张数。单图加载失败移除该图块，不拖垮整墙。
   - 不做灯箱/多选/排序（本期仅呈现）。

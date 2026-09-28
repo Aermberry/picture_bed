@@ -101,7 +101,7 @@ describe('F24 desktop shell', () => {
     expect(SPA_CSS).toContain('border-radius:16px');
   });
 
-  it('photo wall hover zoom uses DOTween-style doscale (1→1.08→1, interruptible)', () => {
+  it('photo wall hover zoom uses DOTween-style doscale (1→1.22→1, interruptible)', () => {
     // rAF tween engine with DOTween-like easing
     expect(spaApp).toContain('function doscale');
     expect(spaApp).toContain('function dotween');
@@ -112,7 +112,7 @@ describe('F24 desktop shell', () => {
     // hover wires: enter scale up, leave scale back
     expect(spaApp).toContain('mouseenter');
     expect(spaApp).toContain('mouseleave');
-    expect(spaApp).toContain('1.08');
+    expect(spaApp).toContain('1.22');
     // CSS must not fight the JS-driven transform (scoped to .photo-wall .tile)
     expect(SPA_CSS).toContain('transform-origin:center center');
     const tileRule = SPA_CSS.slice(
@@ -124,12 +124,14 @@ describe('F24 desktop shell', () => {
     expect(SPA_CSS).not.toMatch(/\.photo-wall \.tile:hover\{[^}]*transform/);
   });
 
-  it('photo wall hover focus: neighbours shrink and push away (DOTween)', () => {
+  it('photo wall hover focus: neighbours shrink and push away to keep a gap', () => {
     expect(spaApp).toContain('function applyWallFocus');
     // distance falloff: closer tiles shrink more and slide out
     expect(spaApp).toContain('strength');
     expect(spaApp).toContain('0.06');
-    expect(spaApp).toContain('20');
+    // push is proportional to hovered width so the zoom keeps a clear gap
+    expect(spaApp).toContain('hr.width * 0.22');
+    expect(spaApp).toContain('pushBase');
     // composite transform: translate + scale
     expect(spaApp).toContain('translate(');
     expect(spaApp).toContain(') scale(');
