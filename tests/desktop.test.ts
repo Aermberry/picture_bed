@@ -101,6 +101,29 @@ describe('F24 desktop shell', () => {
     expect(SPA_CSS).toContain('border-radius:16px');
   });
 
+  it('photo wall hover zoom uses DOTween-style doscale (1→1.08→1, interruptible)', () => {
+    // rAF tween engine with DOTween-like easing
+    expect(spaApp).toContain('function doscale');
+    expect(spaApp).toContain('outCubic');
+    expect(spaApp).toContain('inOutSine');
+    expect(spaApp).toContain('requestAnimationFrame');
+    expect(spaApp).toContain('cancelAnimationFrame');
+    // hover wires: enter scale up, leave scale back
+    expect(spaApp).toContain('mouseenter');
+    expect(spaApp).toContain('mouseleave');
+    expect(spaApp).toContain('doscale');
+    expect(spaApp).toContain('1.08');
+    // CSS must not fight the JS-driven transform (scoped to .photo-wall .tile)
+    expect(SPA_CSS).toContain('transform-origin:center center');
+    const tileRule = SPA_CSS.slice(
+      SPA_CSS.indexOf('.photo-wall .tile{'),
+      SPA_CSS.indexOf('.photo-wall .tile img'),
+    );
+    expect(tileRule).not.toContain('transition:transform');
+    expect(tileRule).not.toContain('transform:');
+    expect(SPA_CSS).not.toMatch(/\.photo-wall \.tile:hover\{[^}]*transform/);
+  });
+
   it('photo wall count matches tiles: doc drop is not previewed, failed loads update the headline', () => {
     // previewPath must be image-only (server + client)
     expect(spaApp).toContain('pp && isImageName(pp)');

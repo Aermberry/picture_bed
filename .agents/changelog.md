@@ -99,6 +99,7 @@
 2026-09-27 | fix(ui) | 二次拖入清空照片墙 | scanIntoPreview/drop 整表替换→wallItems 累加去重；重置/上传成功才清空；68/68 | User: 再拖入后之前预览图片不见了
 2026-09-27 | fix(desktop) | desktop:dev 热更新失效 | 根因 app.relaunch 后 supervisor 误杀 tsc/自身；改为 supervisor respawn + 分层重载（app.js reload / dist UI 重启 / desktop 进程重启）；70/70 | User: Electron 本地调试无法热更新
 2026-09-28 | update | docs/design/{module-webui,wireframes/ui-shell} + renderer/styles.css + tests/desktop.test.ts | 照片墙对齐 Material Tailwind Masonry 画廊：响应式 2/3/4 列、gap 16、图块 r16；photo-wall 4 测试绿 + tsc 绿；7a64492→feature/electron-vite | User: 拖拽扫描后的图片预览效果参考 material-tailwind gallery 排列
+2026-09-28 | update | docs/design/{module-webui,wireframes/ui-shell} + renderer/{main.js,styles.css} + tests/desktop.test.ts | 照片墙 hover DOTween 缩放：doscale（rAF+outCubic/inOutSine，可打断）scale 1→1.08→1；CSS 移除 tile transform 过渡；photo-wall 6 测试绿 + tsc 绿；70f57f0→feature/fix-vite-hmr-window-url | User: 悬停图片自动放大、离开缩小，使用 dotween 动画
 2026-09-27 | feat(desktop) | electron-vite 迁移 | renderer/ 单源；desktop:dev=electron-vite HMR + tsc -w；71/71 + build 绿 | User: 请迁移 electron-vite
 2026-09-27 | verify(desktop) | electron-vite 冒烟 | UI 服务下发 renderer 含照片墙；electron-vite dev 可启动（main/preload/5173）；config 解析正确 | User: 请继续
 2026-09-27 | fix(desktop) | electron-vite 启动失败 | package.json 无 main→补 ELECTRON_ENTRY=desktop/main.mjs；ESM import electron 触发 Node20 CJS bug→createRequire；RUN_AS_NODE 泄漏→re-exec；失败退避 5 次；72/72 + dev 实测 DEV_OK | User: No entry point found

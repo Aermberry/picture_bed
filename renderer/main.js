@@ -6,6 +6,48 @@
   let manifestEntries = [];
   let sortDesc = true;
 
+  /* ---- DOTween-style DOM tween (rAF + easing, interruptible) ---- */
+  const Ease = {
+    /** @param {number} t */
+    outCubic: (t) => 1 - Math.pow(1 - t, 3),
+    /** @param {number} t */
+    inOutSine: (t) => -(Math.cos(Math.PI * t) - 1) / 2,
+  };
+  /** @type {WeakMap<object, number>} */
+  const tweenScaleVal = new WeakMap();
+  /** @type {WeakMap<object, number>} */
+  const tweenRaf = new WeakMap();
+
+  /**
+   * DOScale: tween an element's uniform scale (DOTween-style).
+   * A new call cancels the in-flight frame and continues from the live value.
+   * @param {HTMLElement} el
+   * @param {number} to
+   * @param {{ duration?: number, ease?: "outCubic" | "inOutSine" }} [opts]
+   */
+  function doscale(el, to, opts) {
+    const duration = (opts && opts.duration) || 0.28;
+    const easeFn = opts && opts.ease === "inOutSine" ? Ease.inOutSine : Ease.outCubic;
+    const prev = tweenRaf.get(el);
+    if (prev != null) cancelAnimationFrame(prev);
+    const from = tweenScaleVal.has(el) ? /** @type {number} */ (tweenScaleVal.get(el)) : 1;
+    if (Math.abs(from - to) < 0.001) {
+      tweenScaleVal.set(el, to);
+      el.style.transform = "scale(" + to + ")";
+      return;
+    }
+    const t0 = performance.now();
+    const step = (/** @type {number} */ now) => {
+      const t = Math.min(1, (now - t0) / (duration * 1000));
+      const v = from + (to - from) * easeFn(t);
+      tweenScaleVal.set(el, v);
+      el.style.transform = "scale(" + v + ")";
+      if (t < 1) tweenRaf.set(el, requestAnimationFrame(step));
+      else tweenRaf.delete(el);
+    };
+    tweenRaf.set(el, requestAnimationFrame(step));
+  }
+
   /** @type {string[]} */
   const THEME_WHITELIST = ["", "klein", "cream"];
   /** @type {Record<string, any>} */
@@ -449,6 +491,15 @@
         const tile = img.parentNode;
         if (tile && tile.parentNode) tile.parentNode.removeChild(tile);
         syncWallChrome();
+      });
+    });
+    // DOTween hover zoom: enter → scale(1.08), leave → scale(1); interruptible.
+    g.querySelectorAll(".tile").forEach((tile) => {
+      tile.addEventListener("mouseenter", () => {
+        doscale(/** @type {HTMLElement} */ (tile), 1.08, { ease: "outCubic" });
+      });
+      tile.addEventListener("mouseleave", () => {
+        doscale(/** @type {HTMLElement} */ (tile), 1, { ease: "inOutSine" });
       });
     });
     syncWallChrome();

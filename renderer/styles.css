@@ -242,10 +242,12 @@
       position:relative;
       background:var(--c-surface);
       box-shadow:var(--shadow-1);
-      transition:transform .15s, box-shadow .2s;
+      /* transform driven by JS doscale; CSS must not transition it */
+      transform-origin:center center;
+      will-change:transform;
+      transition:box-shadow .2s;
     }
     .photo-wall .tile:hover{
-      transform:translateY(-2px);
       box-shadow:var(--shadow-2);
     }
     .photo-wall .tile img{
