@@ -118,3 +118,4 @@
 2026-09-28 | fix(ui) | 放大图遮挡邻图 | 改净空区（scale1.22 包围盒+GAP14）+ MTV 推离；offset* 量几何防 transform 干扰；z-index 仅叠放；7 测试绿+ tsc 绿；a9e489d→feature/photo-wall-hover-focus | User: 被鼠标悬停放大的图片不应该遮挡周围的图片
 2026-09-28 | fix(ui) | 缩放/移位超出虚线框 | dropzone overflow:hidden 硬裁切 + clampPush 钳制位移目标进 wall 内容盒；8 测试绿+ tsc 绿；a5455f1→feature/photo-wall-hover-focus | User: 图片在缩放移位时不应该超出扫描区的虚线
 2026-09-28 | fix(ui) | 放大被虚线裁切/右侧重叠与空隙 | 去 overflow:hidden；origin 向扫描区中心+自适应 maxScale；measure 暂清 transform；邻图仅 MTV 净空不漂移；8 测试绿+ tsc 绿；fdeeade→feature/photo-wall-hover-focus | User: 效果比之前差了很多，被左侧虚线遮挡，右侧重叠且间距过大
+2026-09-28 | update | docs/design + renderer/main.js + tests/desktop.test.ts | 逐边放大约束：NEAR=28 贴边侧钉死不外扩；对边贴边则该轴 sx/sy=1；自由侧保持 origin+1.22+DOTween；9 测试绿+ tsc 绿；11787bc→feature/photo-wall-hover-focus | User: 贴近虚线的方向禁止延伸，坐标与尺寸保持不变
