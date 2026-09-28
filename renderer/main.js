@@ -81,8 +81,9 @@
   }
 
   /**
-   * Photo-wall hover focus: hovered tile grows, neighbours shrink + push away
-   * (distance-falloff) so the zoom keeps a clear gap. DOTween-style, interruptible.
+   * Photo-wall hover focus: hovered tile grows to 1.22; neighbours are pushed
+   * out of the inflated bounds (MTV + gap) so the zoom never covers them.
+   * Uses offset* geometry (transform-free) so mid-animation offsets don't skew.
    * @param {HTMLElement | null} hovered  null → reset every tile
    */
   function applyWallFocus(hovered) {
@@ -91,32 +92,71 @@
     const tiles = wall.querySelectorAll(".tile");
     if (!hovered) {
       tiles.forEach((t) => {
-        dotween(/** @type {HTMLElement} */ (t), { scale: 1, x: 0, y: 0 }, { ease: "inOutSine", duration: 0.32 });
+        const el = /** @type {HTMLElement} */ (t);
+        el.style.zIndex = "";
+        dotween(el, { scale: 1, x: 0, y: 0 }, { ease: "inOutSine", duration: 0.32 });
       });
       return;
     }
-    const hr = hovered.getBoundingClientRect();
-    const hcx = hr.left + hr.width / 2;
-    const hcy = hr.top + hr.height / 2;
-    // growth of scale(1.22) is 0.11×size on each side; push ~0.22×width keeps a gap
-    const pushBase = hr.width * 0.22;
+    const GAP = 14;
+    // layout centres (offset* ignores transforms)
+    const hcx = hovered.offsetLeft + hovered.offsetWidth / 2;
+    const hcy = hovered.offsetTop + hovered.offsetHeight / 2;
+    // enlarged half-extents of scale(1.22) plus clearance gap
+    const ehw = hovered.offsetWidth * 0.61 + GAP;
+    const ehh = hovered.offsetHeight * 0.61 + GAP;
+
     tiles.forEach((t) => {
       const el = /** @type {HTMLElement} */ (t);
       if (el === hovered) {
+        el.style.zIndex = "3";
         dotween(el, { scale: 1.22, x: 0, y: 0 }, { ease: "outCubic", duration: 0.28 });
         return;
       }
-      const r = el.getBoundingClientRect();
-      const dx = r.left + r.width / 2 - hcx;
-      const dy = r.top + r.height / 2 - hcy;
-      const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-      // closer tiles shrink more and slide farther out
+      el.style.zIndex = "1";
+      const ncx = el.offsetLeft + el.offsetWidth / 2;
+      const ncy = el.offsetTop + el.offsetHeight / 2;
+      const nhw = el.offsetWidth / 2;
+      const nhh = el.offsetHeight / 2;
+      // neighbour box vs exclusion zone (enlarged hovered + gap)
+      const zoneL = hcx - ehw;
+      const zoneR = hcx + ehw;
+      const zoneT = hcy - ehh;
+      const zoneB = hcy + ehh;
+      const nL = ncx - nhw;
+      const nR = ncx + nhw;
+      const nT = ncy - nhh;
+      const nB = ncy + nhh;
+      const oX = Math.min(nR, zoneR) - Math.max(nL, zoneL);
+      const oY = Math.min(nB, zoneB) - Math.max(nT, zoneT);
+      let pushX = 0;
+      let pushY = 0;
+      if (oX > 0 && oY > 0) {
+        // minimum translation vector — exit along the cheaper axis,
+        // in the direction away from the hovered centre
+        const left = nR - zoneL;
+        const right = zoneR - nL;
+        const up = nB - zoneT;
+        const down = zoneB - nT;
+        if (oX < oY) {
+          pushX = ncx >= hcx ? right : -left;
+        } else {
+          pushY = ncy >= hcy ? down : -up;
+        }
+      }
+      // light distance-falloff recede for polish on top of clearance
+      const dist = Math.sqrt((ncx - hcx) * (ncx - hcx) + (ncy - hcy) * (ncy - hcy)) || 1;
       const strength = Math.max(0, 1 - dist / 420);
-      const push = pushBase * strength;
       const scale = 1 - 0.06 * strength;
+      if (!pushX && !pushY) {
+        // no overlap: gentle outer drift away from the focus
+        const push = 16 * strength;
+        pushX = ((ncx - hcx) / dist) * push;
+        pushY = ((ncy - hcy) / dist) * push;
+      }
       dotween(
         el,
-        { scale: scale, x: (dx / dist) * push, y: (dy / dist) * push },
+        { scale: scale, x: pushX, y: pushY },
         { ease: "inOutSine", duration: 0.32 },
       );
     });
