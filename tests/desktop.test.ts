@@ -120,6 +120,10 @@ describe('F24 desktop shell', () => {
     // cover the padding strip so tiles never peek above the sticky bar
     expect(SPA_CSS).toMatch(/\.dropzone \.dz-head::before/);
     expect(SPA_CSS).toMatch(/has-photos\{[\s\S]*padding-top:0/);
+    // background fades with scroll but never reaches full transparency
+    expect(SPA_CSS).toContain('--dz-head-alpha');
+    expect(spaApp).toContain('updateWallBarFade');
+    expect(spaApp).toContain('0.82');
     // quota meter is gone from the shell
     expect(INDEX_HTML).not.toContain('quota');
   });

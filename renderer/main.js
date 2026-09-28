@@ -852,6 +852,20 @@
     }, 120);
   });
 
+  // 吸顶条背景随滚动渐隐（最低 0.82，禁止全透明）
+  function updateWallBarFade() {
+    const head = document.querySelector(".dz-head");
+    const scroller = document.querySelector(".content");
+    if (!head) return;
+    const y = Math.max(0, (scroller && scroller.scrollTop) || window.scrollY || 0);
+    const minA = 0.82;
+    const a = Math.max(minA, 1 - Math.min(1 - minA, y / 240 * (1 - minA)));
+    head.style.setProperty("--dz-head-alpha", String(a));
+  }
+  const wallFadeTargets = [document.querySelector(".content"), window].filter(Boolean);
+  wallFadeTargets.forEach((el) => el.addEventListener("scroll", updateWallBarFade, { passive: true }));
+  updateWallBarFade();
+
   // init
   try {
     const saved = localStorage.getItem("picbed.theme") || "";
