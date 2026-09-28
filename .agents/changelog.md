@@ -125,3 +125,4 @@
 2026-09-28 | update | docs/design + renderer/{main.js,styles.css} + tests | 取消图片悬停放大/邻图让位：删 tween+applyWallFocus+hover 绑定；仅留文件名浮层与阴影；6 测试绿+ tsc 绿；d9368e9→feature/photo-wall-hover-focus | User: 取消掉图片放大功能吧
 2026-09-28 | update | docs/design + renderer/{styles.css,main.js} + tests | 照片墙错落排版：列首 margin-top 0/20/40/60、nth-child 宽度 86-100%+左偏移、margin 14-26 交替；load/resize 重算；7 测试绿+ tsc 绿；6a45ca0→feature/photo-wall-hover-focus | User: 优化排版的错落关系，当前太连贯统一
 2026-09-28 | fix(ui) | 照片墙间距过大 | column-gap 16→10；底距 8-14；宽 94-100%/偏移 0-3%；列顶 0/12/24/36；7 测试绿+ tsc 绿；befaa9b→feature/photo-wall-hover-focus | User: 效果不理想，图片间的间距太大了
+2026-09-28 | fix(ui) | 照片墙空隙仍过多 | 宽度回 100% 消横向白缝；column-gap 8；底距 6-12；列顶 0/8/16/24；错落仅竖向；7 测试绿+ tsc 绿；c6970de→feature/photo-wall-hover-focus | User: 太多空隙了

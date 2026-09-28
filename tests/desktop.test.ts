@@ -96,21 +96,19 @@ describe('F24 desktop shell', () => {
     expect(SPA_CSS).toContain('.photo-wall{columns:3}');
     expect(SPA_CSS).toContain('.photo-wall{columns:4}');
     // MT rounded-2xl; tight column gap
-    expect(SPA_CSS).toContain('column-gap:10px');
+    expect(SPA_CSS).toContain('column-gap:8px');
     expect(SPA_CSS).toContain('border-radius:16px');
   });
 
-  it('photo wall layout is staggered (not uniform) but compact', () => {
-    // column-start offsets via JS
+  it('photo wall stagger uses full-width tiles (no side air) and tight vertical rhythm', () => {
     expect(spaApp).toContain('staggerPhotoWall');
     expect(spaApp).toContain('marginTop');
-    // CSS width / indent / margin rhythm variation — compact ranges
-    expect(SPA_CSS).toContain('nth-child(4n+1)');
-    expect(SPA_CSS).toContain('nth-child(4n+2)');
-    expect(SPA_CSS).toMatch(/width:96%/);
-    expect(SPA_CSS).toMatch(/width:94%/);
-    expect(SPA_CSS).toMatch(/margin-bottom:8px/);
-    // re-stagger after image load and resize
+    // tiles fill the column — width reduction would open white channels
+    expect(SPA_CSS).toMatch(/\.photo-wall \.tile:nth-child\(4n\+1\)\{ width:100%/);
+    expect(SPA_CSS).toMatch(/width:100%/);
+    expect(SPA_CSS).not.toMatch(/width:9[0-6]%/);
+    // compact bottom margins only
+    expect(SPA_CSS).toMatch(/margin-bottom:6px/);
     expect(spaApp).toContain('addEventListener("load"');
     expect(spaApp).toContain('resize');
   });

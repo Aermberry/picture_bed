@@ -429,7 +429,7 @@
       const left = Math.round(el.getBoundingClientRect().left);
       if (!seenLeft.has(left)) {
         seenLeft.add(left);
-        el.style.marginTop = colIndex * 12 + "px";
+        el.style.marginTop = colIndex * 8 + "px";
         colIndex += 1;
       }
     });
