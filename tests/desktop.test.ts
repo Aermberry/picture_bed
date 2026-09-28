@@ -95,21 +95,21 @@ describe('F24 desktop shell', () => {
     expect(SPA_CSS).toContain('columns:2');
     expect(SPA_CSS).toContain('.photo-wall{columns:3}');
     expect(SPA_CSS).toContain('.photo-wall{columns:4}');
-    // MT rounded-2xl + gap-4 rhythm
-    expect(SPA_CSS).toContain('column-gap:16px');
+    // MT rounded-2xl; tight column gap
+    expect(SPA_CSS).toContain('column-gap:10px');
     expect(SPA_CSS).toContain('border-radius:16px');
   });
 
-  it('photo wall layout is staggered (not uniform): column tops + width/gap variation', () => {
+  it('photo wall layout is staggered (not uniform) but compact', () => {
     // column-start offsets via JS
     expect(spaApp).toContain('staggerPhotoWall');
     expect(spaApp).toContain('marginTop');
-    // CSS width / indent / margin rhythm variation
+    // CSS width / indent / margin rhythm variation — compact ranges
     expect(SPA_CSS).toContain('nth-child(4n+1)');
     expect(SPA_CSS).toContain('nth-child(4n+2)');
-    expect(SPA_CSS).toContain('nth-child(4n+3)');
-    expect(SPA_CSS).toMatch(/width:90%/);
-    expect(SPA_CSS).toMatch(/width:86%/);
+    expect(SPA_CSS).toMatch(/width:96%/);
+    expect(SPA_CSS).toMatch(/width:94%/);
+    expect(SPA_CSS).toMatch(/margin-bottom:8px/);
     // re-stagger after image load and resize
     expect(spaApp).toContain('addEventListener("load"');
     expect(spaApp).toContain('resize');

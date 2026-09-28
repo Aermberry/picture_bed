@@ -124,3 +124,4 @@
 2026-09-28 | fix(ui) | 放大图遮挡重置/上传按钮 | 几何约束改用 previewGrid 盒而非整个 dropzone；.dz-head z-index:10；11 测试绿+ tsc 绿；0377323→feature/photo-wall-hover-focus | User: 图片放大时会把重置与上传按钮遮挡了
 2026-09-28 | update | docs/design + renderer/{main.js,styles.css} + tests | 取消图片悬停放大/邻图让位：删 tween+applyWallFocus+hover 绑定；仅留文件名浮层与阴影；6 测试绿+ tsc 绿；d9368e9→feature/photo-wall-hover-focus | User: 取消掉图片放大功能吧
 2026-09-28 | update | docs/design + renderer/{styles.css,main.js} + tests | 照片墙错落排版：列首 margin-top 0/20/40/60、nth-child 宽度 86-100%+左偏移、margin 14-26 交替；load/resize 重算；7 测试绿+ tsc 绿；6a45ca0→feature/photo-wall-hover-focus | User: 优化排版的错落关系，当前太连贯统一
+2026-09-28 | fix(ui) | 照片墙间距过大 | column-gap 16→10；底距 8-14；宽 94-100%/偏移 0-3%；列顶 0/12/24/36；7 测试绿+ tsc 绿；befaa9b→feature/photo-wall-hover-focus | User: 效果不理想，图片间的间距太大了
