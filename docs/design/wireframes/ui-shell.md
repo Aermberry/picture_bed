@@ -30,7 +30,7 @@ App (flex, height 100vh)
 ### 1.1 上传视图（默认）
 
 1. **DropZone 英雄区**（min-height 420）：拖入 **图片或 md/html 文档**（不接受文件夹）；2px 虚线、圆角 16。
-2. **扫描结果 · 照片墙**（`has-photos`）：隐藏空态英雄；顶部「扫描到 N 张图片」+「重置」「上传」；主体 **Material Tailwind Masonry 画廊**式瀑布流（响应式 2/3/4 列，**gap 10**）——**列首错位 + 紧凑宽度/间距错落**、图块自然宽高比、**r16**、彩色柔影、hover 文件名浮层（**无放大/让位**）。仍可继续拖入。
+2. **扫描结果 · 照片墙**（`has-photos`）：隐藏空态英雄；顶部「扫描到 N 张图片」+「重置」「上传」；主体 **Material Tailwind Masonry 画廊**式瀑布流（响应式 2/3/4 列，**gap 8**）——图块**满宽**、列顶/底距微差错落、自然宽高比、**r16**、彩色柔影、hover 文件名浮层（**无放大/让位**）。仍可继续拖入。
 3. ~~根绑定行 / 工作集 / scan 按钮组 / 计划分组表~~（2026-09-26 收窄移除；扫描结果改照片墙 2026-09-27）。
 
 ### 1.2 管理视图
@@ -125,7 +125,7 @@ App (flex, height 100vh)
 |------|------|------|
 | NavItem | 宽 56，图标 22 + 标签 12 | default / hover / active |
 | DropZone | min-h 420，2px dashed，r16 | idle / hover / dragging / has-photos |
-| PhotoWall | Masonry 画廊瀑布流（2/3/4 列响应式），gap 10；图块 r16 自然比例 | 列首错位紧凑错落 + hover 文件名浮层（无放大） |
+| PhotoWall | Masonry 画廊瀑布流（2/3/4 列响应式），gap 8；图块满宽 r16 | 列顶/底距微差错落 + hover 文件名浮层（无放大） |
 | FileCard | 缩略 110 + meta pad 12，网格 4 列 gap 16 | hover 上浮 2px + shadow-2 |
 | StatCard | 标签 13 + 数值 22/700 | — |
 | Toggle | **36×20**，滑块 16，r999，**flex-shrink:0** | on / off |
