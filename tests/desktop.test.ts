@@ -113,6 +113,19 @@ describe('F24 desktop shell', () => {
     expect(spaApp).toContain('layoutWallTimer');
   });
 
+  it('photo wall supports click-select batch delete of preview tiles', () => {
+    // selection state + chrome
+    expect(spaApp).toContain('selectedKeys');
+    expect(spaApp).toContain('data-key');
+    expect(spaApp).toContain('btnDelete');
+    expect(spaApp).toContain('syncDeleteChrome');
+    expect(INDEX_HTML).toContain('id="btnDelete"');
+    expect(SPA_CSS).toContain('.photo-wall .tile.selected');
+    // delete removes from wall + session workset
+    expect(spaApp).toContain('api/session/remove');
+    expect(spaApp).toContain('clearSelection');
+  });
+
   it('photo wall has no hover zoom / neighbour shift (feature cancelled)', () => {
     // no tween engine or focus layout left in the SPA
     expect(spaApp).not.toContain('applyWallFocus');

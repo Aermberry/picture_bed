@@ -191,6 +191,38 @@ export function createUiServer(opts: UiServerOptions): {
         return;
       }
 
+      if (req.method === 'POST' && url.pathname === '/api/session/remove') {
+        // Batch-remove dropped items (photo-wall selection). Match by resolved/relative path or name.
+        const body = JSON.parse((await readBody(req)) || '{}') as { keys?: unknown };
+        const keys: string[] = Array.isArray(body.keys)
+          ? body.keys.map((k: unknown) => String(k ?? '').replace(/\\/g, '/')).filter(Boolean)
+          : [];
+        if (!keys.length) {
+          send(400, envelope(false, 'api.session.remove', undefined, {
+            code: 'E_BAD_REQUEST',
+            message: 'keys (string[]) required',
+          }));
+          return;
+        }
+        const keySet = new Set(keys);
+        const kept: typeof workset = [];
+        let removed = 0;
+        for (const w of workset) {
+          const cands = [w.resolvedPath || '', w.relativePath || '', w.name || '']
+            .map((p) => String(p).replace(/\\/g, '/'))
+            .filter(Boolean);
+          if (cands.some((p) => keySet.has(p))) {
+            removed += 1;
+            continue;
+          }
+          kept.push(w);
+        }
+        workset.length = 0;
+        workset.push(...kept);
+        send(200, envelope(true, 'api.session.remove', { removed, remaining: workset.length }));
+        return;
+      }
+
       if (req.method === 'GET' && url.pathname === '/api/session/images') {
         // Workset images only — do not enumerate the scan root (preview must not "grow" unexplained images).
         const droppedImgs: string[] = [];

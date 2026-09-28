@@ -372,11 +372,28 @@
 
   /** @type {any[]} */
   let wallItems = [];
+  /** @type {Set<string>} */
+  const selectedKeys = new Set();
 
   /** @param {any} p */
   function wallKey(p) {
     if (p && typeof p === "object") return String(p.abs || p.src || p.name || "");
     return String(p || "");
+  }
+
+  function syncDeleteChrome() {
+    const btn = $("btnDelete");
+    if (!btn) return;
+    const n = selectedKeys.size;
+    btn.hidden = n === 0;
+    btn.textContent = n > 0 ? "删除 " + n : "删除";
+  }
+
+  function clearSelection() {
+    selectedKeys.clear();
+    const g = $("previewGrid");
+    if (g) g.querySelectorAll(".tile.selected").forEach((t) => t.classList.remove("selected"));
+    syncDeleteChrome();
   }
 
   /** @param {any[]} items */
@@ -396,6 +413,7 @@
   /** @param {string=} title */
   function setPreviewIdle(title) {
     wallItems = [];
+    selectedKeys.clear();
     const g = $("previewGrid");
     const a = $("previewActions");
     const dz = $("dropzone");
@@ -479,8 +497,9 @@
         }
         if (!src) return "";
         return (
-          '<figure class="tile">' +
+          '<figure class="tile" data-key="' + esc(wallKey(p)) + '">' +
           '<img alt="" loading="lazy" src="' + src + '" />' +
+          '<span class="check">✓</span>' +
           (name ? '<figcaption class="name">' + esc(name) + "</figcaption>" : "") +
           "</figure>"
         );
@@ -499,7 +518,29 @@
       });
       img.addEventListener("load", () => schedulePhotoWallLayout());
     });
+    // 点选图块 → 多选删除
+    g.querySelectorAll(".tile").forEach((tile) => {
+      const el = /** @type {HTMLElement} */ (tile);
+      el.addEventListener("click", () => {
+        const key = el.dataset.key || "";
+        if (!key) return;
+        if (selectedKeys.has(key)) {
+          selectedKeys.delete(key);
+          el.classList.remove("selected");
+        } else {
+          selectedKeys.add(key);
+          el.classList.add("selected");
+        }
+        syncDeleteChrome();
+      });
+    });
+    // restore selection for tiles kept across re-render
+    g.querySelectorAll(".tile").forEach((tile) => {
+      const el = /** @type {HTMLElement} */ (tile);
+      if (el.dataset.key && selectedKeys.has(el.dataset.key)) el.classList.add("selected");
+    });
     syncWallChrome();
+    syncDeleteChrome();
   }
 
   /** Show actions/headline only when the wall actually has tiles. */
@@ -584,7 +625,25 @@
   $("btnReset").onclick = async () => {
     await api("/api/session/reset", {});
     setPreviewIdle();
+    clearSelection();
     toast("已重置");
+  };
+
+  $("btnDelete").onclick = async () => {
+    const n = selectedKeys.size;
+    if (!n) return;
+    if (!(await confirmAsync("将从预览与会话中移除选中的 " + n + " 张图片（不上传、不改文档），确认删除？"))) return;
+    const keys = Array.from(selectedKeys);
+    // remove from local wall first for snappy UX
+    wallItems = wallItems.filter((p) => !selectedKeys.has(wallKey(p)));
+    clearSelection();
+    setPreviewImages(wallItems);
+    try {
+      await api("/api/session/remove", { keys });
+      toast("已删除 " + n + " 张");
+    } catch (_) {
+      toast("已从预览移除；会话同步失败");
+    }
   };
 
   $("btnUpload").onclick = async () => {
@@ -594,6 +653,7 @@
       const c = (data.data && data.data.counts) || {};
       toast(c.uploaded != null ? "上传完成 · " + c.uploaded : "上传完成");
       setPreviewIdle();
+      clearSelection();
     } else {
       toast((data.error && data.error.message) || "上传失败 " + status);
     }
