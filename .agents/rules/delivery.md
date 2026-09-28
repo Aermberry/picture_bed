@@ -24,6 +24,7 @@ Rules:
 3. 集成到 `develop` 前：设计已在 `docs/design` 落地（或本次即文档变更）、测试全绿。
 4. 隔离 worktree 不能 `checkout` 时：仍须**逻辑上**按 topic 分支；可用 `git commit-tree` / `git fetch . <sha>:refs/heads/feature/<topic>` 创建，或明确记录「本环境无法建分支」并合并前由主 checkout 拆分。
 5. **合并后的收尾（MANDATORY，2026-09-28）**：内容合入 `develop` 后，必须**切换到 `develop` 分支**，并**删除已完全合入 `develop` 的 topic 分支**（`feature/*`、`hotfix/*`、`docs/<topic>`）。保留主线：`develop`、`main`、`docs/design`。禁止留下已合入的悬空 topic 分支。
+   - **隔离 worktree 例外**：子 worktree 会硬拦截 `checkout` / `branch -d` / `update-ref`（共享 ref store）。此时合并仍可用 `commit-tree` + `git fetch .` 完成，但**切回 develop 与删分支必须由主 checkout（用户/编排器）执行**；子会话须在交付说明中列出待删分支清单。
 
 ## Bugfix Git Flow (MANDATORY, 2026-09-27 · revised 2026-09-28)
 
