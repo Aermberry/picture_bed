@@ -141,3 +141,4 @@
 2026-09-28 | fix(ui) | 空态白条仍存在 | 白底板在空态也绘制；改为仅 .has-photos 显示；25/25+ tsc 绿；4f54501→feature/photo-wall-hover-focus | User: 还是存在（空态截图）
 2026-09-28 | fix(ui) | 扫描区与顶部太近 | 恢复 .content padding:var(--sp-6) 顶距；25/25+ tsc 绿；15523b4→feature/photo-wall-hover-focus | User: 扫描区与顶部太近了
 2026-09-28 | fix(ui) | 空态白条未修改正确 | sticky/plate 仅 has-photos；:not(.has-photos) content:none 硬关；25/25+ tsc 绿；65bd6fe→feature/photo-wall-hover-focus | User: 没有修改正确
+2026-09-28 | update | docs/design + renderer/styles.css + tests | 吸顶条阴影改设计：整宽底板达虚线边+20px 白渐变过渡（去硬阴影）；25/25+ tsc 绿；8e6f59d→feature/photo-wall-hover-focus | User: 阴影长度不够，是否延长到虚线边界/还是有更好设计
