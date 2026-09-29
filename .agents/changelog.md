@@ -143,3 +143,4 @@
 2026-09-28 | fix(ui) | 空态白条未修改正确 | sticky/plate 仅 has-photos；:not(.has-photos) content:none 硬关；25/25+ tsc 绿；65bd6fe→feature/photo-wall-hover-focus | User: 没有修改正确
 2026-09-28 | update | docs/design + renderer/styles.css + tests | 吸顶条阴影改设计：整宽底板达虚线边+20px 白渐变过渡（去硬阴影）；25/25+ tsc 绿；8e6f59d→feature/photo-wall-hover-focus | User: 阴影长度不够，是否延长到虚线边界/还是有更好设计
 2026-09-28 | fix(ui) | 虚线框缺失 | 虚线改 .dropzone::after z-index:20 置顶绘制，内部元素不再遮挡；25/25+ tsc 绿；edd1dd9→feature/photo-wall-hover-focus | User: 绿色圈出虚线缺少了
+2026-09-28 | fix(ui) | 渐变虚化难看且长度不够 | 删掉 ::after 渐变，只保留整宽白底板（负 margin 达虚线）；25/25+ tsc 绿；1339efa→feature/photo-wall-hover-focus | User: 虚化太难看，长度不够

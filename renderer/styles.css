@@ -217,30 +217,19 @@
     .dropzone.has-photos .dz-head{
       position:sticky; top:0;
       flex-direction:row; align-items:center; justify-content:space-between;
-      /* plate + fade reach the dashed frame on both sides */
+      /* plate spans the full dashed frame width */
       margin-left:calc(-1 * var(--sp-6));
       margin-right:calc(-1 * var(--sp-6));
       padding-left:var(--sp-6);
       padding-right:var(--sp-6);
     }
-    /* full-width plate under the bar */
+    /* clean full-width plate — no gradient wash over the wall */
     .dropzone.has-photos .dz-head::before{
       content:"";
       position:absolute;
       left:0; right:0; top:0; bottom:0;
       background:#fff;
       opacity:var(--dz-head-alpha, 1);
-      z-index:-1;
-    }
-    /* soft gradient fade into the wall — no hard shadow edge */
-    .dropzone.has-photos .dz-head::after{
-      content:"";
-      position:absolute;
-      left:0; right:0; top:100%;
-      height:20px;
-      background:linear-gradient(rgba(255,255,255,.92), rgba(255,255,255,0));
-      opacity:var(--dz-head-alpha, 1);
-      pointer-events:none;
       z-index:-1;
     }
     .dropzone:not(.has-photos) .dz-head::before{content:none}
