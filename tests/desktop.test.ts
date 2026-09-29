@@ -122,6 +122,15 @@ describe('F24 desktop shell', () => {
     expect(SPA_CSS).toMatch(/\.dropzone\.has-photos \.dz-head::before/);
     expect(SPA_CSS).toMatch(/\.dropzone:not\(\.has-photos\) \.dz-head::before\{content:none\}/);
     expect(SPA_CSS).toMatch(/has-photos\{[\s\S]*padding-top:0/);
+    // full-width plate + gradient fade to the dashed frame (no hard shadow)
+    expect(SPA_CSS).toMatch(/margin-left:calc\(-1 \* var\(--sp-6\)\)/);
+    expect(SPA_CSS).toContain('dz-head::after');
+    expect(SPA_CSS).toContain('linear-gradient');
+    const beforeRule = SPA_CSS.slice(
+      SPA_CSS.indexOf('.dropzone.has-photos .dz-head::before{'),
+      SPA_CSS.indexOf('.dropzone.has-photos .dz-head::after{'),
+    );
+    expect(beforeRule).not.toContain('box-shadow');
     // background fades with scroll but never reaches full transparency
     expect(SPA_CSS).toContain('--dz-head-alpha');
     expect(spaApp).toContain('updateWallBarFade');
