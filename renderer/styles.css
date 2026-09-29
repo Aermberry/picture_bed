@@ -157,7 +157,7 @@
     .topbar h1{font-size:16px; font-weight:600}
     .topbar .crumb{color:var(--c-text-3); font-size:13px}
     .topbar .right{margin-left:auto; display:flex; gap:var(--sp-3); align-items:center}
-    .content{flex:1; overflow:auto; padding:0 var(--sp-6) var(--sp-6)}
+    .content{flex:1; overflow:auto; padding:var(--sp-6)}
     .hint{font-size:12px; color:var(--c-text-3)}
 
     /* 图标令牌消费（symbol 内只挂 class，零硬编码） */
