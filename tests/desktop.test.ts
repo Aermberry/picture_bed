@@ -126,6 +126,10 @@ describe('F24 desktop shell', () => {
     expect(SPA_CSS).toMatch(/margin-left:calc\(-1 \* var\(--sp-6\)\)/);
     expect(SPA_CSS).toContain('dz-head::after');
     expect(SPA_CSS).toContain('linear-gradient');
+    // dashed frame is painted above internals so it is never covered
+    expect(SPA_CSS).toContain('.dropzone::after');
+    expect(SPA_CSS).toMatch(/\.dropzone::after\{[\s\S]*z-index:20/);
+    expect(SPA_CSS).toMatch(/\.dropzone::after\{[\s\S]*dashed/);
     const beforeRule = SPA_CSS.slice(
       SPA_CSS.indexOf('.dropzone.has-photos .dz-head::before{'),
       SPA_CSS.indexOf('.dropzone.has-photos .dz-head::after{'),

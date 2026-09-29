@@ -178,16 +178,27 @@
 
     .dropzone{
       min-height:420px;
-      border:2px dashed var(--c-border);
+      border:2px dashed transparent; /* real dashes drawn on the overlay below */
       border-radius:var(--r-lg); background:var(--c-surface);
       display:flex; flex-direction:column; align-items:center; justify-content:center;
       gap:var(--sp-4); transition:all .2s; cursor:pointer;
       padding:var(--sp-6);
-      /* zoom must not be cropped by the dashed frame;
-         JS keeps the transformed box inside the frame instead */
+      position:relative;
+    }
+    /* dashed frame paints above tiles/plate so it is never covered */
+    .dropzone::after{
+      content:"";
+      position:absolute; inset:0;
+      border:2px dashed var(--c-border);
+      border-radius:var(--r-lg);
+      pointer-events:none;
+      z-index:20;
     }
     .dropzone:hover,.dropzone.drag{
-      border-color:var(--c-primary); background:var(--c-primary-soft);
+      background:var(--c-primary-soft);
+    }
+    .dropzone:hover::after,.dropzone.drag::after{
+      border-color:var(--c-primary);
     }
     .dropzone.has-photos{
       justify-content:flex-start; align-items:stretch;
