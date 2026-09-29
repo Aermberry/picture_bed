@@ -199,9 +199,13 @@
     .dropzone.has-photos .drop-hero{display:none}
     .dropzone .dz-head{
       width:100%; display:flex; flex-direction:column; align-items:center; gap:var(--sp-3);
-      position:sticky; top:0; z-index:10;
+      position:relative; z-index:10;
       background:transparent;
       padding:12px 0;
+    }
+    .dropzone.has-photos .dz-head{
+      position:sticky; top:0;
+      flex-direction:row; align-items:center; justify-content:space-between;
     }
     /* plate only when the photo wall is showing — idle title stays on the blue dropzone */
     .dropzone.has-photos .dz-head::before{
@@ -213,9 +217,7 @@
       box-shadow:0 6px 12px -8px rgba(90,130,170,.35);
       z-index:-1;
     }
-    .dropzone.has-photos .dz-head{
-      flex-direction:row; align-items:center; justify-content:space-between;
-    }
+    .dropzone:not(.has-photos) .dz-head::before{content:none}
     .dropzone .drop-hero{
       display:flex; flex-direction:column; align-items:center; gap:var(--sp-2);
     }

@@ -114,11 +114,13 @@ describe('F24 desktop shell', () => {
   });
 
   it('photo wall action bar stays visible while scrolling (sticky)', () => {
-    expect(SPA_CSS).toMatch(/\.dropzone \.dz-head\{[\s\S]*position:sticky/);
-    expect(SPA_CSS).toMatch(/\.dropzone \.dz-head\{[\s\S]*top:0/);
-    expect(SPA_CSS).toMatch(/\.dropzone \.dz-head\{[\s\S]*z-index:10/);
+    // sticky only when the wall is showing; idle head is not sticky / has no plate
+    expect(SPA_CSS).toMatch(/\.dropzone\.has-photos \.dz-head\{[\s\S]*position:sticky/);
+    expect(SPA_CSS).toMatch(/\.dropzone\.has-photos \.dz-head\{[\s\S]*top:0/);
+    expect(SPA_CSS).toMatch(/\.dropzone\.has-photos \.dz-head\{[\s\S]*z-index:10|\.dropzone \.dz-head\{[\s\S]*z-index:10/);
     // plate only when photo wall is shown (idle title has no white bar)
     expect(SPA_CSS).toMatch(/\.dropzone\.has-photos \.dz-head::before/);
+    expect(SPA_CSS).toMatch(/\.dropzone:not\(\.has-photos\) \.dz-head::before\{content:none\}/);
     expect(SPA_CSS).toMatch(/has-photos\{[\s\S]*padding-top:0/);
     // background fades with scroll but never reaches full transparency
     expect(SPA_CSS).toContain('--dz-head-alpha');
