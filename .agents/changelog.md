@@ -139,3 +139,4 @@
 2026-09-28 | fix(ui) | 吸顶条上方多一条白条 | ::before 负 top 伸出形成独立条；遮罩并入 padding 做成单块底板；25/25+ tsc 绿；59172d0→feature/photo-wall-hover-focus | User: 选框内多了一条白条
 2026-09-28 | fix(ui) | 白条仍未去除 | 根因 dz-head 40px 空顶距；改为贴合控件的 12px padding，content padding-top:0；25/25+ tsc 绿；333fc2d→feature/photo-wall-hover-focus | User: 没有去除掉
 2026-09-28 | fix(ui) | 空态白条仍存在 | 白底板在空态也绘制；改为仅 .has-photos 显示；25/25+ tsc 绿；4f54501→feature/photo-wall-hover-focus | User: 还是存在（空态截图）
+2026-09-28 | fix(ui) | 扫描区与顶部太近 | 恢复 .content padding:var(--sp-6) 顶距；25/25+ tsc 绿；15523b4→feature/photo-wall-hover-focus | User: 扫描区与顶部太近了
