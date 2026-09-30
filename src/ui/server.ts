@@ -532,6 +532,82 @@ export function createUiServer(opts: UiServerOptions): {
         return;
       }
 
+      if (req.method === 'GET' && url.pathname === '/api/gallery') {
+        // 图库：列出当前仓库某目录下的文件夹与图片（GitHub Contents API）
+        const cfg = loadCfg();
+        const owner = cfg.github.owner;
+        const repo = cfg.github.repo;
+        const token = process.env.PICBED_GITHUB_TOKEN || process.env.GITHUB_TOKEN || probeGhToken().token;
+        if (!owner || !repo) {
+          send(400, envelope(false, 'api.gallery', undefined, {
+            code: 'E_CONFIG',
+            message: '请先在设置中配置 github.owner / github.repo',
+          }));
+          return;
+        }
+        if (!token) {
+          send(401, envelope(false, 'api.gallery', undefined, {
+            code: 'E_TOKEN',
+            message: '需要 GitHub Token：请先 gh 一键登录或配置 PICBED_GITHUB_TOKEN',
+          }));
+          return;
+        }
+        const dir = (url.searchParams.get('path') || '').replace(/^\/+|\/+$/g, '');
+        const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${dir}`;
+        try {
+          const res = await fetch(apiUrl, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              Accept: 'application/vnd.github+json',
+              'User-Agent': 'picbed',
+            },
+          });
+          if (res.status === 404) {
+            send(404, envelope(false, 'api.gallery', undefined, {
+              code: 'E_NOT_FOUND',
+              message: `目录不存在或无权访问：${dir || '/'}`,
+            }));
+            return;
+          }
+          if (!res.ok) {
+            send(res.status, envelope(false, 'api.gallery', undefined, {
+              code: 'E_REMOTE',
+              message: `GitHub API ${res.status}`,
+            }));
+            return;
+          }
+          const list = (await res.json()) as Array<{
+            name: string;
+            path: string;
+            type: string;
+            download_url?: string;
+            html_url?: string;
+            size?: number;
+          }>;
+          const items = Array.isArray(list)
+            ? list.map((it) => ({
+                name: it.name,
+                path: it.path,
+                type: it.type === 'dir' ? 'dir' : 'file',
+                url: it.download_url || it.html_url || '',
+                size: it.size ?? null,
+              }))
+            : [];
+          send(200, envelope(true, 'api.gallery', {
+            owner,
+            repo,
+            path: dir,
+            items,
+          }));
+        } catch (e) {
+          send(502, envelope(false, 'api.gallery', undefined, {
+            code: 'E_REMOTE',
+            message: e instanceof Error ? e.message : String(e),
+          }));
+        }
+        return;
+      }
+
       if (req.method === 'POST' && url.pathname === '/api/auth/gh') {
         // gh 一键登录：环境变量优先，否则 gh auth token（区分未装/未登录）
         const envTok = process.env.PICBED_GITHUB_TOKEN || process.env.GITHUB_TOKEN;

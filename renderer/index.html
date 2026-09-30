@@ -69,6 +69,7 @@
     </div>
     <button class="nav-item active" data-view="upload"><svg class="ico"><use href="#i-upload"/></svg>上传</button>
     <button class="nav-item" data-view="manage"><svg class="ico"><use href="#i-folder"/></svg>管理</button>
+    <button class="nav-item" data-view="gallery"><svg class="ico"><use href="#i-image"/></svg>图库</button>
     <button class="nav-item" data-view="settings"><svg class="ico"><use href="#i-gear"/></svg>设置</button>
     <button class="nav-item" id="navDoc" data-view="doc" hidden><svg class="ico"><use href="#i-book"/></svg>规范</button>
     <div class="spacer"></div>
@@ -129,6 +130,17 @@
         <button class="btn btn-primary" id="batchCopy" type="button" style="margin-left:auto">批量复制外链</button>
       </div>
       <div class="file-grid" id="fileGrid"></div>
+    </section>
+
+    <!-- 图库：浏览仓库文件夹与图片 -->
+    <section class="content" id="view-gallery" style="display:none">
+      <div class="toolbar">
+        <span class="hint" id="galleryPath" style="margin-right:auto">/</span>
+        <button class="btn btn-ghost" id="galleryUp" type="button">上级</button>
+        <button class="btn btn-ghost" id="galleryRefresh" type="button">刷新</button>
+      </div>
+      <div class="file-grid" id="galleryGrid"></div>
+      <div class="muted" id="galleryEmpty" hidden>暂无内容</div>
     </section>
 
     <!-- 设置 -->
