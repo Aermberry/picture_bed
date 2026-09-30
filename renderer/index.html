@@ -148,15 +148,11 @@
             </select>
           </div>
           <div class="form-row"><label>Token</label><input type="text" id="cfgToken" readonly value="••••••••" /></div>
-        </div>
-        <div class="card">
-          <h3>上传偏好</h3>
-          <div class="form-row"><label>写操作需确认</label>
-            <label class="switch"><input type="checkbox" id="prefConfirm" checked><span class="track"></span></label>
+          <div class="row" style="margin-top:12px">
+            <button class="btn btn-ghost" id="cfgGet" type="button">读配置</button>
+            <button class="btn btn-primary" id="cfgSet" type="button">保存设置</button>
           </div>
-          <div class="form-row"><label>自动备份文档</label>
-            <label class="switch"><input type="checkbox" id="prefBackup" checked><span class="track"></span></label>
-          </div>
+          <pre id="cfgOut">（尚无）</pre>
         </div>
         <div class="card">
           <h3>外观主题</h3>
@@ -168,16 +164,6 @@
             </select>
           </div>
           <div class="hint">主题切换即时生效并记忆在本机 localStorage；Logo 候选随主题联动。</div>
-        </div>
-        <div class="card">
-          <h3>自检 doctor（F20）</h3>
-          <div class="row">
-            <button class="btn btn-ghost" id="doctor" type="button">运行 doctor</button>
-            <button class="btn btn-ghost" id="cfgGet" type="button">读配置</button>
-            <button class="btn btn-primary" id="cfgSet" type="button">保存设置</button>
-          </div>
-          <div class="status hint" id="cfgHint">缺 token 时使用 PICBED_GITHUB_TOKEN / GITHUB_TOKEN / gh auth token；此处永不回显 secret。</div>
-          <pre id="cfgOut">（尚无）</pre>
         </div>
       </div>
     </section>
