@@ -137,11 +137,13 @@ describe('ui F19–F22', () => {
     expect(stopped.data.data.active).toBe(false);
   });
 
-  it('console includes F19–F22 panels', async () => {
+  it('console drops F19–F22 panels (revert/audit/watch removed from UI)', async () => {
     const html = await (await fetch(base + '/')).text();
-    expect(html).toContain('回滚');
+    expect(html).not.toContain('回滚');
+    expect(html).not.toContain('审计 run');
+    expect(html).not.toContain('watch（F22）');
     expect(html).toContain('doctor');
-    expect(html).toContain('watch');
-    expect(html).toContain('审计');
+    expect(html).toContain('外链调用');
+    expect(html).toContain('fileGrid');
   });
 });
