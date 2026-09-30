@@ -113,29 +113,22 @@ describe('F24 desktop shell', () => {
     expect(spaApp).toContain('layoutWallTimer');
   });
 
-  it('photo wall action bar stays visible while scrolling (sticky)', () => {
-    // sticky only when the wall is showing; idle head is not sticky / has no plate
-    expect(SPA_CSS).toMatch(/\.dropzone\.has-photos \.dz-head\{[\s\S]*position:sticky/);
-    expect(SPA_CSS).toMatch(/\.dropzone\.has-photos \.dz-head\{[\s\S]*top:0/);
-    expect(SPA_CSS).toMatch(/\.dropzone\.has-photos \.dz-head\{[\s\S]*z-index:10|\.dropzone \.dz-head\{[\s\S]*z-index:10/);
-    // plate only when photo wall is shown (idle title has no white bar)
-    expect(SPA_CSS).toMatch(/\.dropzone\.has-photos \.dz-head::before/);
-    expect(SPA_CSS).toMatch(/\.dropzone:not\(\.has-photos\) \.dz-head::before\{content:none\}/);
-    expect(SPA_CSS).toMatch(/has-photos\{[\s\S]*padding-top:0/);
-    // full-width plate to the dashed frame; no gradient wash
-    expect(SPA_CSS).toMatch(/margin-left:calc\(-1 \* var\(--sp-6\)\)/);
-    const beforeRule = SPA_CSS.slice(
-      SPA_CSS.indexOf('.dropzone.has-photos .dz-head::before{'),
-      SPA_CSS.indexOf('.dropzone:not(.has-photos)'),
-    );
-    expect(beforeRule).not.toContain('linear-gradient');
-    expect(beforeRule).not.toContain('box-shadow');
+  it('photo wall action bar lives in a subbar under the topbar', () => {
+    expect(INDEX_HTML).toContain('id="wallSubbar"');
+    expect(INDEX_HTML).toContain('class="subbar"');
+    expect(INDEX_HTML).toContain('点击图片可勾选');
+    // buttons ride in the subbar, not inside the dropzone
+    expect(INDEX_HTML).toMatch(/id="wallSubbar"[\s\S]*id="btnReset"/);
+    expect(INDEX_HTML).toMatch(/id="wallSubbar"[\s\S]*id="btnUpload"/);
+    expect(SPA_CSS).toContain('.subbar');
+    // shown only when the wall has tiles
+    expect(spaApp).toContain('wallSubbar');
+    expect(spaApp).toContain('dzIdleHead');
     // dashed frame is painted above internals so it is never covered
     expect(SPA_CSS).toContain('.dropzone::after');
     expect(SPA_CSS).toMatch(/\.dropzone::after\{[\s\S]*z-index:20/);
     expect(SPA_CSS).toMatch(/\.dropzone::after\{[\s\S]*dashed/);
     // background fades with scroll but never reaches full transparency
-    expect(SPA_CSS).toContain('--dz-head-alpha');
     expect(spaApp).toContain('updateWallBarFade');
     expect(spaApp).toContain('0.82');
     // quota meter is gone from the shell

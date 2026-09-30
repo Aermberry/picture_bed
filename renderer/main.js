@@ -407,15 +407,17 @@
     wallItems = [];
     selectedKeys.clear();
     const g = $("previewGrid");
-    const a = $("previewActions");
+    const bar = $("wallSubbar");
+    const idleHead = $("dzIdleHead");
     const dz = $("dropzone");
     if (g) {
       g.hidden = true;
       g.innerHTML = "";
     }
-    if (a) a.hidden = true;
+    if (bar) bar.hidden = true;
+    if (idleHead) idleHead.hidden = false;
     if (dz) dz.classList.remove("has-photos");
-    $("dropTitle").textContent = title || "将文件拖放到此处";
+    if (title) $("dropTitle").textContent = title;
   }
 
   /**
@@ -541,11 +543,15 @@
     const g = $("previewGrid");
     const a = $("previewActions");
     const dz = $("dropzone");
+    const bar = $("wallSubbar");
+    const idleHead = $("dzIdleHead");
     const n = g ? g.querySelectorAll(".tile").length : 0;
     if (a) a.hidden = n === 0;
+    if (bar) bar.hidden = n === 0;
+    if (idleHead) idleHead.hidden = n > 0;
     if (n === 0) {
       if (dz) dz.classList.remove("has-photos");
-      $("dropTitle").textContent = "将文件拖放到此处";
+      $("dropTitle").textContent = "扫描到 0 张图片";
       return;
     }
     if (dz) dz.classList.add("has-photos");
