@@ -3,6 +3,7 @@ import http from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { getToken, loadConfig } from '../config.js';
+import { defaultGhToken } from '../store.js';
 import type { JsonEnvelope, ResolvedConfig } from '../types.js';
 import {
   asAppError,
@@ -528,6 +529,25 @@ export function createUiServer(opts: UiServerOptions): {
             partial: result.partial,
           }, result.ok ? null : { code: errorCode, message: result.errors.join('; ') }, result.warnings),
         );
+        return;
+      }
+
+      if (req.method === 'POST' && url.pathname === '/api/auth/gh') {
+        // gh 一键登录：复用 GitHub CLI 登录态（gh auth token）
+        const gh = defaultGhToken();
+        const envTok = process.env.PICBED_GITHUB_TOKEN || process.env.GITHUB_TOKEN;
+        const token = envTok || gh;
+        if (!token) {
+          send(401, envelope(false, 'api.auth.gh', undefined, {
+            code: 'E_TOKEN',
+            message: 'gh 未登录且无 PICBED_GITHUB_TOKEN / GITHUB_TOKEN；请先运行 `gh auth login`',
+          }));
+          return;
+        }
+        send(200, envelope(true, 'api.auth.gh', {
+          source: envTok ? 'env' : 'gh',
+          tokenMask: '••••••••',
+        }));
         return;
       }
 

@@ -781,8 +781,10 @@
     $("cfgDir").value = gh.dir || "";
     $("cfgUrlStyle").value = url.style || "raw";
     const tok = String(d.token ?? "");
-    $("cfgToken").value = tok ? tok : "••••••••";
-    $("cfgToken").title = "token 仅掩码展示";
+    $("cfgToken").value = tok ? "••••••••" : "";
+    $("cfgToken").readOnly = true;
+    $("cfgToken").placeholder = "未配置 Token";
+    $("cfgToken").title = "token 仅掩码展示；用上方按钮登录";
   }
 
   $("cfgGet").onclick = async () => {
@@ -790,6 +792,26 @@
     $("cfgOut").textContent = JSON.stringify(data, null, 2);
     loadConfigForm();
   };
+
+  $("btnGhLogin") && ($("btnGhLogin").onclick = async () => {
+    const { status, data } = await api("/api/auth/gh", {});
+    if (data.ok) {
+      const src = data.data && data.data.source === "env" ? "环境变量 Token" : "GitHub CLI (gh)";
+      $("authHint").textContent = "已通过 " + src + " 登录";
+      $("cfgToken").value = "••••••••";
+      toast("gh 一键登录成功");
+    } else {
+      $("authHint").textContent = (data.error && data.error.message) || "gh 登录失败";
+      toast("gh 一键登录失败 " + status);
+    }
+  });
+  $("btnTokenLogin") && ($("btnTokenLogin").onclick = () => {
+    $("cfgToken").readOnly = false;
+    $("cfgToken").value = "";
+    $("cfgToken").placeholder = "粘贴 GitHub PAT（ghp_ / gho_ …）";
+    $("cfgToken").focus();
+    $("authHint").textContent = "粘贴 Token 后点击「保存设置」完成登录";
+  });
   $("cfgSet").onclick = async () => {
     if (!(await confirmAsync("将写入配置文件，确认保存设置？"))) return;
     const pairs = [
@@ -799,6 +821,8 @@
       ["github.dir", $("cfgDir").value.trim()],
       ["url.style", $("cfgUrlStyle").value],
     ];
+    const tok = $("cfgToken").value.trim();
+    if (tok && tok !== "••••••••") pairs.push(["token", tok]);
     /** @type {any} */
     let last;
     for (const [key, value] of pairs) {
