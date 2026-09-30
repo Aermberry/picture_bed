@@ -121,7 +121,7 @@
         <div class="stat-card"><div class="lbl">文件总数</div><div class="num" id="statTotal">0</div></div>
         <div class="stat-card"><div class="lbl">本月上传</div><div class="num" id="statMonth">0</div></div>
         <div class="stat-card"><div class="lbl">已映射</div><div class="num" id="statMapped">0</div></div>
-        <div class="stat-card"><div class="lbl">审计记录</div><div class="num" id="statRuns">0</div></div>
+        <div class="stat-card"><div class="lbl">外链调用</div><div class="num" id="statLinks">0</div></div>
       </div>
       <div class="toolbar">
         <input class="search" id="fileSearch" placeholder="搜索文件名…" />
@@ -129,32 +129,6 @@
         <button class="btn btn-primary" id="batchCopy" type="button" style="margin-left:auto">批量复制外链</button>
       </div>
       <div class="file-grid" id="fileGrid"></div>
-
-      <div class="card">
-        <h3>回滚（F19）</h3>
-        <div class="row">
-          <button class="btn btn-ghost" id="loadManifest" type="button">查看 manifest</button>
-          <button class="btn btn-ghost" id="revertDry" type="button">revert --dry-run</button>
-          <button class="btn btn-danger" id="revert" type="button">确认并 revert</button>
-        </div>
-        <pre id="revertOut">（尚无）</pre>
-      </div>
-
-      <div class="card">
-        <h3>审计 run（F21）</h3>
-        <div class="row"><button class="btn btn-ghost" id="runs" type="button">刷新 runs</button></div>
-        <pre id="runsOut">（尚无）</pre>
-      </div>
-
-      <div class="card">
-        <h3>watch（F22）</h3>
-        <div class="row">
-          <button class="btn btn-ghost" id="watchPreview" type="button">启动 preview</button>
-          <button class="btn btn-ghost" id="watchConfirm" type="button">启动 confirm-each</button>
-          <button class="btn btn-ghost" id="watchStop" type="button">停止</button>
-        </div>
-        <pre id="watchOut">（未启动）</pre>
-      </div>
     </section>
 
     <!-- 设置 -->
@@ -182,9 +156,6 @@
           </div>
           <div class="form-row"><label>自动备份文档</label>
             <label class="switch"><input type="checkbox" id="prefBackup" checked><span class="track"></span></label>
-          </div>
-          <div class="form-row"><label>watch 默认预览</label>
-            <label class="switch"><input type="checkbox" id="prefWatchPreview" checked><span class="track"></span></label>
           </div>
         </div>
         <div class="card">

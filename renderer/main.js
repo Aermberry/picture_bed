@@ -742,9 +742,11 @@
     manifestEntries = man.data?.data?.entries || man.data?.data?.items || [];
     if (!Array.isArray(manifestEntries)) manifestEntries = [];
     renderFiles(manifestEntries);
-    const runsRes = await api("/api/runs");
-    const runs = runsRes.data?.data?.runs || runsRes.data?.data || [];
-    $("statRuns").textContent = String(Array.isArray(runs) ? runs.length : 0);
+    const withUrl = manifestEntries.filter((e) => e.publicUrl).length;
+    const links = $("statLinks");
+    if (links) links.textContent = String(withUrl);
+    const runsEl = $("statRuns");
+    if (runsEl) runsEl.remove();
     const now = new Date();
     const ym = now.getUTCFullYear() + "-" + String(now.getUTCMonth() + 1).padStart(2, "0");
     $("statMonth").textContent = String(
@@ -765,37 +767,7 @@
     toast("已复制 " + urls.length + " 条外链");
   };
 
-  $("loadManifest").onclick = async () => {
-    const { data } = await api("/api/manifest");
-    $("revertOut").textContent = JSON.stringify(data, null, 2);
-  };
-  $("revertDry").onclick = async () => {
-    const { data } = await api("/api/revert", { dryRun: true, confirm: true });
-    $("revertOut").textContent = JSON.stringify(data, null, 2);
-  };
-  $("revert").onclick = async () => {
-    if (!(await confirmAsync("将把文档中的图床 URL 还原为本地路径，确认 revert？"))) return;
-    const { data } = await api("/api/revert", { confirm: true, dryRun: false });
-    $("revertOut").textContent = JSON.stringify(data, null, 2);
-    toast("revert 已执行");
-  };
-
-  $("runs").onclick = async () => {
-    const { data } = await api("/api/runs");
-    $("runsOut").textContent = JSON.stringify(data, null, 2);
-  };
-
-  /** @param {any} mode @param {any} confirmAuto */
-  async function watchStart(mode, confirmAuto) {
-    const { data } = await api("/api/watch/start", { mode, confirm: confirmAuto });
-    $("watchOut").textContent = JSON.stringify(data, null, 2);
-  }
-  $("watchPreview").onclick = () => watchStart("preview", false);
-  $("watchConfirm").onclick = () => watchStart("confirm-each", false);
-  $("watchStop").onclick = async () => {
-    const { data } = await api("/api/watch/stop", {});
-    $("watchOut").textContent = JSON.stringify(data, null, 2);
-  };
+  $("loadManifest") && ($("loadManifest").onclick = null);
 
   async function loadConfigForm() {
     const { data } = await api("/api/config");
