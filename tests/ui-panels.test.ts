@@ -84,6 +84,37 @@ describe('ui F19–F22', () => {
     expect(ok.data.ok).toBe(true);
   });
 
+  it('token paste login writes user store and never echoes the PAT', async () => {
+    const cred = path.join(cwd, 'user-cred.json');
+    const prev = process.env.PICBED_USER_TOKEN_PATH;
+    process.env.PICBED_USER_TOKEN_PATH = cred;
+    try {
+      const denied = await api('/api/auth/token', { token: 'ghp_secret_value_x' });
+      expect(denied.status).toBe(409);
+
+      const saved = await api('/api/auth/token', {
+        token: 'ghp_secret_value_x',
+        confirm: true,
+      });
+      expect(saved.data.ok).toBe(true);
+      expect(saved.data.data.tokenMask).toBe('••••••••');
+      expect(JSON.stringify(saved.data)).not.toContain('ghp_secret_value_x');
+      expect(fs.existsSync(cred)).toBe(true);
+
+      const cfg = await api('/api/config');
+      const masked = String(cfg.data.data.token ?? '');
+      expect(masked === '' || /\*{4}/.test(masked)).toBe(true);
+      expect(JSON.stringify(cfg.data)).not.toContain('ghp_secret_value_x');
+
+      const cleared = await api('/api/auth/token', { clear: true, confirm: true });
+      expect(cleared.data.ok).toBe(true);
+      expect(fs.existsSync(cred)).toBe(false);
+    } finally {
+      if (prev === undefined) delete process.env.PICBED_USER_TOKEN_PATH;
+      else process.env.PICBED_USER_TOKEN_PATH = prev;
+    }
+  });
+
   it('F21 records runs after sync and lists them', async () => {
     const cfg = loadConfig({ cwd });
     const result = await runSync({

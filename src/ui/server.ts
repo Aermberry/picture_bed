@@ -4,6 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { getToken, loadConfig } from '../config.js';
 import { probeGhToken } from '../store.js';
+import { clearUserToken, writeUserToken } from '../user-token.js';
 import type { JsonEnvelope, ResolvedConfig } from '../types.js';
 import {
   asAppError,
@@ -537,7 +538,7 @@ export function createUiServer(opts: UiServerOptions): {
         const cfg = loadCfg();
         const owner = cfg.github.owner;
         const repo = cfg.github.repo;
-        const token = process.env.PICBED_GITHUB_TOKEN || process.env.GITHUB_TOKEN || probeGhToken().token;
+        const token = getToken();
         if (!owner || !repo) {
           send(400, envelope(false, 'api.gallery', undefined, {
             code: 'E_CONFIG',
@@ -548,7 +549,7 @@ export function createUiServer(opts: UiServerOptions): {
         if (!token) {
           send(401, envelope(false, 'api.gallery', undefined, {
             code: 'E_TOKEN',
-            message: '需要 GitHub Token：请先 gh 一键登录或配置 PICBED_GITHUB_TOKEN',
+            message: '需要 GitHub Token：请先 gh 一键登录、粘贴 PAT，或配置 PICBED_GITHUB_TOKEN',
           }));
           return;
         }
@@ -629,6 +630,41 @@ export function createUiServer(opts: UiServerOptions): {
         send(401, envelope(false, 'api.auth.gh', { reason: probed.reason }, {
           code: probed.reason === 'not-installed' ? 'E_GH_MISSING' : 'E_TOKEN',
           message: probed.message || '未能取得 GitHub Token',
+        }));
+        return;
+      }
+
+      if (req.method === 'POST' && url.pathname === '/api/auth/token') {
+        // 粘贴 PAT：写入本机用户配置（~/.picbed/credentials.json），不写 picbed.toml
+        const body = JSON.parse((await readBody(req)) || '{}') as {
+          token?: string;
+          clear?: boolean;
+          confirm?: boolean;
+        };
+        if (body.confirm !== true) {
+          send(409, envelope(false, 'api.auth.token', undefined, {
+            code: 'E_CONFIRM',
+            message: 'auth token writes local credentials; set confirm: true',
+          }));
+          return;
+        }
+        if (body.clear) {
+          clearUserToken();
+          send(200, envelope(true, 'api.auth.token', { cleared: true, tokenMask: '' }));
+          return;
+        }
+        const tok = String(body.token ?? '').trim();
+        if (!tok) {
+          send(400, envelope(false, 'api.auth.token', undefined, {
+            code: 'E_USAGE',
+            message: 'token is empty；请粘贴 GitHub PAT 或改用 clear: true',
+          }));
+          return;
+        }
+        writeUserToken(tok);
+        send(200, envelope(true, 'api.auth.token', {
+          source: 'user',
+          tokenMask: '••••••••',
         }));
         return;
       }
