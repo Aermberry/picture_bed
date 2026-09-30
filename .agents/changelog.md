@@ -146,3 +146,4 @@
 2026-09-28 | fix(ui) | 渐变虚化难看且长度不够 | 删掉 ::after 渐变，只保留整宽白底板（负 margin 达虚线）；25/25+ tsc 绿；1339efa→feature/photo-wall-hover-focus | User: 虚化太难看，长度不够
 2026-09-28 | update | docs/design + renderer + tests | 操作条移入顶栏下独立子栏：扫描到N+勾选提示+删除/重置/上传；空态显示将文件拖放到此处；25/25+ tsc 绿；1c362cf→feature/photo-wall-hover-focus | User: 将重置与上传按钮的bar栏放置到与文件放置文本的bar栏下面
 2026-09-28 | update | E:/WorkSpace/MediaEditing/picbed_ui/{图床工具-设计交付规范.md,图床工具-UI方案.html} | 按当前实现校准设计交付物：subbar 子栏、JS 最短列瀑布流、点选删除、无悬停放大/容量条、虚线 ::after 置顶 | User: 请根据当前UI的构建修改这两份UI设计文
+2026-09-28 | update | renderer + ui-shell + ui-panels.test | 管理页改为已上传图片库（统计+搜索+文件网格）；移除回滚/审计/watch 面板与脚本（CLI 仍保留 revert/watch）；79/79+ tsc 绿；d66d40c→feature/photo-wall-hover-focus | User: 去除回滚审计watch；管理界面改为查看已上传的图片
