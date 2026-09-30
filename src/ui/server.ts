@@ -3,7 +3,7 @@ import http from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { getToken, loadConfig } from '../config.js';
-import { defaultGhToken } from '../store.js';
+import { probeGhToken } from '../store.js';
 import type { JsonEnvelope, ResolvedConfig } from '../types.js';
 import {
   asAppError,
@@ -533,20 +533,26 @@ export function createUiServer(opts: UiServerOptions): {
       }
 
       if (req.method === 'POST' && url.pathname === '/api/auth/gh') {
-        // gh 一键登录：复用 GitHub CLI 登录态（gh auth token）
-        const gh = defaultGhToken();
+        // gh 一键登录：环境变量优先，否则 gh auth token（区分未装/未登录）
         const envTok = process.env.PICBED_GITHUB_TOKEN || process.env.GITHUB_TOKEN;
-        const token = envTok || gh;
-        if (!token) {
-          send(401, envelope(false, 'api.auth.gh', undefined, {
-            code: 'E_TOKEN',
-            message: 'gh 未登录且无 PICBED_GITHUB_TOKEN / GITHUB_TOKEN；请先运行 `gh auth login`',
+        if (envTok) {
+          send(200, envelope(true, 'api.auth.gh', {
+            source: 'env',
+            tokenMask: '••••••••',
           }));
           return;
         }
-        send(200, envelope(true, 'api.auth.gh', {
-          source: envTok ? 'env' : 'gh',
-          tokenMask: '••••••••',
+        const probed = probeGhToken();
+        if (probed.token) {
+          send(200, envelope(true, 'api.auth.gh', {
+            source: 'gh',
+            tokenMask: '••••••••',
+          }));
+          return;
+        }
+        send(401, envelope(false, 'api.auth.gh', { reason: probed.reason }, {
+          code: probed.reason === 'not-installed' ? 'E_GH_MISSING' : 'E_TOKEN',
+          message: probed.message || '未能取得 GitHub Token',
         }));
         return;
       }

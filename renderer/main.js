@@ -805,13 +805,6 @@
       toast("gh 一键登录失败 " + status);
     }
   });
-  $("btnTokenLogin") && ($("btnTokenLogin").onclick = () => {
-    $("cfgToken").readOnly = false;
-    $("cfgToken").value = "";
-    $("cfgToken").placeholder = "粘贴 GitHub PAT（ghp_ / gho_ …）";
-    $("cfgToken").focus();
-    $("authHint").textContent = "粘贴 Token 后点击「保存设置」完成登录";
-  });
   $("cfgSet").onclick = async () => {
     if (!(await confirmAsync("将写入配置文件，确认保存设置？"))) return;
     const pairs = [
