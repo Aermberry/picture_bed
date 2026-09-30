@@ -89,17 +89,23 @@
       </div>
     </header>
 
+    <!-- 照片墙操作子栏：位于顶栏正下方 -->
+    <div class="subbar" id="wallSubbar" hidden>
+      <h2 id="dropTitle">扫描到 0 张图片</h2>
+      <span class="hint">点击图片可勾选，再次点击取消</span>
+      <div class="row" id="previewActions" hidden>
+        <button class="btn btn-danger" id="btnDelete" type="button" hidden>删除</button>
+        <button class="btn btn-ghost" id="btnReset" type="button">重置</button>
+        <button class="btn btn-primary" id="btnUpload" type="button">上传</button>
+      </div>
+    </div>
+
     <!-- 上传 / 文件放置 -->
     <section class="content" id="view-upload">
       <div class="dropzone" id="dropzone">
         <div class="big-ico"><svg><use href="#i-image"/></svg></div>
-        <div class="dz-head">
-          <h2 id="dropTitle">将文件拖放到此处</h2>
-          <div class="row" id="previewActions" hidden>
-            <button class="btn btn-danger" id="btnDelete" type="button" hidden>删除</button>
-            <button class="btn btn-ghost" id="btnReset" type="button">重置</button>
-            <button class="btn btn-primary" id="btnUpload" type="button">上传</button>
-          </div>
+        <div class="dz-head" id="dzIdleHead">
+          <h2>将文件拖放到此处</h2>
         </div>
         <div class="drop-hero" id="dropHero">
           <p>拖拽图片或 md / html 文档 · 自动扫描图片</p>
