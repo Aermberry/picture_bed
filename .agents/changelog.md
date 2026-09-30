@@ -148,3 +148,4 @@
 2026-09-28 | update | E:/WorkSpace/MediaEditing/picbed_ui/{图床工具-设计交付规范.md,图床工具-UI方案.html} | 按当前实现校准设计交付物：subbar 子栏、JS 最短列瀑布流、点选删除、无悬停放大/容量条、虚线 ::after 置顶 | User: 请根据当前UI的构建修改这两份UI设计文
 2026-09-28 | update | renderer + ui-shell + ui-panels.test | 管理页改为已上传图片库（统计+搜索+文件网格）；移除回滚/审计/watch 面板与脚本（CLI 仍保留 revert/watch）；79/79+ tsc 绿；d66d40c→feature/photo-wall-hover-focus | User: 去除回滚审计watch；管理界面改为查看已上传的图片
 2026-09-28 | update | renderer + ui-shell + ui-panels.test | 设置页仅保留图床配置+外观主题；移除上传偏好与自检 doctor（CLI 仍保留 doctor）；79/79+ tsc 绿；1aee963→feature/photo-wall-hover-focus | User: 去除上传偏好、自检doctor
+2026-09-28 | update | server + renderer + ui-shell | 设置页登录：gh 一键（/api/auth/gh 调 gh auth token）+ Token 登录（粘贴 PAT 保存）；79/79+ tsc 绿；5343bba→feature/photo-wall-hover-focus | User: 配置登录应有 gh 一键登录和 token 登录
