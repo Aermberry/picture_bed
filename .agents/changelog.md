@@ -150,3 +150,4 @@
 2026-09-28 | update | renderer + ui-shell + ui-panels.test | 设置页仅保留图床配置+外观主题；移除上传偏好与自检 doctor（CLI 仍保留 doctor）；79/79+ tsc 绿；1aee963→feature/photo-wall-hover-focus | User: 去除上传偏好、自检doctor
 2026-09-28 | update | server + renderer + ui-shell | 设置页登录：gh 一键（/api/auth/gh 调 gh auth token）+ Token 登录（粘贴 PAT 保存）；79/79+ tsc 绿；5343bba→feature/photo-wall-hover-focus | User: 配置登录应有 gh 一键登录和 token 登录
 2026-09-28 | update | store + server + renderer | 去掉 Token 登录按钮仅留 gh 一键；失败原因分级（未装 gh→装 CLI 或配 token / 未登录→gh auth login）；Windows gh.cmd；79/79+ tsc 绿；eebe4fe→feature/photo-wall-hover-focus | User: 去除token登录按钮；gh失败要显示原因
+2026-09-28 | update | server + renderer + ui-shell | 侧栏新增图库：GET /api/gallery 列 GitHub 仓库目录/图片，点文件夹下钻、上级返回、图片详情；79/79+ tsc 绿；bcc0f3e→feature/photo-wall-hover-focus | User: 侧边功能栏新增图库页面
