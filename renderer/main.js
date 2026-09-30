@@ -809,11 +809,6 @@
     toast("已保存");
     loadConfigForm();
   };
-  $("doctor").onclick = async () => {
-    const { data } = await api("/api/doctor", {});
-    $("cfgOut").textContent = JSON.stringify(data, null, 2);
-    toast(data.ok ? "doctor 通过" : "doctor 发现问题");
-  };
 
   const themeSelect = $("themeSelect");
   if (themeSelect) {

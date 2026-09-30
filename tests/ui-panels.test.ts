@@ -142,7 +142,8 @@ describe('ui F19–F22', () => {
     expect(html).not.toContain('回滚');
     expect(html).not.toContain('审计 run');
     expect(html).not.toContain('watch（F22）');
-    expect(html).toContain('doctor');
+    expect(html).not.toContain('上传偏好');
+    expect(html).not.toContain('自检 doctor');
     expect(html).toContain('外链调用');
     expect(html).toContain('fileGrid');
   });
