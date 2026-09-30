@@ -103,6 +103,7 @@
   const titles = {
     upload: ["文件放置", "拖入文件即可上传 · picbed 本地控制台"],
     manage: ["文件管理", "共 0 个文件"],
+    gallery: ["图库", "浏览仓库文件夹与图片"],
     settings: ["设置", "图床配置与上传偏好"],
     doc: ["设计规范", "令牌 · 组件 · 原型连线"],
   };
@@ -224,17 +225,78 @@
       v = "upload";
     }
     qsAll(".nav-item").forEach((b) => b.classList.toggle("active", b.dataset.view === v));
-    ["upload", "manage", "settings", "doc"].forEach((k) => {
+    ["upload", "manage", "gallery", "settings", "doc"].forEach((k) => {
       $("view-" + k).style.display = k === v ? "" : "none";
     });
     $("pageTitle").textContent = titles[v][0];
     $("pageCrumb").textContent = titles[v][1];
     if (v === "manage") refreshManage();
+    if (v === "gallery") loadGallery();
     if (v === "settings") loadConfigForm();
   }
   qsAll(".nav-item").forEach((btn) => {
     btn.addEventListener("click", () => switchView(btn.dataset.view));
   });
+
+  /* ── 图库：浏览当前仓库文件夹 / 图片 ── */
+  let galleryPath = "";
+  function galleryParent(p) {
+    const parts = String(p || "").split("/").filter(Boolean);
+    parts.pop();
+    return parts.join("/");
+  }
+  async function loadGallery() {
+    const grid = $("galleryGrid");
+    const empty = $("galleryEmpty");
+    $("galleryPath").textContent = "/" + galleryPath;
+    grid.innerHTML = '<div class="muted">加载中…</div>';
+    empty.hidden = true;
+    const { status, data } = await api("/api/gallery?path=" + encodeURIComponent(galleryPath));
+    if (!data.ok) {
+      grid.innerHTML = "";
+      empty.hidden = false;
+      empty.textContent = (data.error && data.error.message) || ("加载失败 " + status);
+      return;
+    }
+    const items = (data.data && data.data.items) || [];
+    if (!items.length) {
+      grid.innerHTML = "";
+      empty.hidden = false;
+      empty.textContent = "此目录为空";
+      return;
+    }
+    grid.innerHTML = items
+      .map((it) => {
+        const isDir = it.type === "dir";
+        const isImg = /\.(png|jpe?g|gif|webp|svg|bmp|avif)$/i.test(it.name || "");
+        if (!isDir && !isImg) return "";
+        return (
+          '<div class="file-card" data-dir="' + (isDir ? esc(it.path) : "") + '" data-url="' + esc(it.url || "") + '" data-name="' + esc(it.name) + '">' +
+          '<div class="file-thumb th' + ((isDir ? 1 : 2)) + '">' +
+          (isDir ? "📁" : isImg && it.url ? '<img src="' + esc(it.url) + '" alt="" onerror="this.remove()"/>' : "🖼") +
+          '</div><div class="file-meta"><div class="name">' + esc(it.name) +
+          '</div><div class="row"><span>' + (isDir ? "文件夹" : (it.size ? Math.round(it.size / 1024) + " KB" : "")) +
+          '</span></div></div></div>'
+        );
+      })
+      .join("");
+    /** @type {NodeListOf<HTMLElement>} */ (grid.querySelectorAll(".file-card")).forEach((card) => {
+      card.addEventListener("click", () => {
+        const dir = card.dataset.dir;
+        if (dir) {
+          galleryPath = dir;
+          loadGallery();
+          return;
+        }
+        openDetail(card.dataset.name, card.dataset.url);
+      });
+    });
+  }
+  $("galleryUp") && ($("galleryUp").onclick = () => {
+    galleryPath = galleryParent(galleryPath);
+    loadGallery();
+  });
+  $("galleryRefresh") && ($("galleryRefresh").onclick = () => loadGallery());
 
   /* ── Logo 动效（不注入色值） ── */
   const logo = $("logo");
