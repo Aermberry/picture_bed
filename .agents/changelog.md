@@ -151,3 +151,4 @@
 2026-09-28 | update | server + renderer + ui-shell | 设置页登录：gh 一键（/api/auth/gh 调 gh auth token）+ Token 登录（粘贴 PAT 保存）；79/79+ tsc 绿；5343bba→feature/photo-wall-hover-focus | User: 配置登录应有 gh 一键登录和 token 登录
 2026-09-28 | update | store + server + renderer | 去掉 Token 登录按钮仅留 gh 一键；失败原因分级（未装 gh→装 CLI 或配 token / 未登录→gh auth login）；Windows gh.cmd；79/79+ tsc 绿；eebe4fe→feature/photo-wall-hover-focus | User: 去除token登录按钮；gh失败要显示原因
 2026-09-28 | update | server + renderer + ui-shell | 侧栏新增图库：GET /api/gallery 列 GitHub 仓库目录/图片，点文件夹下钻、上级返回、图片详情；79/79+ tsc 绿；bcc0f3e→feature/photo-wall-hover-focus | User: 侧边功能栏新增图库页面
+2026-09-30 | update | store + user-token + server + renderer + tests | 恢复 Token 登录（粘贴 PAT）：存 ~/.picbed/credentials.json（不进 git/不写 picbed.toml），优先级 env>user>gh，API 仅回掩码；Token 输入框仅在点「Token 登录」后解锁；83/83+ tsc 绿 | User: 设置页面的Token配置项无法输入

@@ -846,7 +846,7 @@
     $("cfgToken").value = tok ? "••••••••" : "";
     $("cfgToken").readOnly = true;
     $("cfgToken").placeholder = "未配置 Token";
-    $("cfgToken").title = "token 仅掩码展示；用上方按钮登录";
+    $("cfgToken").title = "token 仅掩码展示；用「gh 一键登录」或「Token 登录」";
   }
 
   $("cfgGet").onclick = async () => {
@@ -861,11 +861,20 @@
       const src = data.data && data.data.source === "env" ? "环境变量 Token" : "GitHub CLI (gh)";
       $("authHint").textContent = "已通过 " + src + " 登录";
       $("cfgToken").value = "••••••••";
+      $("cfgToken").readOnly = true;
       toast("gh 一键登录成功");
     } else {
       $("authHint").textContent = (data.error && data.error.message) || "gh 登录失败";
       toast("gh 一键登录失败 " + status);
     }
+  });
+  $("btnTokenLogin") && ($("btnTokenLogin").onclick = () => {
+    $("cfgToken").readOnly = false;
+    $("cfgToken").value = "";
+    $("cfgToken").placeholder = "粘贴 GitHub PAT（ghp_ / gho_ / github_pat_ …）";
+    $("cfgToken").title = "粘贴后点击「保存设置」写入本机用户配置（不进项目文件）";
+    $("cfgToken").focus();
+    $("authHint").textContent = "粘贴 Token 后点击「保存设置」完成登录";
   });
   $("cfgSet").onclick = async () => {
     if (!(await confirmAsync("将写入配置文件，确认保存设置？"))) return;
@@ -876,13 +885,23 @@
       ["github.dir", $("cfgDir").value.trim()],
       ["url.style", $("cfgUrlStyle").value],
     ];
-    const tok = $("cfgToken").value.trim();
-    if (tok && tok !== "••••••••") pairs.push(["token", tok]);
     /** @type {any} */
     let last;
     for (const [key, value] of pairs) {
       if (!value) continue;
       last = await api("/api/config", { key, value, confirm: true });
+    }
+    const tok = $("cfgToken").value.trim();
+    if (tok && tok !== "••••••••") {
+      last = await api("/api/auth/token", { token: tok, confirm: true });
+      if (last.data && last.data.ok) {
+        $("authHint").textContent = "已保存 PAT 到本机用户配置";
+      } else {
+        $("authHint").textContent = (last.data && last.data.error && last.data.error.message) || "Token 保存失败";
+        $("cfgOut").textContent = JSON.stringify(last?.data ?? {}, null, 2);
+        toast("Token 保存失败 " + last.status);
+        return;
+      }
     }
     $("cfgOut").textContent = JSON.stringify(last?.data ?? {}, null, 2);
     toast("已保存");

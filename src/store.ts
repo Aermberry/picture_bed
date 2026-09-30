@@ -1,17 +1,22 @@
 import { execFileSync } from 'node:child_process';
+import { readUserToken } from './user-token.js';
 
 /**
  * Token sources (no OAuth App):
  * 1. PICBED_GITHUB_TOKEN
  * 2. GITHUB_TOKEN
- * 3. GitHub CLI (`gh`) — official "GitHub CLI" app; `gh auth token` reuses its login
+ * 3. 本机用户 PAT（~/.picbed/credentials.json，设置页粘贴保存）
+ * 4. GitHub CLI (`gh`) — official "GitHub CLI" app; `gh auth token` reuses its login
  */
 export function resolveToken(
   env: NodeJS.ProcessEnv = process.env,
   execGhToken: () => string | undefined = defaultGhToken,
-): { token: string; source: 'env' | 'gh' } | undefined {
+  readStoredToken: () => string | undefined = readUserToken,
+): { token: string; source: 'env' | 'user' | 'gh' } | undefined {
   const envToken = env.PICBED_GITHUB_TOKEN || env.GITHUB_TOKEN;
   if (envToken) return { token: envToken, source: 'env' };
+  const stored = readStoredToken();
+  if (stored) return { token: stored, source: 'user' };
   const gh = execGhToken();
   if (gh) return { token: gh, source: 'gh' };
   return undefined;

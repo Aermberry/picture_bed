@@ -44,7 +44,7 @@ App (flex, height 100vh)
 ### 1.3 设置视图
 
 1. **图床配置**：`github.owner/repo/branch/dir` · `url.style` · host.type。
-   **登录**：**gh 一键登录**（调 `gh auth token` / 环境变量；Windows 用 `gh.cmd`）。token **掩码**只读展示；读配置 / 保存设置。
+   **登录**：**gh 一键登录**（调 `gh auth token` / 环境变量；Windows 用 `gh.cmd`）或 **Token 登录**（粘贴 PAT → 写 `~/.picbed/credentials.json`，不进 git / 不写 picbed.toml）。token **掩码**只读展示（点「Token 登录」后解锁输入）；读配置 / 保存设置。
 2. **外观主题**：三套主题选择，即时生效并 localStorage 记忆。
 3. ~~上传偏好~~ · ~~自检 doctor~~（2026-09-28 **UI 移除**；CLI 仍保留 `doctor`）。
 
