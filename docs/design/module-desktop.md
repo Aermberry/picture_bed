@@ -34,9 +34,9 @@ electron.vite.config.mjs  # main / preload / renderer 三段
 out/                      # electron-vite build 产物（gitignore）
 src/                      # CLI + app 核心 → dist/
 scripts/
-  desktop-dev.mjs         # 开发 supervisor
-  build-desktop.mjs       # NSIS 打包
-  extract-renderer.mjs    # 历史：模板串→renderer/ 一次性抽取
+  desktop-dev.mjs         # 开发 supervisor（tsc -w + electron-vite dev）
+  build-desktop.mjs       # NSIS 打包（electron-builder API）
+  validate.mjs            # 仓库校验（design/bootstrap/scripts 三个 profile，跨平台）
 electron-builder.yml
 ```
 
@@ -147,7 +147,7 @@ scripts/desktop-dev.mjs（supervisor）
 | npm / Release tarball | `picbed.tgz` | `npm pack` | 开发者、CLI/Agent、`picbed ui` |
 | 桌面安装包 | `picbed-setup-<ver>.exe` + 稳定名 `picbed-setup.exe` | `npm run desktop:dist` | 终端用户 |
 
-`desktop:dist` = `tsc` + `electron-vite build` + electron-builder。
+`desktop:dist` = `tsc` + `electron-vite build` + electron-builder；`desktop:bundle` = 只做前两步（不出安装包，命名据此澄清）。`desktop:dev` = `tsc` 一次 + supervisor（`tsc -w` + `electron-vite dev`），supervisor 内**不再**重复全量编译。
 
 electron-builder 要点：
 
