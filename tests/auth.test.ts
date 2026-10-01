@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { resolveToken } from '../src/store.js';
+import { resolveToken } from '../src/infra/gh-cli.js';
 
 const prev = { ...process.env };
 

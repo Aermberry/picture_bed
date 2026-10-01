@@ -7,7 +7,7 @@ import { applyRewrites, mergeManifest } from '../rewrite.js';
 import type { Asset, ResolvedConfig, SyncPlanItem } from '../types.js';
 import { AppError, TOKEN_HINT } from './errors.js';
 import { runPlan } from './plan.js';
-import { newRunId, recordRun } from './runs.js';
+import { newRunId, recordRun } from './run-store.js';
 
 function mimeOf(p: string): string {
   const ext = path.extname(p).toLowerCase();

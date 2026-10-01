@@ -1,5 +1,5 @@
 import { execFileSync, spawn } from 'node:child_process';
-import { readUserToken } from './user-token.js';
+import { readUserToken } from '../user-token.js';
 
 /**
  * Token sources (no OAuth App):

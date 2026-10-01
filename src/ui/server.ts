@@ -4,7 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { getToken, loadConfig } from '../config.js';
 import { clearUserToken, writeUserToken } from '../user-token.js';
-import { probeGhToken, spawnGhLogin } from '../store.js';
+import { probeGhToken, spawnGhLogin } from '../infra/gh-cli.js';
 import type { JsonEnvelope, ResolvedConfig } from '../types.js';
 import {
   asAppError,
@@ -262,7 +262,7 @@ export function createUiServer(opts: UiServerOptions): {
         if (js === null) {
           send(500, envelope(false, 'api.static', undefined, {
             code: 'E_STATIC',
-            message: 'renderer/main.js missing; run scripts/extract-renderer.mjs',
+            message: 'renderer/main.js missing; renderer/ is the single UI source of truth (see docs/design/module-webui-spa-split.md)',
           }));
           return;
         }
