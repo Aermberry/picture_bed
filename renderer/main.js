@@ -1291,7 +1291,8 @@
     ghLoginLog.hidden = false;
     ghLoginLog.textContent = "";
 
-    const { status, data } = await api("/api/auth/gh-login/start");
+    // 仅 POST：服务端 /api/auth/gh-login/start 不收 GET（否则 404 no route）
+    const { status, data } = await api("/api/auth/gh-login/start", {}, "POST");
     if (!data.ok) {
       setGhLoginLoading(false, "GitHub 一键登录");
       setGhLoginHint((data.error && data.error.message) || "启动失败", "error");
