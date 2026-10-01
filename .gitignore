@@ -37,6 +37,7 @@ release/
 
 # picbed local state
 .picbed/
+picbed.toml
 coverage/
 
 # npm pack local artifacts
