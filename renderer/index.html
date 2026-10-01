@@ -136,6 +136,8 @@
     <section class="content" id="view-gallery" style="display:none">
       <div class="toolbar">
         <span class="hint" id="galleryPath" style="margin-right:auto">/</span>
+        <button class="btn btn-ghost" id="gallerySelect" type="button">选择</button>
+        <button class="btn btn-danger" id="galleryDelete" type="button" hidden>删除</button>
         <button class="btn btn-ghost" id="galleryUp" type="button">上级</button>
         <button class="btn btn-ghost" id="galleryRefresh" type="button">刷新</button>
       </div>
@@ -146,33 +148,62 @@
     <!-- 设置 -->
     <section class="content" id="view-settings" style="display:none">
       <div class="settings">
-        <div class="card" style="margin-top:0">
+        <div class="card">
           <h3>图床配置</h3>
-          <div class="row" style="margin-bottom:8px">
-            <button class="btn btn-primary" id="btnGhLogin" type="button">gh 一键登录</button>
-            <button class="btn btn-ghost" id="btnTokenLogin" type="button">Token 登录</button>
-            <span class="hint" id="authHint">gh 一键登录，或粘贴 PAT 后保存（存本机用户配置）</span>
+          <p class="card-desc">配置 GitHub 仓库与访问凭据；保存后写入本机用户配置，不进 git。</p>
+          <div class="form-group">
+            <div class="form-group-title">仓库信息</div>
+            <div class="form-row"><label>Owner</label><input type="text" id="cfgOwner" placeholder="github.owner" /></div>
+            <div class="form-row"><label>Repo</label><input type="text" id="cfgRepo" placeholder="github.repo" /></div>
+            <div class="form-row"><label>Branch</label><input type="text" id="cfgBranch" placeholder="github.branch" /></div>
+            <div class="form-row"><label>目录</label><input type="text" id="cfgDir" placeholder="github.dir" /></div>
+            <div class="form-row"><label>URL 风格</label>
+              <select id="cfgUrlStyle">
+                <option value="raw">raw</option>
+                <option value="jsdelivr">jsdelivr</option>
+                <option value="custom">custom</option>
+              </select>
+            </div>
           </div>
-          <div class="form-row"><label>Owner</label><input type="text" id="cfgOwner" placeholder="github.owner" /></div>
-          <div class="form-row"><label>Repo</label><input type="text" id="cfgRepo" placeholder="github.repo" /></div>
-          <div class="form-row"><label>Branch</label><input type="text" id="cfgBranch" placeholder="github.branch" /></div>
-          <div class="form-row"><label>目录</label><input type="text" id="cfgDir" placeholder="github.dir" /></div>
-          <div class="form-row"><label>URL 风格</label>
-            <select id="cfgUrlStyle">
-              <option value="raw">raw</option>
-              <option value="jsdelivr">jsdelivr</option>
-              <option value="custom">custom</option>
-            </select>
+          <div class="form-group">
+            <div class="form-group-title">认证凭据</div>
+            <div class="form-row"><label>Token</label><input type="text" id="cfgToken" placeholder="粘贴 GitHub PAT（ghp_ / gho_ / github_pat_ …）" autocomplete="off" spellcheck="false" /><span class="tag" id="tokenStatus" hidden>已配置</span></div>
+            <p class="hint cfg-hint" id="authHint">粘贴 PAT 后保存（存本机用户配置，不进 git / 不写 picbed.toml）；已 gh auth login 则自动读取</p>
+            <div class="gh-login-row">
+              <button class="btn btn-github" id="cfgGhLogin" type="button">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56v-2c-3.2.7-3.87-1.54-3.87-1.54-.52-1.33-1.28-1.68-1.28-1.68-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.2 1.77 1.2 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.7 0-1.26.45-2.29 1.19-3.1-.12-.29-.51-1.46.11-3.04 0 0 .97-.31 3.19 1.18a11.1 11.1 0 0 1 5.81 0c2.22-1.49 3.19-1.18 3.19-1.18.63 1.58.23 2.75.11 3.04.74.81 1.19 1.84 1.19 3.1 0 4.43-2.69 5.41-5.26 5.69.41.36.78 1.06.78 2.14v3.18c0 .31.21.68.8.56C20.21 21.39 23.5 17.08 23.5 12 23.5 5.65 18.35.5 12 .5z"/></svg>
+                <span>GitHub 一键登录</span>
+              </button>
+              <span class="hint" id="ghLoginHint">已安装 GitHub CLI？点击此按钮自动授权获取 token</span>
+              <div class="gh-login-log" id="ghLoginLog" hidden></div>
+            </div>
           </div>
-          <div class="form-row"><label>Token</label><input type="text" id="cfgToken" readonly value="••••••••" autocomplete="off" spellcheck="false" /></div>
-          <div class="row" style="margin-top:12px">
-            <button class="btn btn-ghost" id="cfgGet" type="button">读配置</button>
-            <button class="btn btn-primary" id="cfgSet" type="button">保存设置</button>
+          <div class="cfg-actions">
+            <div class="cfg-actions-group">
+              <span class="cfg-actions-label">主操作</span>
+              <div class="cfg-actions-grid">
+                <button class="btn btn-ghost" id="cfgGet" type="button">读配置</button>
+                <button class="btn btn-primary" id="cfgSet" type="button">保存设置</button>
+              </div>
+            </div>
+            <div class="cfg-actions-group">
+              <span class="cfg-actions-label">备份 / 迁移</span>
+              <div class="cfg-actions-grid">
+                <button class="btn btn-ghost" id="cfgExport" type="button">导出配置</button>
+                <button class="btn btn-ghost" id="cfgImport" type="button">导入配置</button>
+                <input type="file" id="cfgImportFile" accept=".toml,.txt,text/plain" hidden />
+              </div>
+            </div>
           </div>
-          <pre id="cfgOut">（尚无）</pre>
+          <p class="hint cfg-hint">导出为 picbed.toml（不含 token）；导入会校验并整体覆盖当前配置</p>
+          <div class="cfg-out">
+            <div class="form-group-title">操作输出</div>
+            <pre id="cfgOut">（尚无）</pre>
+          </div>
         </div>
         <div class="card">
           <h3>外观主题</h3>
+          <p class="card-desc">三套主题即时切换，记忆在本机 localStorage；Logo 候选随主题联动。</p>
           <div class="form-row"><label>界面主题</label>
             <select id="themeSelect">
               <option value="">晴空蓝 × 夕照金</option>
@@ -180,7 +211,6 @@
               <option value="cream">B 柔樱粉 × 若叶</option>
             </select>
           </div>
-          <div class="hint">主题切换即时生效并记忆在本机 localStorage；Logo 候选随主题联动。</div>
         </div>
       </div>
     </section>

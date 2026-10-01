@@ -201,6 +201,95 @@
     return { status: res.status, data };
   }
 
+  /* ── 可复用组件：可选择的网格 + 批量删除 ──
+   * 照片墙 / 图库共用此组件，消除重复的选择/删除逻辑。
+   * @param {object} opts
+   * @param {string} opts.gridId        — 网格容器元素 id
+   * @param {string} opts.deleteBtnId  — 删除按钮元素 id
+   * @param {string} opts.itemSelector  — 可选项的 CSS 选择器（如 ".tile" 或 ".file-card"）
+   * @param {string} opts.keyAttr       — 项的 data-* 属性名，用作选择 key（如 "key" 或 "path"）
+   * @param {function} opts.canSelect   — (el) => boolean，判断某项是否可选
+   * @param {function} opts.onDelete    — async (keys) => void，执行删除并返回
+   * @param {string=} opts.confirmMsg   — 删除确认消息模板，{n} 替换为数量
+   * @param {string=} opts.successMsg   — 删除成功消息模板，{n} 替换为数量
+   * @param {function=} opts.onSuccess  — (n) => void，自定义成功提示；省略则用 successMsg
+   * @returns {{clear:() => void, sync:() => void, restore:() => void, getKeys:() => string[]}}
+   */
+  function createSelectableGrid(opts) {
+    const selected = new Set();
+    const grid = $(opts.gridId);
+
+    function syncBtn() {
+      const btn = $(opts.deleteBtnId);
+      if (!btn) return;
+      const n = selected.size;
+      btn.hidden = n === 0;
+      btn.textContent = n > 0 ? "删除 " + n : "删除";
+    }
+
+    function clear() {
+      selected.clear();
+      if (grid) grid.querySelectorAll(opts.itemSelector + ".selected").forEach((t) => t.classList.remove("selected"));
+      syncBtn();
+    }
+
+    function restore() {
+      if (!grid) return;
+      grid.querySelectorAll(opts.itemSelector).forEach((el) => {
+        const key = el.dataset[opts.keyAttr] || "";
+        if (key && selected.has(key)) el.classList.add("selected");
+      });
+    }
+
+    function toggle(el) {
+      const key = el.dataset[opts.keyAttr] || "";
+      if (!key) return;
+      if (selected.has(key)) {
+        selected.delete(key);
+        el.classList.remove("selected");
+      } else {
+        selected.add(key);
+        el.classList.add("selected");
+      }
+      syncBtn();
+    }
+
+    function getKeys() { return Array.from(selected); }
+
+    function bind() {
+      if (!grid) return;
+      grid.querySelectorAll(opts.itemSelector).forEach((el) => {
+        el.addEventListener("click", () => {
+          if (!opts.canSelect(el)) return;
+          toggle(el);
+        });
+      });
+    }
+
+    async function handleDelete() {
+      const n = selected.size;
+      if (!n) return;
+      const msg = (opts.confirmMsg || "删除选中的 {n} 项？").replace("{n}", String(n));
+      if (!(await confirmAsync(msg))) return;
+      const keys = getKeys();
+      clear();
+      try {
+        const result = await opts.onDelete(keys);
+        if (result === false) return; // onDelete 已自行处理提示
+        if (typeof opts.onSuccess === "function") opts.onSuccess(n);
+        else toast((opts.successMsg || "已删除 {n} 项").replace("{n}", String(n)));
+      } catch (_) {
+        toast("删除失败，请重试");
+      }
+    }
+
+    // 绑定删除按钮
+    const delBtn = $(opts.deleteBtnId);
+    if (delBtn) delBtn.addEventListener("click", handleDelete);
+
+    return { clear, sync: syncBtn, restore, getKeys, bind };
+  }
+
   /** @param {any} text @param {any=} cls */
   function setHealth(text, cls) {
     const el = $("health");
@@ -240,17 +329,68 @@
 
   /* ── 图库：浏览当前仓库文件夹 / 图片 ── */
   let galleryPath = "";
+  let gallerySelectMode = false;
+  /** @type {Map<string,{path:string,sha:string,name:string}>} 当前已加载的图片项（path → {sha,name}） */
+  const galleryImgMap = new Map();
+
   function galleryParent(p) {
     const parts = String(p || "").split("/").filter(Boolean);
     parts.pop();
     return parts.join("/");
   }
+
+  // 可选择网格组件 — 图库实例
+  const gallerySelect = createSelectableGrid({
+    gridId: "galleryGrid",
+    deleteBtnId: "galleryDelete",
+    itemSelector: ".file-card",
+    keyAttr: "path",
+    canSelect: (el) => gallerySelectMode && !el.dataset.dir && Boolean(el.dataset.path),
+    confirmMsg: "将从 GitHub 仓库中永久删除选中的 {n} 张图片（不可恢复），确认删除？",
+    async onDelete(keys) {
+      const items = keys.map((p) => {
+        const meta = galleryImgMap.get(p);
+        return meta ? { path: meta.path, sha: meta.sha, name: meta.name } : null;
+      }).filter(Boolean);
+      const { data } = await api("/api/gallery/delete", { items });
+      const d = (data.data && data.data.deleted) || 0;
+      const f = (data.data && data.data.failed) || [];
+      galleryExitSelectMode();
+      loadGallery();
+      if (f.length) { toast("已删除 " + d + " 张，失败 " + f.length + " 张"); return false; }
+      return d;
+    },
+    onSuccess(n) { toast("已删除 " + n + " 张"); },
+  });
+
+  function galleryExitSelectMode() {
+    gallerySelectMode = false;
+    gallerySelect.clear();
+    const btn = $("gallerySelect");
+    if (btn) { btn.textContent = "选择"; btn.classList.remove("btn-primary"); btn.classList.add("btn-ghost"); }
+    const g = $("galleryGrid");
+    if (g) g.classList.remove("select-mode");
+    gallerySelect.sync();
+  }
+
+  function galleryEnterSelectMode() {
+    gallerySelectMode = true;
+    const btn = $("gallerySelect");
+    if (btn) { btn.textContent = "取消选择"; btn.classList.remove("btn-ghost"); btn.classList.add("btn-primary"); }
+    const g = $("galleryGrid");
+    if (g) g.classList.add("select-mode");
+    gallerySelect.sync();
+  }
+
   async function loadGallery() {
     const grid = $("galleryGrid");
     const empty = $("galleryEmpty");
     $("galleryPath").textContent = "/" + galleryPath;
+    if ($("galleryUp")) $("galleryUp").hidden = !galleryPath;
     grid.innerHTML = '<div class="muted">加载中…</div>';
     empty.hidden = true;
+    galleryImgMap.clear();
+    gallerySelect.clear();
     const { status, data } = await api("/api/gallery?path=" + encodeURIComponent(galleryPath));
     if (!data.ok) {
       grid.innerHTML = "";
@@ -270,8 +410,12 @@
         const isDir = it.type === "dir";
         const isImg = /\.(png|jpe?g|gif|webp|svg|bmp|avif)$/i.test(it.name || "");
         if (!isDir && !isImg) return "";
+        if (!isDir && it.sha) {
+          galleryImgMap.set(it.path, { path: it.path, sha: it.sha, name: it.name || it.path });
+        }
         return (
-          '<div class="file-card" data-dir="' + (isDir ? esc(it.path) : "") + '" data-url="' + esc(it.url || "") + '" data-name="' + esc(it.name) + '">' +
+          '<div class="file-card" data-dir="' + (isDir ? esc(it.path) : "") + '" data-path="' + esc(it.path || "") + '" data-url="' + esc(it.url || "") + '" data-name="' + esc(it.name) + '">' +
+          '<span class="fc-check">✓</span>' +
           '<div class="file-thumb th' + ((isDir ? 1 : 2)) + '">' +
           (isDir ? "📁" : isImg && it.url ? '<img src="' + esc(it.url) + '" alt="" onerror="this.remove()"/>' : "🖼") +
           '</div><div class="file-meta"><div class="name">' + esc(it.name) +
@@ -280,8 +424,12 @@
         );
       })
       .join("");
+    // 绑定选择 toggle（组件内部根据 canSelect 判断是否可选）
+    gallerySelect.bind();
+    // 非选择模式下的导航行为（打开详情 / 进入文件夹）
     /** @type {NodeListOf<HTMLElement>} */ (grid.querySelectorAll(".file-card")).forEach((card) => {
       card.addEventListener("click", () => {
+        if (gallerySelectMode) return; // 选择模式下由组件处理 toggle，不走导航
         const dir = card.dataset.dir;
         if (dir) {
           galleryPath = dir;
@@ -297,6 +445,11 @@
     loadGallery();
   });
   $("galleryRefresh") && ($("galleryRefresh").onclick = () => loadGallery());
+  $("gallerySelect") && ($("gallerySelect").onclick = () => {
+    if (gallerySelectMode) galleryExitSelectMode();
+    else galleryEnterSelectMode();
+  });
+  // galleryDelete 的删除逻辑由 gallerySelect 组件内部绑定处理
 
   /* ── Logo 动效（不注入色值） ── */
   const logo = $("logo");
@@ -426,8 +579,6 @@
 
   /** @type {any[]} */
   let wallItems = [];
-  /** @type {Set<string>} */
-  const selectedKeys = new Set();
 
   /** @param {any} p */
   function wallKey(p) {
@@ -435,20 +586,21 @@
     return String(p || "");
   }
 
-  function syncDeleteChrome() {
-    const btn = $("btnDelete");
-    if (!btn) return;
-    const n = selectedKeys.size;
-    btn.hidden = n === 0;
-    btn.textContent = n > 0 ? "删除 " + n : "删除";
-  }
-
-  function clearSelection() {
-    selectedKeys.clear();
-    const g = $("previewGrid");
-    if (g) g.querySelectorAll(".tile.selected").forEach((t) => t.classList.remove("selected"));
-    syncDeleteChrome();
-  }
+  // 可选择网格组件 — 照片墙实例
+  const wallSelect = createSelectableGrid({
+    gridId: "previewGrid",
+    deleteBtnId: "btnDelete",
+    itemSelector: ".tile",
+    keyAttr: "key",
+    canSelect: (el) => Boolean(el.dataset.key),
+    confirmMsg: "将从预览与会话中移除选中的 {n} 张图片（不上传、不改文档），确认删除？",
+    successMsg: "已删除 {n} 张",
+    async onDelete(keys) {
+      wallItems = wallItems.filter((p) => !keys.includes(wallKey(p)));
+      setPreviewImages(wallItems);
+      await api("/api/session/remove", { keys });
+    },
+  });
 
   /** @param {any[]} items */
   function mergeWallItems(items) {
@@ -467,7 +619,7 @@
   /** @param {string=} title */
   function setPreviewIdle(title) {
     wallItems = [];
-    selectedKeys.clear();
+    wallSelect.clear();
     const g = $("previewGrid");
     const bar = $("wallSubbar");
     const idleHead = $("dzIdleHead");
@@ -575,29 +727,12 @@
       });
       img.addEventListener("load", () => schedulePhotoWallLayout());
     });
-    // 点选图块 → 多选删除
-    g.querySelectorAll(".tile").forEach((tile) => {
-      const el = /** @type {HTMLElement} */ (tile);
-      el.addEventListener("click", () => {
-        const key = el.dataset.key || "";
-        if (!key) return;
-        if (selectedKeys.has(key)) {
-          selectedKeys.delete(key);
-          el.classList.remove("selected");
-        } else {
-          selectedKeys.add(key);
-          el.classList.add("selected");
-        }
-        syncDeleteChrome();
-      });
-    });
+    // 点选图块 → 多选删除（委托给组件）
+    wallSelect.bind();
     // restore selection for tiles kept across re-render
-    g.querySelectorAll(".tile").forEach((tile) => {
-      const el = /** @type {HTMLElement} */ (tile);
-      if (el.dataset.key && selectedKeys.has(el.dataset.key)) el.classList.add("selected");
-    });
+    wallSelect.restore();
     syncWallChrome();
-    syncDeleteChrome();
+    wallSelect.sync();
   }
 
   /** Show actions/headline only when the wall actually has tiles. */
@@ -686,26 +821,11 @@
   $("btnReset").onclick = async () => {
     await api("/api/session/reset", {});
     setPreviewIdle();
-    clearSelection();
+    wallSelect.clear();
     toast("已重置");
   };
 
-  $("btnDelete").onclick = async () => {
-    const n = selectedKeys.size;
-    if (!n) return;
-    if (!(await confirmAsync("将从预览与会话中移除选中的 " + n + " 张图片（不上传、不改文档），确认删除？"))) return;
-    const keys = Array.from(selectedKeys);
-    // remove from local wall first for snappy UX
-    wallItems = wallItems.filter((p) => !selectedKeys.has(wallKey(p)));
-    clearSelection();
-    setPreviewImages(wallItems);
-    try {
-      await api("/api/session/remove", { keys });
-      toast("已删除 " + n + " 张");
-    } catch (_) {
-      toast("已从预览移除；会话同步失败");
-    }
-  };
+  // btnDelete 的删除逻辑由 wallSelect 组件内部绑定处理（无需再设 onclick）
 
   $("btnUpload").onclick = async () => {
     if (!(await confirmAsync("将上传图片并改写文档，确认上传？"))) return;
@@ -714,7 +834,7 @@
       const c = (data.data && data.data.counts) || {};
       toast(c.uploaded != null ? "上传完成 · " + c.uploaded : "上传完成");
       setPreviewIdle();
-      clearSelection();
+      wallSelect.clear();
     } else {
       toast((data.error && data.error.message) || "上传失败 " + status);
     }
@@ -844,9 +964,12 @@
     $("cfgUrlStyle").value = url.style || "raw";
     const tok = String(d.token ?? "");
     $("cfgToken").value = tok ? "••••••••" : "";
-    $("cfgToken").readOnly = true;
-    $("cfgToken").placeholder = "未配置 Token";
-    $("cfgToken").title = "token 仅掩码展示；用「gh 一键登录」或「Token 登录」";
+    $("cfgToken").placeholder = tok
+      ? "已配置；粘贴新 PAT 可覆盖"
+      : "粘贴 GitHub PAT（ghp_ / gho_ / github_pat_ …）";
+    $("cfgToken").title = "可直接粘贴 PAT；保存写入本机用户配置（不进项目文件）";
+    const tokBadge = $("tokenStatus");
+    if (tokBadge) tokBadge.hidden = !tok;
   }
 
   $("cfgGet").onclick = async () => {
@@ -855,27 +978,6 @@
     loadConfigForm();
   };
 
-  $("btnGhLogin") && ($("btnGhLogin").onclick = async () => {
-    const { status, data } = await api("/api/auth/gh", {});
-    if (data.ok) {
-      const src = data.data && data.data.source === "env" ? "环境变量 Token" : "GitHub CLI (gh)";
-      $("authHint").textContent = "已通过 " + src + " 登录";
-      $("cfgToken").value = "••••••••";
-      $("cfgToken").readOnly = true;
-      toast("gh 一键登录成功");
-    } else {
-      $("authHint").textContent = (data.error && data.error.message) || "gh 登录失败";
-      toast("gh 一键登录失败 " + status);
-    }
-  });
-  $("btnTokenLogin") && ($("btnTokenLogin").onclick = () => {
-    $("cfgToken").readOnly = false;
-    $("cfgToken").value = "";
-    $("cfgToken").placeholder = "粘贴 GitHub PAT（ghp_ / gho_ / github_pat_ …）";
-    $("cfgToken").title = "粘贴后点击「保存设置」写入本机用户配置（不进项目文件）";
-    $("cfgToken").focus();
-    $("authHint").textContent = "粘贴 Token 后点击「保存设置」完成登录";
-  });
   $("cfgSet").onclick = async () => {
     if (!(await confirmAsync("将写入配置文件，确认保存设置？"))) return;
     const pairs = [
@@ -907,6 +1009,126 @@
     toast("已保存");
     loadConfigForm();
   };
+
+  // ── GitHub 一键登录（调用 gh auth login --web）──
+  let ghLoginPollTimer = null;
+  const ghLoginBtn = $("cfgGhLogin");
+  const ghLoginLog = $("ghLoginLog");
+  const ghLoginHint = $("ghLoginHint");
+  const ghLoginBtnLabel = ghLoginBtn ? ghLoginBtn.querySelector("span") : null;
+
+  /** @param {string} text */
+  function setGhLoginBtnLabel(text) {
+    if (ghLoginBtnLabel) ghLoginBtnLabel.textContent = text;
+    else if (ghLoginBtn) ghLoginBtn.textContent = text;
+  }
+
+  /** @param {string} kind - "" | "success" | "error" */
+  function setGhLoginHint(text, kind = "") {
+    if (!ghLoginHint) return;
+    ghLoginHint.textContent = text;
+    ghLoginHint.classList.remove("success", "error");
+    if (kind) ghLoginHint.classList.add(kind);
+  }
+
+  function setGhLoginLoading(on, label) {
+    if (!ghLoginBtn) return;
+    ghLoginBtn.disabled = !!on;
+    ghLoginBtn.classList.toggle("is-loading", !!on);
+    if (label) setGhLoginBtnLabel(label);
+  }
+
+  async function pollGhLoginStatus() {
+    const { data } = await api("/api/auth/gh-login/status");
+    if (!data.ok) {
+      if (ghLoginPollTimer) { clearInterval(ghLoginPollTimer); ghLoginPollTimer = null; }
+      setGhLoginLoading(false, "GitHub 一键登录");
+      setGhLoginHint((data.error && data.error.message) || "查询状态失败", "error");
+      return;
+    }
+    const d = data.data || {};
+    const status = d.status;
+    if (d.output) {
+      ghLoginLog.hidden = false;
+      ghLoginLog.textContent = d.output;
+      ghLoginLog.scrollTop = ghLoginLog.scrollHeight;
+    }
+    if (status === "done") {
+      if (ghLoginPollTimer) { clearInterval(ghLoginPollTimer); ghLoginPollTimer = null; }
+      setGhLoginLoading(false, "GitHub 一键登录");
+      setGhLoginHint(d.message || "✅ 登录成功，已自动获取 token", "success");
+      toast("GitHub 登录成功");
+      loadConfigForm();
+    } else if (status === "error") {
+      if (ghLoginPollTimer) { clearInterval(ghLoginPollTimer); ghLoginPollTimer = null; }
+      setGhLoginLoading(false, "GitHub 一键登录");
+      setGhLoginHint(d.error || "❌ 登录失败", "error");
+      toast("登录失败");
+    }
+  }
+
+  ghLoginBtn && (ghLoginBtn.onclick = async () => {
+    if (!(await confirmAsync("将调用 GitHub CLI 进行浏览器授权登录，确认开始？"))) return;
+    setGhLoginLoading(true, "启动中…");
+    setGhLoginHint("正在启动 gh auth login…");
+    ghLoginLog.hidden = false;
+    ghLoginLog.textContent = "";
+
+    const { status, data } = await api("/api/auth/gh-login/start");
+    if (!data.ok) {
+      setGhLoginLoading(false, "GitHub 一键登录");
+      setGhLoginHint((data.error && data.error.message) || "启动失败", "error");
+      toast("启动登录失败 " + status);
+      return;
+    }
+    const d = data.data || {};
+    if (d.status === "done") {
+      setGhLoginLoading(false, "GitHub 一键登录");
+      setGhLoginHint(d.message || "✅ 已通过 gh CLI 获取 token", "success");
+      toast("GitHub 登录成功");
+      loadConfigForm();
+      return;
+    }
+    setGhLoginHint(d.message || "请在弹出的浏览器中完成 GitHub 授权…");
+    if (ghLoginPollTimer) clearInterval(ghLoginPollTimer);
+    ghLoginPollTimer = setInterval(pollGhLoginStatus, 2000);
+  });
+
+  $("cfgExport") && ($("cfgExport").onclick = async () => {
+    const { status, data } = await api("/api/config/export");
+    if (!data.ok) {
+      toast("导出失败 " + status);
+      return;
+    }
+    const toml = (data.data && data.data.toml) || "";
+    const blob = new Blob([toml], { type: "text/plain" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "picbed.toml";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(a.href);
+    toast("已导出 picbed.toml（不含 token）");
+  });
+
+  const importFile = $("cfgImportFile");
+  $("cfgImport") && ($("cfgImport").onclick = () => importFile && importFile.click());
+  importFile && (importFile.onchange = async () => {
+    const f = importFile.files && importFile.files[0];
+    importFile.value = "";
+    if (!f) return;
+    const toml = await f.text();
+    if (!(await confirmAsync("导入将校验并整体覆盖当前配置（不含 token），确认？"))) return;
+    const { status, data } = await api("/api/config/import", { toml, confirm: true });
+    $("cfgOut").textContent = JSON.stringify(data, null, 2);
+    if (data.ok) {
+      toast("已导入配置");
+      loadConfigForm();
+    } else {
+      toast("导入失败 " + status + "：" + ((data.error && data.error.message) || ""));
+    }
+  });
 
   const themeSelect = $("themeSelect");
   if (themeSelect) {

@@ -43,9 +43,12 @@ App (flex, height 100vh)
 
 ### 1.3 设置视图
 
-1. **图床配置**：`github.owner/repo/branch/dir` · `url.style` · host.type。
-   **登录**：**gh 一键登录**（调 `gh auth token` / 环境变量；Windows 用 `gh.cmd`）或 **Token 登录**（粘贴 PAT → 写 `~/.picbed/credentials.json`，不进 git / 不写 picbed.toml）。token **掩码**只读展示（点「Token 登录」后解锁输入）；读配置 / 保存设置。
-2. **外观主题**：三套主题选择，即时生效并 localStorage 记忆。
+1. **图床配置卡**（信息分层：仓库信息 → 认证凭据 → 操作区 → 操作输出）：
+   - **仓库信息**分组（分组小标题：11px 大写 + 主色圆点，同 cfg-actions-label 语言）：`github.owner/repo/branch/dir` · `url.style`。
+   - **认证凭据**分组：**Token** 输入框直接粘贴 PAT（写 `~/.picbed/credentials.json`，不进 git / 不写 picbed.toml；掩码展示，粘贴新 PAT 后点「保存设置」覆盖；行内「已配置」Tag 随本机凭据状态联动）；下接动态状态行 `authHint` 与 **GitHub 一键登录**深色块（gh auth login --web，含日志浮层）。
+   - **操作区**：主操作（读配置 / 保存设置）与备份/迁移（导出 / 导入 picbed.toml）两组网格按钮，主操作组淡主色底、次操作组中性底；组下 hint 说明导出/导入语义。
+   - **操作输出**：带「操作输出」小标题的 `pre` 面板（最近 API 结果，token 掩码），替代无标题裸输出框。
+2. **外观主题**：三套主题选择，即时生效并 localStorage 记忆；卡头副标题替代重复 hint。
 3. ~~上传偏好~~ · ~~自检 doctor~~（2026-09-28 **UI 移除**；CLI 仍保留 `doctor`）。
 
 ### 1.4 规范视图
@@ -159,8 +162,8 @@ HTTP 信封、`confirm` 门、路径安全、token 纪律不变（见 cross-cutt
 
 ## 6. 响应式
 
-- `min-width: 860px`；`file-grid` 4 列，≤1100px 降 3 列。
-- 侧栏保持 72px；顶栏文案可截断。
+- 桌面（>720px）：`file-grid` 4 列，≤1100px 降 3 列；侧栏 72px；设置表单左标签（120px）+ 右控件；设置列 max-width 720 并水平居中。
+- 窄屏 / 竖窗（≤720px）：移除全局 `min-width:860px`；侧栏收窄 56px；顶栏隐藏副标题；`form-row` 改上下堆叠（label 宽度自适应）；设置卡单列满宽；`file-grid` 降 2 列；stat-row 换行；GitHub 登录块按钮满宽；cfg-actions 网格降单列（既有 ≤480px 规则上移至 720px 生效）。
 
 ## 7. 验收要点（AC 展开，定义以 features-index 为准）
 
