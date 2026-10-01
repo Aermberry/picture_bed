@@ -746,6 +746,7 @@
     }
     .dir-picker-empty{padding:14px 10px; font-size:12px; color:var(--c-text-3); text-align:center}
     .dir-picker-msg{font-size:12px; color:var(--c-danger); line-height:1.5; word-break:break-word}
+    .dir-picker-msg.info{color:var(--c-text-2)}
     .dir-picker-actions{display:flex; flex-direction:column; gap:8px}
     .dir-picker-actions .btn-ghost{width:100%}
     .dir-picker-new{display:flex; gap:8px}

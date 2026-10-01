@@ -186,6 +186,12 @@ describe('F24 desktop shell', () => {
     expect(INDEX_HTML).toContain('id="dirPickerClose"');
     expect(spaApp).toContain('dirPicker.contains(t)');
     expect(spaApp).toContain('ev.key === "Escape"');
+    // missing seed dir (404) falls back to the nearest existing ancestor and pre-fills
+    // the new-folder name — never a dead-end error
+    expect(spaApp).toContain('err.code === "E_NOT_FOUND" && dirPickerPath');
+    expect(spaApp).toContain('不存在——已定位到其上级');
+    expect(spaApp).toContain('return dirPickerLoad()');
+    expect(SPA_CSS).toContain('.dir-picker-msg.info');
     // toast visual language, but interactive: bottom-centered, own radius/shadow tokens
     expect(SPA_CSS).toContain('.dir-picker{');
     expect(SPA_CSS).toMatch(/\.dir-picker\{[\s\S]*bottom:32px/);

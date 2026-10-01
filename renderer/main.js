@@ -1021,16 +1021,18 @@
   let dirPickerPath = "";
   let dirPickerBusy = false;
 
-  /** @param {string=} text */
-  function dirPickerMsg(text) {
+  /** @param {string=} text @param {string=} kind "info" → 引导文案（非红色错误） */
+  function dirPickerMsg(text, kind) {
     const el = $("dirPickerMsg");
     if (!el) return;
     if (!text) {
       el.hidden = true;
       el.textContent = "";
+      el.className = "dir-picker-msg";
       return;
     }
     el.textContent = text;
+    el.className = kind === "info" ? "dir-picker-msg info" : "dir-picker-msg";
     el.hidden = false;
   }
 
@@ -1091,6 +1093,21 @@
     const { status, data } = await api(`/api/gallery?path=${encodeURIComponent(dirPickerPath)}`);
     if (!data || !data.ok) {
       const err = (data && data.error) || {};
+      if (err.code === "E_NOT_FOUND" && dirPickerPath) {
+        // 种子/当前目录在远端不存在：回退到最近存在的祖先，并预填新建名引导创建
+        const missing = dirPickerPath;
+        const idx = dirPickerPath.lastIndexOf("/");
+        dirPickerPath = idx === -1 ? "" : dirPickerPath.slice(0, idx);
+        renderDirPickerPath();
+        const nameInput = $("dirPickerNewName");
+        const seg = missing.slice(idx + 1);
+        if (nameInput && !nameInput.value.trim()) nameInput.value = seg;
+        dirPickerMsg(
+          `目录 ${missing} 不存在——已定位到其上级 ${dirPickerPath || "/"}；点「新建并选用」可创建它`,
+          "info",
+        );
+        return dirPickerLoad();
+      }
       let hint = "";
       if (err.code === "E_TOKEN") hint = "请在设置中粘贴 PAT 保存，或本机 gh auth login";
       else if (err.code === "E_CONFIG") hint = "请先填写并保存 github.owner / github.repo";
