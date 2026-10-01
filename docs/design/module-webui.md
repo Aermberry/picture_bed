@@ -64,6 +64,8 @@ WebUiFacade
   # POST /api/watch/start     { root, debounceMs?, autoSync? }  # autoSync 仍要 confirm 策略
   # POST /api/watch/stop
   # GET  /api/events          # SSE/长轮询：watch 与 sync 进度（实现可选）
+  # GET  /api/gallery         # ?path= 列仓库目录/文件（F17 管理视图）
+  # POST /api/repo/mkdir      # { path, confirm: true } 新建远程目录（.gitkeep 占位）· F20
 ```
 
 `ViewMapper` 把应用结果 DTO 映射为视图模型；**禁止**在 mapper 中改变 action 分类或退出码语义。
@@ -195,6 +197,27 @@ WebUI SPA **同时**服务浏览器（`picbed ui`）与 Electron 壳（[`module-
 - doctor：调用 DoctorService；视图展示 `checks[]/failures[]`；缺 token 时 hint 展开 PAT / `gh auth` 说明（同 F15）。
 - 失败：非法键/枚举 → 退出码 2 语义；鉴权类失败 → 退出码 3 语义。
 
+### F20.1 目录选择（2026-10-01 · 远程目录浏览 + 新建）
+
+设置页 `github.dir` 行提供目录选择器；呈现规格见 [`wireframes/ui-shell.md`](wireframes/ui-shell.md) §1.3。
+
+- **载体**：底部居中**可停留浮层**（`#dirPicker`，toast 视觉语言但**不自动消失**）；触发 = 聚焦/点击目录输入框或点「选择目录」；收起 = 关闭按钮 / 点外部 / `Esc`。默认 `hidden`，DOM 常驻。
+- **列目录**：复用 `GET /api/gallery?path=`（Contents API 单次请求），客户端取 `items[].type==='dir'` 渲染；**不新增列目录端点**。进入子目录时才请求（无预取）。
+- **新建目录**：`POST /api/repo/mkdir { path, confirm: true }`；编排在 **app 层** `src/app/repo-dir.ts`，经 `GitHubHostAdapter.putFile('<path>/.gitkeep', 空内容)` 提交占位文件（GitHub 无空目录 API）。**响应与日志无 token。**
+- **路径校验**（前后端各一次）：去首尾 `/`；拒绝空段 / `..` / 前导 `/` / 盘符与反斜杠；段字符限 `A-Za-z0-9._\-` 与中文；总长 ≤ 200。
+- **回填**：选中或新建成功 → 立即 `POST /api/config { key:'github.dir', value, confirm:true }` 落盘并刷新表单与 toast，**不再要求点「保存设置」**。
+- **幂等**：目标目录已存在（`.gitkeep` 已在）→ 视为成功（`created:false`）。
+- **失败语义**：
+  | 情况 | code / HTTP |
+  |------|-------------|
+  | 缺 owner/repo | `E_CONFIG` · 400（引导先配置仓库信息） |
+  | 缺 token | `E_TOKEN` · 401（引导粘贴 PAT 或 `gh auth`） |
+  | 缺 `confirm` 或路径非法 | `E_BAD_REQUEST` · 400 |
+  | 同名路径是**文件** | `E_CONFLICT` · 409 |
+  | 父目录不可达 | `E_NOT_FOUND` · 404 |
+  | 远端 API/限流 | `E_REMOTE`（带 GitHub 状态） |
+  - 失败一律**内联提示**在浮层内（12px 弱文本），不关闭浮层、不弹堆栈。
+
 ## F21 审计与报告
 
 - RunRecord 由 app 共享层 `RunRecorder` 在各写/批命令成功或结束后追加（存储建议 `./.picbed/runs/`，路径进 `.gitignore` 建议）；CLI 的 `sync`/`revert` 也写同一份记录（Web 命令名为 `api.*`）。
@@ -226,6 +249,7 @@ WebUI SPA **同时**服务浏览器（`picbed ui`）与 Electron 壳（[`module-
 | token 缺失 | 读接口可展示 doctor 失败；写/上传类失败（3） |
 | root 越界/绝对路径拒绝 | 本地文件错误（4） |
 | 远端 API/限流 | 远端错误（5）；批量 partial（6） |
+| 目录选择：缺凭据 / 路径非法 / 同名是文件 | `E_CONFIG`·400 / `E_BAD_REQUEST`·400 / `E_CONFLICT`·409；浮层内联提示，不关浮层 |
 | 端口占用 | 用法/环境（2） |
 | manifest 损坏 | 显式错误；不静默重建 |
 
