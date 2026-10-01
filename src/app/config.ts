@@ -77,8 +77,8 @@ function tomlStr(s: string): string {
 /** Serialize a resolved config to portable picbed.toml text. Never includes tokens. */
 export function serializeConfigToml(cfg: ResolvedConfig): string {
   const lines: string[] = [
-    '# picbed configuration — do not put tokens here',
-    '# Use env: PICBED_GITHUB_TOKEN',
+    '# picbed configuration — portable copy, carries no credentials',
+    '# Auth lives outside this file (~/.picbed/credentials.json)',
     '',
     '[host]',
     `type = ${tomlStr(cfg.host.type)}`,

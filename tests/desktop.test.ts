@@ -136,11 +136,13 @@ describe('F24 desktop shell', () => {
   });
 
   it('photo wall supports click-select batch delete of preview tiles', () => {
-    // selection state + chrome
-    expect(spaApp).toContain('selectedKeys');
+    // selection state + chrome (shared selectable-grid component bound to the wall)
+    expect(spaApp).toContain('createSelectableGrid');
+    expect(spaApp).toContain('wallSelect');
+    expect(spaApp).toMatch(/keyAttr:\s*"key"/);
     expect(spaApp).toContain('data-key');
     expect(spaApp).toContain('btnDelete');
-    expect(spaApp).toContain('syncDeleteChrome');
+    expect(spaApp).toContain('syncWallChrome');
     expect(INDEX_HTML).toContain('id="btnDelete"');
     // selected state is obvious but stays inside the tile (no overlap)
     expect(SPA_CSS).toContain('.photo-wall .tile.selected');
@@ -157,7 +159,8 @@ describe('F24 desktop shell', () => {
     expect(selRule).not.toMatch(/box-shadow:\s*\n?\s*0 0 0/);
     // delete removes from wall + session workset
     expect(spaApp).toContain('api/session/remove');
-    expect(spaApp).toContain('clearSelection');
+    // selection is cleared through the component after a successful delete
+    expect(spaApp).toContain('wallSelect.clear()');
   });
 
   it('photo wall has no hover zoom / neighbour shift (feature cancelled)', () => {
