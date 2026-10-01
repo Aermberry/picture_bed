@@ -207,6 +207,7 @@ WebUI SPA **同时**服务浏览器（`picbed ui`）与 Electron 壳（[`module-
 - **新建目录**：`POST /api/repo/mkdir { path, confirm: true }`；编排在 **app 层** `src/app/repo-dir.ts`，经 `GitHubHostAdapter.putFile('<path>/.gitkeep', 空内容)` 提交占位文件（GitHub 无空目录 API）。**响应与日志无 token。**
 - **路径校验**（前后端各一次）：去首尾 `/`；拒绝空段 / `..` / 前导 `/` / 盘符与反斜杠；段字符限 `A-Za-z0-9._\-` 与中文；总长 ≤ 200。
 - **回填**：选中或新建成功 → 立即 `POST /api/config { key:'github.dir', value, confirm:true }` 落盘并刷新表单与 toast，**不再要求点「保存设置」**。
+- **输入框只读（2026-10-01 补）**：设置页 `github.dir` 输入框为**只读展示态**（`readonly`）——不接受手工键入，只显示当前选中目录；取值仅来自浮层点选或新建回填。行为要点：① `readonly` 不影响 focus/click，仍是浮层触发入口之一；② 「保存设置」写入的 `github.dir` 恒等于最后一次选择结果，不存在「手输值与实际仓库不一致」的状态；③ 视觉上用 `cursor:pointer` + `background:var(--c-bg-2)` 表达「可点选、不可编辑」，聚焦时仍给主色边框与柔焦点环。呈现规格见 [`wireframes/ui-shell.md`](wireframes/ui-shell.md) §1.3。
 - **幂等**：目标目录已存在（`.gitkeep` 已在）→ 视为成功（`created:false`）。
 - **失败语义**：
   | 情况 | code / HTTP |
