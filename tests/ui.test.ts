@@ -105,6 +105,29 @@ describe('ui server F16–F18', () => {
     expect(data.error.code).toBe('E_NO_ROOT');
   });
 
+  it('F20.1 /api/repo/mkdir enforces the confirm gate and reports config gaps', async () => {
+    // no confirm → 409 (same gate as every other write endpoint)
+    const noConfirm = await api('/api/repo/mkdir', { path: 'img/2026' });
+    expect(noConfirm.status).toBe(409);
+    expect(noConfirm.data.error.code).toBe('E_CONFIRM');
+    // confirm but no owner/repo configured in this fixture → E_CONFIG 400
+    const noRepo = await api('/api/repo/mkdir', { path: 'img/2026', confirm: true });
+    expect(noRepo.status).toBe(400);
+    expect(noRepo.data.error.code).toBe('E_CONFIG');
+    expect(JSON.stringify(noRepo.data)).not.toMatch(/ghp_/);
+  });
+
+  it('F20.1 /api/repo/mkdir rejects requests without the UI header (hardening)', async () => {
+    const res = await fetch(base + '/api/repo/mkdir', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path: 'img/2026', confirm: true }),
+    });
+    expect(res.status).toBe(403);
+    const data = (await res.json()) as { error: { code: string } };
+    expect(data.error.code).toBe('E_HEADER');
+  });
+
   it('F17 bind root then drop file and plan', async () => {
     const bind = await api('/api/session/bind-root', { root: path.join(cwd, 'docs') });
     expect(bind.data.ok).toBe(true);

@@ -156,7 +156,11 @@
             <div class="form-row"><label>Owner</label><input type="text" id="cfgOwner" placeholder="github.owner" /></div>
             <div class="form-row"><label>Repo</label><input type="text" id="cfgRepo" placeholder="github.repo" /></div>
             <div class="form-row"><label>Branch</label><input type="text" id="cfgBranch" placeholder="github.branch" /></div>
-            <div class="form-row"><label>目录</label><input type="text" id="cfgDir" placeholder="github.dir" /></div>
+            <div class="form-row dir-row">
+              <label>目录</label>
+              <input type="text" id="cfgDir" placeholder="github.dir" autocomplete="off" spellcheck="false" />
+              <button class="btn btn-ghost dir-pick-btn" id="cfgDirPick" type="button" title="浏览仓库目录并点选">选择目录</button>
+            </div>
             <div class="form-row"><label>URL 风格</label>
               <select id="cfgUrlStyle">
                 <option value="raw">raw</option>
@@ -260,6 +264,30 @@
 </div>
 
 <div class="toast" id="toast"><span class="mark">✓</span><span id="toastText"></span></div>
+
+<!-- 目录选择浮层：toast 视觉语言，但可停留、可交互（不自动消失） -->
+<div class="dir-picker" id="dirPicker" hidden>
+  <div class="dir-picker-head">
+    <span class="dir-picker-title">选择仓库目录</span>
+    <button class="dir-picker-close" id="dirPickerClose" type="button" aria-label="关闭目录选择">×</button>
+  </div>
+  <div class="dir-picker-path-row">
+    <span class="dir-picker-path" id="dirPickerPath">/</span>
+    <span class="dir-picker-path-actions">
+      <button class="btn btn-ghost btn-mini" id="dirPickerUp" type="button">↑ 上级</button>
+      <button class="btn btn-ghost btn-mini" id="dirPickerRefresh" type="button">刷新</button>
+    </span>
+  </div>
+  <div class="dir-picker-list" id="dirPickerList"></div>
+  <p class="dir-picker-msg" id="dirPickerMsg" hidden></p>
+  <div class="dir-picker-actions">
+    <button class="btn btn-ghost" id="dirPickerUse" type="button">选用当前目录</button>
+    <div class="dir-picker-new">
+      <input type="text" id="dirPickerNewName" placeholder="新文件夹名" autocomplete="off" spellcheck="false" />
+      <button class="btn btn-primary" id="dirPickerCreate" type="button">新建并选用</button>
+    </div>
+  </div>
+</div>
 <div class="modal" id="modal">
   <div class="panel">
     <h3 id="modalTitle">确认</h3>

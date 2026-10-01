@@ -25,6 +25,9 @@ export class AppError extends Error {
 /** code → 退出码唯一来源；HTTP 状态码由退出码语义派生。见 docs/design/module-app.md。 */
 const EXIT_BY_CODE: Record<string, ExitCode> = {
   E_CONFIRM: EXIT.CONFIRM,
+  E_BAD_REQUEST: EXIT.USAGE,
+  E_CONFLICT: EXIT.USAGE,
+  E_NOT_FOUND: EXIT.LOCAL,
   E_TOKEN: EXIT.CONFIG,
   E_AUTH: EXIT.CONFIG,
   E_CONFIG: EXIT.CONFIG,
@@ -62,6 +65,8 @@ export function httpStatusForCode(code: string | undefined): number {
   if (code === 'E_TOKEN' || code === 'E_AUTH') return 401;
   if (code === 'E_ORIGIN' || code === 'E_HEADER' || code === 'E_HOST') return 403;
   if (code === 'E_CONTENT_TYPE') return 415;
+  if (code === 'E_CONFLICT') return 409;
+  if (code === 'E_NOT_FOUND') return 404;
   if (code === 'E_BODY_TOO_LARGE') return 413;
   switch (exitCodeForCode(code)) {
     case EXIT.CONFIRM:

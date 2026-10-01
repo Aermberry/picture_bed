@@ -163,6 +163,42 @@ describe('F24 desktop shell', () => {
     expect(spaApp).toContain('wallSelect.clear()');
   });
 
+  it('settings dir field opens a stay-open picker that browses the remote repo', () => {
+    // trigger: focus the dir input (or the pick button) — the picker is a layer, not a toast
+    expect(INDEX_HTML).toContain('id="cfgDirPick"');
+    expect(INDEX_HTML).toContain('id="dirPicker"');
+    expect(INDEX_HTML).toContain('id="dirPickerList"');
+    expect(INDEX_HTML).toContain('id="dirPickerNewName"');
+    expect(INDEX_HTML).toContain('id="dirPickerCreate"');
+    expect(spaApp).toContain('openDirPicker');
+    expect(spaApp).toMatch(/cfgDirInput\.addEventListener\("focus"/);
+    // hidden by default, never auto-dismissed (no setTimeout on the show class)
+    expect(INDEX_HTML).toMatch(/id="dirPicker"\s+hidden/);
+    expect(spaApp).not.toMatch(/dirPicker[\s\S]{0,200}setTimeout\(\(\) => dirPicker\.classList\.remove\("show"\)/);
+    // lists remote dirs from the existing gallery endpoint (no new list API)
+    expect(spaApp).toContain('/api/gallery?path=');
+    expect(spaApp).toContain('it.type === "dir"');
+    // create + apply write github.dir immediately
+    expect(spaApp).toContain('/api/repo/mkdir');
+    expect(spaApp).toMatch(/key: "github\.dir", value/);
+    expect(spaApp).toContain('目录已更新为');
+    // dismissal: close button / outside click / Esc
+    expect(INDEX_HTML).toContain('id="dirPickerClose"');
+    expect(spaApp).toContain('dirPicker.contains(t)');
+    expect(spaApp).toContain('ev.key === "Escape"');
+    // toast visual language, but interactive: bottom-centered, own radius/shadow tokens
+    expect(SPA_CSS).toContain('.dir-picker{');
+    expect(SPA_CSS).toMatch(/\.dir-picker\{[\s\S]*bottom:32px/);
+    expect(SPA_CSS).toMatch(/\.dir-picker\{[\s\S]*var\(--shadow-2\)/);
+    expect(SPA_CSS).toMatch(/\.dir-picker\.show\{[\s\S]*pointer-events:auto/);
+    // no hard-coded colors inside the picker rule (tokens only)
+    const dpRule = SPA_CSS.slice(
+      SPA_CSS.indexOf('.dir-picker{'),
+      SPA_CSS.indexOf('.dir-picker.show'),
+    );
+    expect(dpRule).not.toMatch(/#[0-9a-fA-F]{3,6}/);
+  });
+
   it('photo wall has no hover zoom / neighbour shift (feature cancelled)', () => {
     // no tween engine or focus layout left in the SPA
     expect(spaApp).not.toContain('applyWallFocus');
