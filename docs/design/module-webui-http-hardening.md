@@ -60,6 +60,15 @@ sync、config、doctor、revert、watch/start、watch/stop），不按"是否写
 
 ### SPA 与测试适配
 
+- **桌面 dev 代理的 Origin 改写（2026-10-01 补）**：`desktop:dev` 下窗口加载 Vite
+  （`http://localhost:5173`），`/api` 经本地代理转发到 UI 服务器。`changeOrigin` 只改写
+  Host，而 Chromium 对**同源 POST 也会附带 Origin**（Vite 源），原样转发命中决策 1 的
+  同源相等检查 → 403 `E_ORIGIN`（GET 无 Origin 头不受影响，故此前只挂 POST）。处理：
+  **受信本地代理**（`electron.vite.config.mjs` 的 `configure → proxyReq`）把 Origin 改写为
+  API 目标源，使代理后的请求恢复"同源"形态；服务端契约不变。安全边界不受影响——外部
+  攻击者的请求不经过此代理，浏览器直连仍受决策 1/5 约束。生产/浏览器模式（页面直接
+  加载 `uiHandle.url`）天然同源，无需此改写。
+
 - `renderer/main.js` 的 `api()` 是唯一 fetch 出口：加 `X-Picbed-UI: 1` 头（一处修改，
   全部 20+ 调用点生效）。Electron 内 Chromium fetch 同源发 Origin 与自定义头无额外限制。
 - `tests/ui.test.ts` / `tests/ui-panels.test.ts` 的 POST 调用统一过测试侧 helper 补头；
