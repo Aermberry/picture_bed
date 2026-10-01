@@ -301,7 +301,7 @@ https://cdn.jsdelivr.net/gh/{owner}/{repo}@{branch}/{path}
           <li>Web：health/confirm/掩码（F16/F18/F20）；拖拽解析与 plan 分组（F17）；revert/runs/watch（F19/F21/F22）。</li>
           <li>Desktop：壳层/桥/打包契约（F24）；<code>npm pack</code> 不含 Electron；安装包可在无 Node 环境运行。</li>
           <li>黄金用例：代码块内 <code>![]()</code> 不改写；中文路径；同图多引用；已 URL 跳过；拖拽项不在 root 下 → blocked。</li>
-          <li>交付规则：<strong>每次改动相关测试/验证全部通过</strong>；设计阶段用 <code>scripts/validate-design.ps1</code> 校验 docs 结构与本页锚点。</li>
+          <li>交付规则：<strong>每次改动相关测试/验证全部通过</strong>；设计阶段用 <code>npm run validate:design</code>（<code>scripts/validate.mjs</code>） 校验 docs 结构与本页锚点。</li>
         </ul>
       </section>
 

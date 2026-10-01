@@ -88,7 +88,7 @@ src/app/
 | tests/ui.test.ts F18、tests/ui-panels.test.ts F19–F22 | 应用服务 + HTTP 信封 |
 | tests/mcp.test.ts | CLI `--json`（经 app 层）退出码 0 |
 | 契约断言：plan item 含 `localPath`、revert `errorCode` | 新增 / 更新 |
-| 设计文档校验 | `scripts/validate-design.ps1` 要求本文件存在 |
+| 设计文档校验 | `npm run validate:design`（`scripts/validate.mjs --profile=design`）要求本文件存在 |
 
 ## 功能点映射
 
