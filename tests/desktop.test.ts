@@ -8,6 +8,7 @@ import { detectUiDevMode } from '../src/ui/server.js';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const spaApp = fs.readFileSync(path.join(repoRoot, 'renderer', 'main.js'), 'utf8');
+const viteConfig = fs.readFileSync(path.join(repoRoot, 'electron.vite.config.mjs'), 'utf8');
 
 describe('F24 desktop shell', () => {
   it('ships desktop sources and builder config', () => {
@@ -175,6 +176,9 @@ describe('F24 desktop shell', () => {
     // gh 一键登录：/api/auth/gh-login/start 仅收 POST（GET 会 404 no route）
     expect(INDEX_HTML).toContain('id="cfgGhLogin"');
     expect(spaApp).toMatch(/api\/auth\/gh-login\/start", \{\}, "POST"/);
+    // dev 代理必须改写 Origin 为 API 目标源（同源契约：changeOrigin 只改 Host，
+    // Chromium 同源 POST 仍带 Vite 源 Origin → 服务端 403 E_ORIGIN）
+    expect(viteConfig).toMatch(/proxyReq\.setHeader\(['"]origin['"], apiTarget\)/);
     // display-only: the dir input cannot be typed into — its value comes from the picker only
     expect(INDEX_HTML).toMatch(/id="cfgDir"[^>]*\breadonly\b/);
     expect(SPA_CSS).toContain('.dir-field');
