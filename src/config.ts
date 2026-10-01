@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { resolveToken } from './store.js';
+import { resolveToken } from './infra/gh-cli.js';
 import type { ResolvedConfig, UrlConfig } from './types.js';
 
 export const CONFIG_NAME = 'picbed.toml';

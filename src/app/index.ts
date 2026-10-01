@@ -9,7 +9,7 @@ export { listManifestView, runRevert } from './revert.js';
 export type { RevertResult } from './revert.js';
 export { doctorService, githubProbe, publicConfig } from './doctor.js';
 export type { DoctorCheck, DoctorProbe, DoctorReport } from './doctor.js';
-export { readConfigKey, writeConfigKey, serializeConfigToml, importConfigToml } from './config.js';
+export { readConfigKey, writeConfigKey, serializeConfigToml, importConfigToml } from './settings.js';
 export {
   createRepoDir,
   normalizeRepoDirPath,
@@ -17,5 +17,5 @@ export {
   DIR_PLACEHOLDER,
 } from './repo-dir.js';
 export type { CreateRepoDirOptions, CreateRepoDirResult } from './repo-dir.js';
-export { getRun, listRuns, newRunId, recordRun, runsDir } from './runs.js';
-export type { RunRecord } from './runs.js';
+export { getRun, listRuns, newRunId, recordRun, runsDir } from './run-store.js';
+export type { RunRecord } from './run-store.js';

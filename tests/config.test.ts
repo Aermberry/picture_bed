@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { loadConfig, normalizeGithubRef, parseSimpleToml } from '../src/config.js';
-import { importConfigToml, serializeConfigToml } from '../src/app/config.js';
+import { importConfigToml, serializeConfigToml } from '../src/app/settings.js';
 
 describe('normalizeGithubRef', () => {
   it('keeps a bare owner/repo unchanged', () => {

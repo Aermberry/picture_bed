@@ -4,7 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { getToken, loadConfig } from '../config.js';
 import { clearUserToken, writeUserToken } from '../user-token.js';
-import { probeGhToken, spawnGhLogin } from '../store.js';
+import { probeGhToken, spawnGhLogin } from '../infra/gh-cli.js';
 import type { JsonEnvelope, ResolvedConfig } from '../types.js';
 import {
   asAppError,

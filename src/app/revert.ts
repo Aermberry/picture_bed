@@ -4,7 +4,7 @@ import { loadManifest } from '../manifest.js';
 import { revertDoc, writeDocAtomic } from '../rewrite.js';
 import { scanDocs } from '../scan.js';
 import type { ResolvedConfig } from '../types.js';
-import { newRunId, recordRun } from './runs.js';
+import { newRunId, recordRun } from './run-store.js';
 
 export interface RevertResult {
   ok: boolean;
