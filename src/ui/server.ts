@@ -262,7 +262,7 @@ export function createUiServer(opts: UiServerOptions): {
         if (js === null) {
           send(500, envelope(false, 'api.static', undefined, {
             code: 'E_STATIC',
-            message: 'renderer/main.js missing; run scripts/extract-renderer.mjs',
+            message: 'renderer/main.js missing; renderer/ is the single UI source of truth (see docs/design/module-webui-spa-split.md)',
           }));
           return;
         }

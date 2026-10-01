@@ -8,11 +8,10 @@
  * PICBED_DESKTOP_SUPERVISED=1 is set so main.mjs yields lifecycle to us
  * if it must process-restart (fallback path). Renderer HMR does not restart Electron.
  *
- * ELECTRON_ENTRY / --entry: package.json intentionally has no "main" (CLI npm
- * package). electron-vite still needs the Electron entry — pass out/main/main.js
- * (electron-vite build output).
+ * ELECTRON_ENTRY / --entry: electron-vite 需要 Electron 入口 —— 传 desktop/main.mjs
+ * （ESM 源码，Electron 原生加载；out/main 是 electron-vite 的 CJS 打包产物）。
  */
-import { spawn, spawnSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -36,13 +35,8 @@ if (!fs.existsSync(electronVite)) {
   process.exit(1);
 }
 
-console.log('[desktop:dev] initial tsc build…');
-const first = spawnSync(node, [tscJs, '-p', 'tsconfig.json'], { cwd: root, stdio: 'inherit' });
-if (first.status !== 0) {
-  console.error('[desktop:dev] tsc failed');
-  process.exit(first.status ?? 1);
-}
-
+// npm run desktop:dev 已经跑过一次 tsc -p（package.json），这里只负责 watch，
+// 避免每次启动白跑一次全量编译。
 console.log('[desktop:dev] tsc --watch (core dist/)');
 const watch = spawn(node, [tscJs, '-w', '-p', 'tsconfig.json'], { cwd: root, stdio: 'inherit' });
 

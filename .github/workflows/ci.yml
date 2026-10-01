@@ -22,3 +22,5 @@ jobs:
       - run: npm run lint
       - run: npm run build
       - run: npm test
+      # 设计交付物 + npm 脚本引用完整性（bootstrap profile 需要 .agents/，本地跑）
+      - run: npm run validate:ci
