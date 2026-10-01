@@ -21,8 +21,9 @@ App (flex, height 100vh)
 | 视图 | 侧栏文案 | 顶栏标题 / 副标题 | 承载 F / 能力 |
 |------|----------|-------------------|---------------|
 | `上传` | 上传 | 文件放置 ｜ 拖入文件即可上传 | F17 工作集 · F18 同步（放置区英雄） |
-| `管理` | 管理 | 文件管理 ｜ 共 N 个文件 | F19 回滚 · F21 审计 · manifest 网格 |
-| `设置` | 设置 | 设置 ｜ 图床配置与上传偏好 | F20 配置 / doctor |
+| `管理` | 管理 | 文件管理 ｜ 共 N 个文件 | 已上传图片库 |
+| `图库` | 图库 | 图库 ｜ 浏览仓库 | 文件夹树 + 图片墙（GitHub 仓库） |
+| `设置` | 设置 | 设置 ｜ 图床配置 | F20 配置 / doctor |
 | `规范` | 规范 | 设计规范 ｜ 令牌 · 组件 · 原型连线 | 设计系统说明（内部页） |
 
 > **四视图都必须有侧栏入口**（交付规范 §1 / §8）。文案固定为「上传 / 管理 / 设置 / 规范」。
@@ -30,24 +31,25 @@ App (flex, height 100vh)
 ### 1.1 上传视图（默认）
 
 1. **DropZone 英雄区**（min-height 420）：拖入 **图片或 md/html 文档**（不接受文件夹）；2px 虚线、圆角 16。
-2. **扫描结果 · 照片墙**（`has-photos`）：隐藏空态英雄；顶部「扫描到 N 张图片」+「重置」「上传」；主体 CSS multi-column 瀑布流（列宽 ≈160px，gap 12）——图块自然宽高比、r14、彩色柔影、hover 上浮 + 文件名浮层。仍可继续拖入。
+2. **扫描结果 · 照片墙**（`has-photos`）：隐藏空态英雄；顶部「扫描到 N 张图片」+「重置」「上传」；主体 **Material Tailwind Masonry 画廊**式瀑布流（响应式 2/3/4 列，**gap 8**）——图块**满宽**、列顶/底距微差错落、自然宽高比、**r16**、彩色柔影、hover 文件名浮层（**无放大/让位**）。仍可继续拖入。
 3. ~~根绑定行 / 工作集 / scan 按钮组 / 计划分组表~~（2026-09-26 收窄移除；扫描结果改照片墙 2026-09-27）。
 
-### 1.2 管理视图
+### 1.2 管理视图（查看已上传图片）
 
-1. **StatCard 行**：文件总数 / 本月上传 / 已映射 / 最近 run（数据来自 manifest + runs，无假数）。
+1. **StatCard 行**：文件总数 / 本月上传 / 已映射 / 外链调用（数据来自 manifest，无假数）。
 2. **工具栏**：搜索文件名、排序、批量复制外链（有 URL 的 entry）。
 3. **FileCard 网格**（4 列，窄屏 3 列）：manifest 资产缩略/色块 + 文件名 + 大小/Tag（已复制 / 外链中）。
-4. **回滚区**（F19）：manifest 明细 · `revert --dry-run` · 确认 revert。
-5. **审计区**（F21）：最近 run · 失败明细 · 导出 JSON。
-6. **监听区**（F22）：watch 启停 · 模式默认 `preview`。
+4. ~~回滚区（F19）~~ · ~~审计区（F21）~~ · ~~监听区（F22）~~（2026-09-28 **UI 移除**；CLI 仍保留 revert/watch）。
 
 ### 1.3 设置视图
 
-1. **图床配置**：`github.owner/repo/branch/dir` · `url.style` · host.type；token **掩码**只读展示。
-2. **上传偏好**：backup 开关语义、确认门说明（Toggle 36×20）。
-3. **自检**：`doctor` 一键 · checks/failures · PAT/`gh auth` hint。
-4. **保存设置**：写操作 `confirm` + Toast「已保存」。
+1. **图床配置卡**（信息分层：仓库信息 → 认证凭据 → 操作区 → 操作输出）：
+   - **仓库信息**分组（分组小标题：11px 大写 + 主色圆点，同 cfg-actions-label 语言）：`github.owner/repo/branch/dir` · `url.style`。
+   - **认证凭据**分组：**Token** 输入框直接粘贴 PAT（写 `~/.picbed/credentials.json`，不进 git / 不写 picbed.toml；掩码展示，粘贴新 PAT 后点「保存设置」覆盖；行内「已配置」Tag 随本机凭据状态联动）；下接动态状态行 `authHint` 与 **GitHub 一键登录**深色块（gh auth login --web，含日志浮层）。
+   - **操作区**：主操作（读配置 / 保存设置）与备份/迁移（导出 / 导入 picbed.toml）两组网格按钮，主操作组淡主色底、次操作组中性底；组下 hint 说明导出/导入语义。
+   - **操作输出**：带「操作输出」小标题的 `pre` 面板（最近 API 结果，token 掩码），替代无标题裸输出框。
+2. **外观主题**：三套主题选择，即时生效并 localStorage 记忆；卡头副标题替代重复 hint。
+3. ~~上传偏好~~ · ~~自检 doctor~~（2026-09-28 **UI 移除**；CLI 仍保留 `doctor`）。
 
 ### 1.4 规范视图
 
@@ -125,7 +127,7 @@ App (flex, height 100vh)
 |------|------|------|
 | NavItem | 宽 56，图标 22 + 标签 12 | default / hover / active |
 | DropZone | min-h 420，2px dashed，r16 | idle / hover / dragging / has-photos |
-| PhotoWall | multi-column 瀑布流，列宽 160，gap 12；图块 r14 自然比例 | hover 上浮 + 文件名浮层 |
+| PhotoWall | 最短列瀑布流 2/3/4 列，gap 6；图块满宽 r16 | 顶栏下独立子栏（扫描到 N + 勾选提示 + 删除/重置/上传）；点选多选 |
 | FileCard | 缩略 110 + meta pad 12，网格 4 列 gap 16 | hover 上浮 2px + shadow-2 |
 | StatCard | 标签 13 + 数值 22/700 | — |
 | Toggle | **36×20**，滑块 16，r999，**flex-shrink:0** | on / off |
@@ -160,8 +162,8 @@ HTTP 信封、`confirm` 门、路径安全、token 纪律不变（见 cross-cutt
 
 ## 6. 响应式
 
-- `min-width: 860px`；`file-grid` 4 列，≤1100px 降 3 列。
-- 侧栏保持 72px；顶栏文案可截断。
+- 桌面（>720px）：`file-grid` 4 列，≤1100px 降 3 列；侧栏 72px；设置表单左标签（120px）+ 右控件；设置列 max-width 720 并水平居中。
+- 窄屏 / 竖窗（≤720px）：移除全局 `min-width:860px`；侧栏收窄 56px；顶栏隐藏副标题；`form-row` 改上下堆叠（label 宽度自适应）；设置卡单列满宽；`file-grid` 降 2 列；stat-row 换行；GitHub 登录块按钮满宽；cfg-actions 网格降单列（既有 ≤480px 规则上移至 720px 生效）。
 
 ## 7. 验收要点（AC 展开，定义以 features-index 为准）
 
