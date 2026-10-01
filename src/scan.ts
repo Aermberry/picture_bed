@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import type { DocFile, DocKind, ScanConfig } from './types.js';
+import { normalizeExt, normalizeExtToken } from './lib/img.js';
 
 const DEFAULT_EXT = ['md', 'html', 'htm'];
 
@@ -26,9 +27,7 @@ function kindOf(filePath: string): DocKind {
 
 export function scanDocs(root: string, scan: ScanConfig): DocFile[] {
   const exts = new Set(
-    (scan.extensions?.length ? scan.extensions : DEFAULT_EXT).map((e) =>
-      e.replace(/^\./, '').toLowerCase(),
-    ),
+    (scan.extensions?.length ? scan.extensions : DEFAULT_EXT).map(normalizeExtToken),
   );
   const ignore = scan.ignore?.length
     ? scan.ignore
@@ -54,7 +53,7 @@ export function scanDocs(root: string, scan: ScanConfig): DocFile[] {
         continue;
       }
       if (!ent.isFile()) continue;
-      const ext = path.extname(ent.name).replace(/^\./, '').toLowerCase();
+      const ext = normalizeExt(ent.name);
       if (!exts.has(ext)) continue;
       out.push({ path: abs, kind: kindOf(abs) });
     }

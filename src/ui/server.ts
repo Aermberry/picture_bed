@@ -28,6 +28,9 @@ import { RootBinder, ensureDocExt } from './root.js';
 import { INDEX_HTML } from './static.js';
 import { SPA_CSS } from './spa/styles.js';
 import { WatchController } from './watch.js';
+import { isImageExt, normalizeExt } from '../lib/img.js';
+import { isUnderRoot } from '../lib/paths.js';
+import { maskToken } from '../lib/mask.js';
 
 export interface UiServerOptions {
   cwd: string;
@@ -72,12 +75,7 @@ function rendererMainJs(): string | null {
   }
 }
 
-const IMAGE_EXTS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp', 'ico', 'avif']);
-
-function isImagePath(p: string): boolean {
-  const ext = path.extname(p).replace(/^\./, '').toLowerCase();
-  return IMAGE_EXTS.has(ext);
-}
+const isImagePath = isImageExt;
 
 export interface UiServerHandle {
   url: string;
@@ -351,17 +349,14 @@ export function createUiServer(opts: UiServerOptions): {
         const root = binder.requireRoot();
         let abs = p;
         if (!path.isAbsolute(p)) abs = path.resolve(root, p);
-        const rel = path.relative(root, abs);
-        if (rel.startsWith('..') || path.isAbsolute(rel)) {
+        if (!isUnderRoot(root, abs)) {
           send(400, envelope(false, 'api.preview', undefined, {
             code: 'E_PATH_ESCAPE',
             message: 'path outside scan root',
           }));
           return;
         }
-        const ext = path.extname(abs).replace(/^\./, '').toLowerCase();
-        const imageExt = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp', 'ico', 'avif']);
-        if (!imageExt.has(ext)) {
+        if (!isImageExt(abs)) {
           send(400, envelope(false, 'api.preview', undefined, {
             code: 'E_DOC_EXT',
             message: 'not an image',
@@ -388,7 +383,7 @@ export function createUiServer(opts: UiServerOptions): {
         };
         const buf = fs.readFileSync(abs);
         res.writeHead(200, {
-          'Content-Type': types[ext] || 'application/octet-stream',
+          'Content-Type': types[normalizeExt(abs)] || 'application/octet-stream',
           'Cache-Control': 'no-store',
         });
         res.end(buf);
@@ -814,7 +809,7 @@ export function createUiServer(opts: UiServerOptions): {
         writeUserToken(tok);
         send(200, envelope(true, 'api.auth.token', {
           source: 'user',
-          tokenMask: '••••••••',
+          tokenMask: maskToken(tok),
         }));
         return;
       }
@@ -844,7 +839,7 @@ export function createUiServer(opts: UiServerOptions): {
           send(200, envelope(true, 'api.auth.gh-login', {
             status: 'done',
             message: 'gh 已登录，自动获取 token',
-            tokenMask: '••••••••',
+            tokenMask: maskToken(probe.token),
           }));
           return;
         }

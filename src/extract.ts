@@ -1,22 +1,9 @@
 import path from 'node:path';
 import type { DocFile, DocKind, ImageRef, RefSyntax } from './types.js';
 
-const IMAGE_EXT = new Set([
-  'png',
-  'jpg',
-  'jpeg',
-  'gif',
-  'webp',
-  'avif',
-  'svg',
-  'bmp',
-  'ico',
-]);
-
-export function isImageExt(p: string): boolean {
-  const ext = path.extname(p).replace(/^\./, '').toLowerCase();
-  return IMAGE_EXT.has(ext);
-}
+// 单点：src/lib/img.ts（原三份副本之一）
+export { IMAGE_EXT, isImageExt } from './lib/img.js';
+import { isImageExt } from './lib/img.js';
 
 function kindOf(docPath: string): DocKind {
   const ext = path.extname(docPath).toLowerCase();

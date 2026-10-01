@@ -2,6 +2,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { LocalHostConfig, UrlConfig } from '../types.js';
 import type { HostAdapter, HostUrls } from './types.js';
+import { sha12 as sha12Of } from '../lib/hash.js';
+import { isUnderRoot } from '../lib/paths.js';
 
 export function localRemotePath(
   dir: string,
@@ -13,7 +15,7 @@ export function localRemotePath(
   const mm = String(now.getUTCMonth() + 1).padStart(2, '0');
   const base = localPath.split(/[\\/]/).pop() ?? 'image.bin';
   const safe = base.replace(/[^A-Za-z0-9._-]+/g, '_');
-  const sha12 = sha256.slice(0, 12);
+  const sha12 = sha12Of(sha256);
   const prefix = dir.replace(/^\/+|\/+$/g, '');
   return prefix ? `${prefix}/${yyyy}/${mm}/${sha12}-${safe}` : `${yyyy}/${mm}/${sha12}-${safe}`;
 }
@@ -32,8 +34,7 @@ export class LocalHostAdapter implements HostAdapter {
   private abs(repoPath: string): string {
     const root = path.resolve(this.baseDir, this.cfg.root);
     const abs = path.resolve(root, repoPath);
-    const rel = path.relative(root, abs);
-    if (rel.startsWith('..') || path.isAbsolute(rel)) {
+    if (!isUnderRoot(root, abs)) {
       throw Object.assign(new Error(`path escapes host root: ${repoPath}`), {
         code: 'E_LOCAL',
       });
