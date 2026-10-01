@@ -167,6 +167,7 @@
 - 优先级：P1 · 模块：**webui**
 - 实现（域）：[module-webui · F20](design/module-webui.md#f20-配置与自检面板)
 - AC：可查看当前配置且 **token 一律掩码**；可编辑非 secret 配置键并校验枚举（如 `url.style`）；可触发 doctor 并展示 checks / failures（含缺键名、HTTP 状态）；缺 token 时给出 PAT 与 `gh auth` 获取指引（hint），不回显 secret。
+- AC（目录选择，2026-10-01）：`github.dir` 行可**浏览并点选仓库远程目录**——聚焦输入框或点「选择目录」弹出可停留浮层（当前路径 + 文件夹列表 + 上级/刷新 + 新建 + 关闭，**不自动消失**，点外部/Esc/关闭收起）；目录来源于仓库远端（复用 `GET /api/gallery?path=` 的 `type==='dir'`），owner/repo/token 不齐时给引导而非报错。可**新建文件夹**（GitHub 无空目录 API，以空内容 `.gitkeep` 占位提交）；**选中或新建成功即写入并保存 `github.dir`**，无需再点「保存设置」。
 
 ## F21 审计与报告
 

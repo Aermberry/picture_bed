@@ -45,6 +45,7 @@ App (flex, height 100vh)
 
 1. **图床配置卡**（信息分层：仓库信息 → 认证凭据 → 操作区 → 操作输出）：
    - **仓库信息**分组（分组小标题：11px 大写 + 主色圆点，同 cfg-actions-label 语言）：`github.owner/repo/branch/dir` · `url.style`。
+   - **目录选择浮层**（`github.dir` 行 · 2026-10-01）：目录输入框右侧「选择目录」幽灵按钮；聚焦输入框或点按钮在页面**底部居中**弹出 `#dirPicker`（toast 视觉语言：**大圆角 14 + 彩色柔影 `--shadow-2` + 微动效** opacity/translateY 0.18s ease-out），**可停留不自动消失**。结构自上而下：① 头行「选择仓库目录」+ 右 × 关闭；② 当前路径面包屑（超出省略，末段高亮）+ 右对齐「↑ 上级」（根时隐藏）/「刷新」；③ 文件夹列表（📁 + 名称 + 进入箭头，max-height 40vh 滚动，hover 淡主色底，当前目录行主色左描边 +「当前」Tag，空态「此目录没有子文件夹」）；④ 操作区（上方内联 12px 错误文本；「选用当前目录」次按钮；「新建文件夹」输入 + 「新建并选用」主色按钮，处理中禁用并显「处理中…」）。收起：× / 点浮层外部 / `Esc`。选中或新建成功 → 立即写 `github.dir` 并 toast「目录已更新为 xxx」后自动收起。
    - **认证凭据**分组：**Token** 输入框直接粘贴 PAT（写 `~/.picbed/credentials.json`，不进 git / 不写 picbed.toml；掩码展示，粘贴新 PAT 后点「保存设置」覆盖；行内「已配置」Tag 随本机凭据状态联动）；下接动态状态行 `authHint` 与 **GitHub 一键登录**深色块（gh auth login --web，含日志浮层）。
    - **操作区**：主操作（读配置 / 保存设置）与备份/迁移（导出 / 导入 picbed.toml）两组网格按钮，主操作组淡主色底、次操作组中性底；组下 hint 说明导出/导入语义。
    - **操作输出**：带「操作输出」小标题的 `pre` 面板（最近 API 结果，token 掩码），替代无标题裸输出框。
@@ -163,7 +164,7 @@ HTTP 信封、`confirm` 门、路径安全、token 纪律不变（见 cross-cutt
 ## 6. 响应式
 
 - 桌面（>720px）：`file-grid` 4 列，≤1100px 降 3 列；侧栏 72px；设置表单左标签（120px）+ 右控件；设置列 max-width 720 并水平居中。
-- 窄屏 / 竖窗（≤720px）：移除全局 `min-width:860px`；侧栏收窄 56px；顶栏隐藏副标题；`form-row` 改上下堆叠（label 宽度自适应）；设置卡单列满宽；`file-grid` 降 2 列；stat-row 换行；GitHub 登录块按钮满宽；cfg-actions 网格降单列（既有 ≤480px 规则上移至 720px 生效）。
+- 窄屏 / 竖窗（≤720px）：移除全局 `min-width:860px`；侧栏收窄 56px；顶栏隐藏副标题；`form-row` 改上下堆叠（label 宽度自适应）；设置卡单列满宽；`file-grid` 降 2 列；stat-row 换行；GitHub 登录块按钮满宽；cfg-actions 网格降单列（既有 ≤480px 规则上移至 720px 生效）；**目录选择浮层**改为左右各 12px 全宽、底部 12px、列表 max-height 45vh、新建输入与按钮上下堆叠且按钮满宽。
 
 ## 7. 验收要点（AC 展开，定义以 features-index 为准）
 
