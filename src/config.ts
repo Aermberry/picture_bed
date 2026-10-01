@@ -30,6 +30,25 @@ const DEFAULTS: Omit<ResolvedConfig, 'rootDir' | 'configPath'> = {
   rewrite: { backup: true },
 };
 
+const TOML_ESCAPES: Record<string, string> = {
+  n: '\n',
+  t: '\t',
+  r: '\r',
+  b: '\b',
+  f: '\f',
+  '"': '"',
+  '\\': '\\',
+  '/': '/',
+};
+
+/** Unescape a TOML basic string body (quotes already stripped). */
+function unescapeTomlBasicString(s: string): string {
+  return s.replace(/\\(u[0-9a-fA-F]{4}|.)/gs, (_m, g: string) => {
+    if (g.startsWith('u')) return String.fromCharCode(parseInt(g.slice(1), 16));
+    return TOML_ESCAPES[g] ?? g;
+  });
+}
+
 /** Minimal TOML subset parser for our flat tables. */
 export function parseSimpleToml(text: string): Record<string, Record<string, string>> {
   const out: Record<string, Record<string, string>> = {};
@@ -46,8 +65,11 @@ export function parseSimpleToml(text: string): Record<string, Record<string, str
     const kv = /^([A-Za-z0-9_.-]+)\s*=\s*(.+)$/.exec(line);
     if (!kv || !section) continue;
     let value = kv[2].trim();
-    if (value.startsWith('"') && value.endsWith('"')) value = value.slice(1, -1);
-    if (value.startsWith("'") && value.endsWith("'")) value = value.slice(1, -1);
+    if (value.length >= 2 && value.startsWith('"') && value.endsWith('"')) {
+      value = unescapeTomlBasicString(value.slice(1, -1));
+    } else if (value.length >= 2 && value.startsWith("'") && value.endsWith("'")) {
+      value = value.slice(1, -1);
+    }
     if (value.startsWith('[') && value.endsWith(']')) {
       value = value
         .slice(1, -1)
