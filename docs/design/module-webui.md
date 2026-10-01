@@ -203,6 +203,7 @@ WebUI SPA **同时**服务浏览器（`picbed ui`）与 Electron 壳（[`module-
 
 - **载体**：底部居中**可停留浮层**（`#dirPicker`，toast 视觉语言但**不自动消失**）；触发 = 聚焦/点击目录输入框或点「选择目录」；收起 = 关闭按钮 / 点外部 / `Esc`。默认 `hidden`，DOM 常驻。
 - **列目录**：复用 `GET /api/gallery?path=`（Contents API 单次请求），客户端取 `items[].type==='dir'` 渲染；**不新增列目录端点**。进入子目录时才请求（无预取）。
+- **种子路径不存在时的回退（2026-10-01 补）**：`github.dir` 指向的远端目录可能尚未创建（404 `E_NOT_FOUND`）——浮层**不得死在报错上**：自动回退到**最近存在的祖先目录**列出其子文件夹，同时以**引导性提示**（非红色错误）说明「目录 X 不存在，已定位到其上级」；将缺失的末段**预填**到「新建文件夹」输入框，用户点「新建并选用」即可创建并选中该目录。仅仓库根也不可达（网络/权限/配置错）时才显示错误。
 - **新建目录**：`POST /api/repo/mkdir { path, confirm: true }`；编排在 **app 层** `src/app/repo-dir.ts`，经 `GitHubHostAdapter.putFile('<path>/.gitkeep', 空内容)` 提交占位文件（GitHub 无空目录 API）。**响应与日志无 token。**
 - **路径校验**（前后端各一次）：去首尾 `/`；拒绝空段 / `..` / 前导 `/` / 盘符与反斜杠；段字符限 `A-Za-z0-9._\-` 与中文；总长 ≤ 200。
 - **回填**：选中或新建成功 → 立即 `POST /api/config { key:'github.dir', value, confirm:true }` 落盘并刷新表单与 toast，**不再要求点「保存设置」**。
