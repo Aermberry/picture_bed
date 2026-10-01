@@ -114,6 +114,25 @@ export class GitHubHostAdapter implements HostAdapter {
     });
   }
 
+  /**
+   * Contents API type probe on the configured branch: dir → 'dir', file → 'file',
+   * absent → null. Used to create remote directories (GitHub has no empty-dir API).
+   */
+  async entryType(repoPath: string): Promise<'dir' | 'file' | null> {
+    const res = await fetch(`${this.urlFor(repoPath)}?ref=${this.cfg.branch}`, {
+      headers: this.headers(),
+    });
+    if (res.status === 404) return null;
+    if (!res.ok) {
+      throw Object.assign(new Error(`GET contents failed: ${res.status}`), {
+        code: 'E_REMOTE',
+        status: res.status,
+      });
+    }
+    const body = (await res.json()) as unknown;
+    return Array.isArray(body) ? 'dir' : 'file';
+  }
+
   async putFile(
     repoPath: string,
     bytes: Buffer,

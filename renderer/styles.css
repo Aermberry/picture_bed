@@ -696,6 +696,84 @@
       display:flex; align-items:center; justify-content:center;
     }
 
+    /* 目录选择浮层：toast 视觉语言（底部居中 / 大圆角 / 彩色柔影）但可停留、可交互 */
+    .dir-pick-btn{flex-shrink:0; padding:8px 14px; font-size:13px}
+    .btn-mini{padding:5px 10px; font-size:12px; border-radius:var(--r-sm)}
+    .dir-picker{
+      position:fixed; left:50%; bottom:32px; transform:translate(-50%,12px);
+      width:420px; max-width:calc(100vw - 32px);
+      background:var(--c-surface); color:var(--c-text);
+      border:1px solid var(--c-border); border-radius:var(--r-md);
+      box-shadow:var(--shadow-2); padding:var(--sp-3);
+      opacity:0; pointer-events:none; transition:opacity .18s ease-out, transform .18s ease-out;
+      z-index:45; display:flex; flex-direction:column; gap:10px;
+    }
+    .dir-picker.show{opacity:1; transform:translate(-50%,0); pointer-events:auto}
+    .dir-picker[hidden]{display:none!important}
+    .dir-picker-head{display:flex; align-items:center; gap:var(--sp-2)}
+    .dir-picker-title{font-size:14px; font-weight:600; color:var(--c-text)}
+    .dir-picker-close{
+      margin-left:auto; width:24px; height:24px; flex-shrink:0;
+      border:none; background:transparent; color:var(--c-text-3);
+      font-size:18px; line-height:1; border-radius:var(--r-sm); cursor:pointer;
+      font-family:inherit; transition:all .15s;
+    }
+    .dir-picker-close:hover{background:var(--c-primary-soft); color:var(--c-primary)}
+    .dir-picker-path-row{display:flex; align-items:center; gap:var(--sp-2)}
+    .dir-picker-path{
+      font-size:12px; color:var(--c-text-3); flex:1; min-width:0;
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    }
+    .dir-picker-path .seg-last{color:var(--c-primary); font-weight:600}
+    .dir-picker-path-actions{display:flex; gap:6px; flex-shrink:0}
+    .dir-picker-list{
+      max-height:40vh; min-height:96px; overflow:auto; border:1px solid var(--c-border);
+      border-radius:var(--r-sm); background:var(--c-bg);
+      padding:4px; display:flex; flex-direction:column; gap:2px;
+    }
+    .dir-picker-item{
+      display:flex; align-items:center; gap:8px; padding:7px 10px;
+      border-radius:var(--r-sm); cursor:pointer; font-size:13px;
+      color:var(--c-text); transition:background .15s, color .15s;
+    }
+    .dir-picker-item:hover{background:var(--c-primary-soft); color:var(--c-primary)}
+    .dir-picker-item .ico{flex-shrink:0}
+    .dir-picker-item .name{flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+    .dir-picker-item .enter{color:var(--c-text-3); flex-shrink:0}
+    .dir-picker-item.current{
+      background:var(--c-primary-mist); color:var(--c-primary); font-weight:600;
+      box-shadow:inset 3px 0 0 0 var(--c-primary);
+    }
+    .dir-picker-empty{padding:14px 10px; font-size:12px; color:var(--c-text-3); text-align:center}
+    .dir-picker-msg{font-size:12px; color:var(--c-danger); line-height:1.5; word-break:break-word}
+    .dir-picker-actions{display:flex; flex-direction:column; gap:8px}
+    .dir-picker-actions .btn-ghost{width:100%}
+    .dir-picker-new{display:flex; gap:8px}
+    .dir-picker-new input[type="text"]{
+      flex:1; min-width:0; padding:8px 12px; border:1px solid var(--c-border);
+      border-radius:var(--r-md); font-size:13px; font-family:inherit;
+      background:var(--c-surface); color:var(--c-text); transition:border-color .15s;
+    }
+    .dir-picker-new input[type="text"]:focus{
+      outline:none; border-color:var(--c-primary);
+      box-shadow:0 0 0 3px rgba(78,147,192,.12);
+    }
+    .dir-picker-new .btn-primary{flex-shrink:0; padding:8px 14px; font-size:13px}
+    .btn[disabled]{opacity:.6; cursor:not-allowed}
+
+    /* 目录选择浮层 · 窄屏/竖窗全宽（须在 .dir-picker 基础规则之后） */
+    @media (max-width:720px){
+      .dir-picker{
+        left:12px; right:12px; bottom:12px; width:auto; max-width:none;
+        transform:translateY(12px);
+      }
+      .dir-picker.show{transform:translateY(0)}
+      .dir-picker-list{max-height:45vh}
+      .dir-picker-new{flex-direction:column}
+      .dir-picker-new .btn-primary{width:100%}
+      .dir-row .dir-pick-btn{width:100%}
+    }
+
     .modal{
       position:fixed; inset:0; background:rgba(37,56,74,.35);
       display:none; align-items:center; justify-content:center; z-index:40;

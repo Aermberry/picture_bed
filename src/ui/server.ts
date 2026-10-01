@@ -8,6 +8,7 @@ import { probeGhToken, spawnGhLogin } from '../store.js';
 import type { JsonEnvelope, ResolvedConfig } from '../types.js';
 import {
   asAppError,
+  createRepoDir,
   doctorService,
   getRun,
   githubProbe,
@@ -945,6 +946,34 @@ export function createUiServer(opts: UiServerOptions): {
         const cfg = loadCfg();
         const out = writeConfigKey(cfg, body.key ?? '', body.value ?? '', Boolean(body.dryRun));
         send(200, envelope(true, 'api.config', out));
+        return;
+      }
+
+      if (req.method === 'POST' && url.pathname === '/api/repo/mkdir') {
+        // 新建远程目录：GitHub 无空目录 API，以空 .gitkeep 占位提交
+        const body = JSON.parse((await readBody(req)) || '{}') as {
+          path?: string;
+          confirm?: boolean;
+        };
+        try {
+          const result = await createRepoDir({
+            cfg: loadCfg(),
+            getToken,
+            path: body.path ?? '',
+            confirm: body.confirm === true,
+          });
+          send(200, envelope(true, 'api.repo.mkdir', result));
+        } catch (e) {
+          const appErr = asAppError(e, 'E_REMOTE');
+          send(
+            httpStatusForCode(appErr.code),
+            envelope(false, 'api.repo.mkdir', undefined, {
+              code: appErr.code,
+              message: appErr.message,
+              ...(appErr.hint ? { hint: appErr.hint } : {}),
+            }),
+          );
+        }
         return;
       }
 
