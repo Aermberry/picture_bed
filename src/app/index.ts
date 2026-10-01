@@ -9,6 +9,6 @@ export { listManifestView, runRevert } from './revert.js';
 export type { RevertResult } from './revert.js';
 export { doctorService, githubProbe, publicConfig } from './doctor.js';
 export type { DoctorCheck, DoctorProbe, DoctorReport } from './doctor.js';
-export { readConfigKey, writeConfigKey } from './config.js';
+export { readConfigKey, writeConfigKey, serializeConfigToml, importConfigToml } from './config.js';
 export { getRun, listRuns, newRunId, recordRun, runsDir } from './runs.js';
 export type { RunRecord } from './runs.js';

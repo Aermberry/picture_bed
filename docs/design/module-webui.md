@@ -211,7 +211,7 @@ WebUI SPA **同时**服务浏览器（`picbed ui`）与 Electron 壳（[`module-
 ## F23 Web 控制台壳层与视觉重设计
 
 - **范围**：仅呈现层（布局、导航、主题、文案层级）；**不改** API、JSON 信封、`confirm` 门、token 纪律、拖拽策略 A。
-- **壳层**：72px 侧栏 + 56px 顶栏 + 可滚动 Content（min-width 860）。
+- **壳层**：72px 侧栏 + 56px 顶栏 + 可滚动 Content；桌面 >720px，≤720px 窄屏降级（侧栏 56px、表单单列）——详见 [`wireframes/ui-shell.md`](wireframes/ui-shell.md) §6。
 - **导航**：四视图「上传 / 管理 / 设置 / 规范」。默认上传/文件放置。
 - **信息重排**：F17/F18 上传视图；F19/F21/F22 管理视图；F20 设置视图；规范页只读设计系统。
 - **主题**：晨雾蓝 × 落日暖（`#4E86AD` / `#E39A6B` / `#F3F7FA`…）；禁止各面板私自改色；Toggle 36×20 且 `flex-shrink:0`。

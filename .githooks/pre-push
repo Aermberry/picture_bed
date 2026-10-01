@@ -2,6 +2,7 @@
 # Block release-class pushes unless explicitly approved (user rule 2026-09-25).
 # Approval: set env PICBED_RELEASE_OK=1 for that one push.
 # Covers: tags, release/*, hotfix/*, main.
+# Also blocks paths that look like an unexpanded Windows %VAR%.
 
 set -u
 
@@ -11,6 +12,31 @@ reject() {
   echo "pre-push: RELEASE blocked — $1" >&2
   echo "pre-push: release needs user review; retry with PICBED_RELEASE_OK=1 after approval" >&2
   exit 1
+}
+
+# A path segment starting with "%" means a Windows env var was never expanded
+# (%SystemDrive% is relative, so apps resolve it against their CWD and litter the repo).
+# A path either starts the line (ls-tree) or follows the status field (diff --name-status).
+deny_pat='(^|[[:space:]/])%[^/]*($|/)'
+
+deny_paths() {
+  # $1 = local sha, $2 = remote sha (40 zeros for a brand-new remote ref)
+  out=$(git diff --name-status "$2" "$1" 2>&1); st=$?
+  if [ "$st" -ne 0 ]; then
+    # New remote ref: diff has no base, so inspect the whole pushed tree.
+    out=$(git ls-tree -r --name-only "$1" 2>&1); st=$?
+  fi
+  if [ "$st" -ne 0 ]; then
+    echo "pre-push: WARN — path check skipped (git exited $st): $out" >&2
+    return 0
+  fi
+  bad=$(printf '%s\n' "$out" | grep -v '^D[[:space:]]' | grep -E "$deny_pat" || true)
+  if [ -n "$bad" ]; then
+    echo "pre-push: BLOCKED — unexpanded Windows %VAR% path in the pushed commits:" >&2
+    printf '%s\n' "$bad" | sed 's/^/  /' >&2
+    echo "pre-push: drop those paths from the commit (git rm --cached) and re-commit" >&2
+    exit 1
+  fi
 }
 
 # stdin: <local ref> <local sha> <remote ref> <remote sha>
@@ -27,6 +53,8 @@ while read -r local_ref local_sha remote_ref remote_sha; do
       [ "$allow" = "1" ] || reject "branch $local_ref"
       ;;
   esac
+
+  deny_paths "$local_sha" "$remote_sha"
 done
 
 exit 0

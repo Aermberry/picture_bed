@@ -15,6 +15,12 @@ export interface HostAdapter {
     message: string,
     branch: string,
   ): Promise<void>;
+  deleteFile(
+    repoPath: string,
+    sha: string,
+    message: string,
+    branch: string,
+  ): Promise<void>;
   composeUrls(repoPath: string): HostUrls;
   remotePath(sha256: string, localPath: string, now?: Date): string;
 }

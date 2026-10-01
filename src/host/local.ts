@@ -51,6 +51,11 @@ export class LocalHostAdapter implements HostAdapter {
     fs.writeFileSync(abs, bytes);
   }
 
+  async deleteFile(repoPath: string): Promise<void> {
+    const abs = this.abs(repoPath);
+    if (fs.existsSync(abs)) fs.unlinkSync(abs);
+  }
+
   composeUrls(repoPath: string): HostUrls {
     const base = (this.cfg.publicBase || 'https://cdn.example.com').replace(/\/+$/, '');
     const rawUrl = `${base}/${repoPath.replace(/^\/+/, '')}`;
