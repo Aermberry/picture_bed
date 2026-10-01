@@ -172,6 +172,10 @@ describe('F24 desktop shell', () => {
     expect(INDEX_HTML).toContain('id="dirPickerCreate"');
     expect(spaApp).toContain('openDirPicker');
     expect(spaApp).toMatch(/cfgDirInput\.addEventListener\("focus"/);
+    // display-only: the dir input cannot be typed into — its value comes from the picker only
+    expect(INDEX_HTML).toMatch(/id="cfgDir"[^>]*\breadonly\b/);
+    expect(SPA_CSS).toContain('.dir-field');
+    expect(SPA_CSS).toMatch(/\.dir-field\{[\s\S]*cursor:pointer/);
     // hidden by default, never auto-dismissed (no setTimeout on the show class)
     expect(INDEX_HTML).toMatch(/id="dirPicker"\s+hidden/);
     expect(spaApp).not.toMatch(/dirPicker[\s\S]{0,200}setTimeout\(\(\) => dirPicker\.classList\.remove\("show"\)/);

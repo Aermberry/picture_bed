@@ -961,6 +961,9 @@
     $("cfgRepo").value = gh.repo || "";
     $("cfgBranch").value = gh.branch || "";
     $("cfgDir").value = gh.dir || "";
+    $("cfgDir").title = gh.dir
+      ? `当前目录：${gh.dir}（只读显示；点此或「选择目录」按钮浏览仓库）`
+      : "未配置；点此或「选择目录」按钮浏览仓库目录";
     $("cfgUrlStyle").value = url.style || "raw";
     const tok = String(d.token ?? "");
     $("cfgToken").value = tok ? "••••••••" : "";

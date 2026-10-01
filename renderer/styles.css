@@ -697,6 +697,14 @@
     }
 
     /* 目录选择浮层：toast 视觉语言（底部居中 / 大圆角 / 彩色柔影）但可停留、可交互 */
+    /* 目录输入框：只读展示态——不可键入，只显示当前选中目录；点击/聚焦仍弹出浮层 */
+    .form-row input[type="text"].dir-field{
+      cursor:pointer; background:var(--c-bg-2); user-select:text;
+    }
+    .form-row input[type="text"].dir-field:focus{
+      cursor:pointer; background:var(--c-surface); border-color:var(--c-primary);
+      box-shadow:0 0 0 3px rgba(78,147,192,.12);
+    }
     .dir-pick-btn{flex-shrink:0; padding:8px 14px; font-size:13px}
     .btn-mini{padding:5px 10px; font-size:12px; border-radius:var(--r-sm)}
     .dir-picker{
