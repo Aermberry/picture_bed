@@ -1,5 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { isUnderRoot } from '../lib/paths.js';
+import { normalizeExt } from '../lib/img.js';
 
 /** Bind scan root and map drag-drop relative clues to real FS paths. */
 export class RootBinder {
@@ -44,8 +46,7 @@ export class RootBinder {
       return { ok: false, reason: 'absolute paths are not accepted from drag-drop', code: 'E_PATH_ABS' };
     }
     const abs = path.resolve(root, cleaned);
-    const rel = path.relative(root, abs);
-    if (rel.startsWith('..') || path.isAbsolute(rel)) {
+    if (!isUnderRoot(root, abs)) {
       return { ok: false, reason: 'path escapes scan root', code: 'E_PATH_ESCAPE' };
     }
     return { ok: true, path: abs };
@@ -53,6 +54,5 @@ export class RootBinder {
 }
 
 export function ensureDocExt(p: string, extensions: string[]): boolean {
-  const ext = path.extname(p).replace(/^\./, '').toLowerCase();
-  return extensions.includes(ext);
+  return extensions.includes(normalizeExt(p));
 }

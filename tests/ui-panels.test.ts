@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createUiServer, type UiServerHandle } from '../src/ui/server.js';
 import { loadConfig } from '../src/config.js';
 import { runSync } from '../src/app/sync.js';
+import { maskToken } from '../src/lib/mask.js';
 
 function tmp(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'picbed-ui2-'));
@@ -97,7 +98,8 @@ describe('ui F19–F22', () => {
         confirm: true,
       });
       expect(saved.data.ok).toBe(true);
-      expect(saved.data.data.tokenMask).toBe('••••••••');
+      // 掩码走唯一实现（src/lib/mask.ts），与 doctor / 配置视图表现一致
+      expect(saved.data.data.tokenMask).toBe(maskToken('ghp_secret_value_x'));
       expect(JSON.stringify(saved.data)).not.toContain('ghp_secret_value_x');
       expect(fs.existsSync(cred)).toBe(true);
 

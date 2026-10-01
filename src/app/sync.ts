@@ -1,7 +1,7 @@
-import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { createHostAdapter, hostRequiresToken, uploadAsset } from '../host/index.js';
+import { sha256Hex } from '../lib/hash.js';
 import { findCachedUrl, loadManifest, saveManifest } from '../manifest.js';
 import { applyRewrites, mergeManifest } from '../rewrite.js';
 import type { Asset, ResolvedConfig, SyncPlanItem } from '../types.js';
@@ -30,7 +30,7 @@ function standaloneAsset(localPath: string): Asset {
   const buf = fs.readFileSync(abs);
   return {
     localPath: abs,
-    sha256: crypto.createHash('sha256').update(buf).digest('hex'),
+    sha256: sha256Hex(buf),
     bytes: buf.length,
     mime: mimeOf(abs),
     refs: [],

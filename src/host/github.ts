@@ -1,5 +1,6 @@
 import type { GithubConfig, LocalHostConfig, RemoteImage, UrlConfig } from '../types.js';
 import type { HostAdapter, HostUrls } from './types.js';
+import { sha12 as sha12Of } from '../lib/hash.js';
 
 export function composeGithubUrls(
   cfg: { github: GithubConfig; url: UrlConfig },
@@ -71,7 +72,7 @@ export function githubRemotePath(
   const mm = String(now.getUTCMonth() + 1).padStart(2, '0');
   const base = localPath.split(/[\\/]/).pop() ?? 'image.bin';
   const safe = base.replace(/[^A-Za-z0-9._-]+/g, '_');
-  const sha12 = sha256.slice(0, 12);
+  const sha12 = sha12Of(sha256);
   const prefix = dir.replace(/^\/+|\/+$/g, '');
   return prefix ? `${prefix}/${yyyy}/${mm}/${sha12}-${safe}` : `${yyyy}/${mm}/${sha12}-${safe}`;
 }

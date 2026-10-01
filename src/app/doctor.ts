@@ -1,4 +1,5 @@
-import { getToken, maskToken } from '../config.js';
+import { getToken } from '../config.js';
+import { maskToken } from '../lib/mask.js';
 import { probeGithubAccess } from '../host/index.js';
 import type { ResolvedConfig } from '../types.js';
 

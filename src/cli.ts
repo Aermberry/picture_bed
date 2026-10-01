@@ -18,6 +18,7 @@ import {
 import { CONFIG_NAME, configTemplate, getToken, loadConfig } from './config.js';
 import { createHostAdapter, hostRequiresToken, uploadAsset } from './host/index.js';
 import { EXIT, type ExitCode, type JsonEnvelope, type ResolvedConfig } from './types.js';
+import { sha256Hex } from './lib/hash.js';
 
 function emit<T>(
   json: boolean,
@@ -550,8 +551,7 @@ export async function run(argv: string[]): Promise<ExitCode> {
         });
       }
       const bytes = fs.readFileSync(abs);
-      const crypto = await import('node:crypto');
-      const sha256 = crypto.createHash('sha256').update(bytes).digest('hex');
+      const sha256 = sha256Hex(bytes);
       const host = createHostAdapter(cfg, token);
       const remote = await uploadAsset(host, {
         asset: { localPath: abs, sha256 },

@@ -261,11 +261,8 @@ backup = true
 `;
 }
 
-export function maskToken(token: string | undefined): string {
-  if (!token) return '';
-  if (token.length <= 8) return '****';
-  return token.slice(0, 4) + '****';
-}
+// 单点：src/lib/mask.ts（app 层与 ui 层共用同一份掩码规则）
+export { maskToken } from './lib/mask.js';
 
 export function validateStyle(style: string): style is UrlConfig['style'] {
   return style === 'raw' || style === 'jsdelivr' || style === 'custom';

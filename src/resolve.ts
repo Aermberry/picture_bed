@@ -1,7 +1,9 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import { isImageExt } from './extract.js';
+import { isImageExt } from './lib/img.js';
+import { sha256Hex } from './lib/hash.js';
+import { isUnderRoot } from './lib/paths.js';
 import type { Asset, BlockedItem, ImageRef } from './types.js';
 
 export interface ResolveOptions {
@@ -76,8 +78,7 @@ export function resolveAssets(
       continue;
     }
 
-    const relToRoot = path.relative(root, abs);
-    if (relToRoot.startsWith('..') || path.isAbsolute(relToRoot)) {
+    if (!isUnderRoot(root, abs)) {
       if (!opts.allowAbsolute) {
         blocked.push({
           ref,
@@ -99,7 +100,7 @@ export function resolveAssets(
     }
 
     const buf = fs.readFileSync(abs);
-    const sha256 = crypto.createHash('sha256').update(buf).digest('hex');
+    const sha256 = sha256Hex(buf);
     const key = sha256;
     const existing = byPath.get(key);
     if (existing) {
