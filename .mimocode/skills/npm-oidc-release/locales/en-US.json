@@ -1,4 +1,0 @@
-{
-  "displayName": "npm OIDC Release",
-  "brief": "Diagnose and fix GitHub Release + npm Trusted Publishing pipelines"
-}

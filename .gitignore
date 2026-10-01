@@ -2,6 +2,9 @@
 .DS_Store
 Thumbs.db
 desktop.ini
+# Unexpanded Windows %VAR% (e.g. %SystemDrive%) resolved relative to CWD by 3rd-party apps
+%*/
+**/%*/
 
 # Env
 .env
@@ -42,6 +45,6 @@ coverage/
 # TypeScript incremental cache
 *.tsbuildinfo
 
-# Agent workspace scratch / reports (default uncommitted)
-.agents/tmp/
-.agents/reports/
+# Local agent tooling — never pushed (was tracked before 2026-10-01)
+.agents/
+.mimocode/
