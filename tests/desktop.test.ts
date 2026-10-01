@@ -172,6 +172,9 @@ describe('F24 desktop shell', () => {
     expect(INDEX_HTML).toContain('id="dirPickerCreate"');
     expect(spaApp).toContain('openDirPicker');
     expect(spaApp).toMatch(/cfgDirInput\.addEventListener\("focus"/);
+    // gh 一键登录：/api/auth/gh-login/start 仅收 POST（GET 会 404 no route）
+    expect(INDEX_HTML).toContain('id="cfgGhLogin"');
+    expect(spaApp).toMatch(/api\/auth\/gh-login\/start", \{\}, "POST"/);
     // display-only: the dir input cannot be typed into — its value comes from the picker only
     expect(INDEX_HTML).toMatch(/id="cfgDir"[^>]*\breadonly\b/);
     expect(SPA_CSS).toContain('.dir-field');
