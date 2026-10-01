@@ -66,6 +66,10 @@ WebUiFacade
   # GET  /api/events          # SSE/长轮询：watch 与 sync 进度（实现可选）
   # GET  /api/gallery         # ?path= 列仓库目录/文件（F17 管理视图）
   # POST /api/repo/mkdir      # { path, confirm: true } 新建远程目录（.gitkeep 占位）· F20
+  # POST /api/auth/token      # { token?, clear? , confirm: true } 粘贴 PAT → 本机凭据（~/.picbed/credentials.json，不写 picbed.toml）
+  # POST /api/auth/gh-login/start    # 启动 gh auth login（**仅 POST**；GET → 404 no route）。已 gh auth login → 直接 {status:'done'}；否则 spawn `gh auth login --web` 并轮询
+  # GET  /api/auth/gh-login/status   # 登录会话状态：idle / running / done / error（前端 2s 轮询）
+  # POST /api/auth/gh-login/cancel   # 取消进行中的登录
 ```
 
 `ViewMapper` 把应用结果 DTO 映射为视图模型；**禁止**在 mapper 中改变 action 分类或退出码语义。
