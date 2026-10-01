@@ -43,7 +43,7 @@ describe('ui F19–F22', () => {
     base = handle.url;
     await fetch(base + '/api/session/bind-root', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-Picbed-UI': '1' },
       body: JSON.stringify({ root: path.join(cwd, 'docs') }),
     });
   });
@@ -55,7 +55,7 @@ describe('ui F19–F22', () => {
   async function api(pathname: string, body?: unknown) {
     const res = await fetch(base + pathname, {
       method: body === undefined ? 'GET' : 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-Picbed-UI': '1' },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
     return { status: res.status, data: await res.json() };

@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -84,7 +85,7 @@ describe('ui server F16–F18', () => {
   async function api(pathname: string, body?: unknown) {
     const res = await fetch(base + pathname, {
       method: body === undefined ? 'GET' : 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-Picbed-UI': '1' },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
     return { status: res.status, data: await res.json() };
@@ -319,5 +320,124 @@ describe('ui server F16–F18', () => {
     const legacy = await fetch(base + '/app.js');
     expect(legacy.status).toBe(200);
     expect(await legacy.text()).toBe(spaApp);
+  });
+});
+
+describe('HTTP hardening (review finding 4)', () => {
+  let handle: UiServerHandle;
+  let base: string;
+
+  beforeAll(async () => {
+    handle = await createUiServer({ cwd: tmp() }).listen(0, '127.0.0.1');
+    base = handle.url;
+  });
+
+  afterAll(async () => {
+    await handle.close();
+  });
+
+  const port = () => Number(new URL(base).port);
+
+  /** Raw HTTP request so we control headers browsers/undici forbid (Origin, missing Host). */
+  function raw(requestText: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const sock = net.connect(port(), '127.0.0.1', () => sock.write(requestText));
+      let data = '';
+      sock.on('data', (c) => (data += c));
+      sock.on('end', () => resolve(data));
+      sock.on('error', reject);
+      sock.setTimeout(3000, () => {
+        sock.destroy();
+        reject(new Error('raw request timed out'));
+      });
+    });
+  }
+
+  it('POST /api requires X-Picbed-UI header', async () => {
+    const res = await fetch(base + '/api/plan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}',
+    });
+    expect(res.status).toBe(403);
+    expect((await res.json()).error.code).toBe('E_HEADER');
+  });
+
+  it('POST /api requires application/json', async () => {
+    const res = await fetch(base + '/api/plan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain', 'X-Picbed-UI': '1' },
+      body: '{"confirm":true}',
+    });
+    expect(res.status).toBe(415);
+    expect((await res.json()).error.code).toBe('E_CONTENT_TYPE');
+  });
+
+  it('cross-origin /api requests are rejected; same-origin and Origin-less pass', async () => {
+    const evil = await raw(
+      `GET /api/health HTTP/1.1\r\nHost: 127.0.0.1:${port()}\r\nOrigin: http://evil.example\r\nConnection: close\r\n\r\n`,
+    );
+    expect(evil).toContain('403');
+    expect(evil).toContain('E_ORIGIN');
+
+    const nullOrigin = await raw(
+      `GET /api/health HTTP/1.1\r\nHost: 127.0.0.1:${port()}\r\nOrigin: null\r\nConnection: close\r\n\r\n`,
+    );
+    expect(nullOrigin).toContain('403');
+
+    const same = await raw(
+      `GET /api/health HTTP/1.1\r\nHost: 127.0.0.1:${port()}\r\nOrigin: ${base}\r\nConnection: close\r\n\r\n`,
+    );
+    expect(same).toContain('200');
+
+    const noOrigin = await fetch(base + '/api/health');
+    expect(noOrigin.status).toBe(200);
+  });
+
+  it('non-loopback Host with matching Origin is still rejected (Host must name bind address)', async () => {
+    const rebinding = await raw(
+      `GET /api/health HTTP/1.1\r\nHost: evil.example:${port()}\r\nOrigin: http://evil.example:${port()}\r\nConnection: close\r\n\r\n`,
+    );
+    expect(rebinding).toContain('403');
+    expect(rebinding).toContain('E_HOST');
+    expect(rebinding).not.toContain('evil.example'); // no origin/host echo
+  });
+
+  it('request body over 64 KiB gets 413', async () => {
+    const res = await fetch(base + '/api/session/reset', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Picbed-UI': '1' },
+      body: 'a'.repeat(64 * 1024 + 1),
+    });
+    expect(res.status).toBe(413);
+    expect((await res.json()).error.code).toBe('E_BODY_TOO_LARGE');
+  });
+
+  it('HTTP/1.0 request without Host gets 400 (no silent fallback base)', async () => {
+    const res = await raw('GET /api/health HTTP/1.0\r\n\r\n');
+    expect(res).toContain('400');
+    expect(res).toContain('E_USAGE');
+  });
+
+  it('CORS preflight gets no special handling (no Access-Control headers)', async () => {
+    // Refined design: cross-origin preflight hits the Origin guard first (403);
+    // same-origin OPTIONS falls through to the unknown-route 404.
+    const cross = await raw(
+      `OPTIONS /api/sync HTTP/1.1\r\nHost: 127.0.0.1:${port()}\r\nOrigin: http://evil.example\r\nAccess-Control-Request-Method: POST\r\nConnection: close\r\n\r\n`,
+    );
+    expect(cross).toContain('403');
+    expect(cross).toContain('E_ORIGIN');
+    expect(cross).not.toContain('Access-Control-Allow-Origin');
+
+    const same = await raw(
+      `OPTIONS /api/sync HTTP/1.1\r\nHost: 127.0.0.1:${port()}\r\nOrigin: ${base}\r\nAccess-Control-Request-Method: POST\r\nConnection: close\r\n\r\n`,
+    );
+    expect(same).toContain('404');
+    expect(same).not.toContain('Access-Control-Allow-Origin');
+  });
+
+  it('static assets are not subject to the /api guards', async () => {
+    const res = await fetch(base + '/styles.css');
+    expect(res.status).toBe(200);
   });
 });

@@ -194,7 +194,7 @@
   async function api(path, body, method) {
     const res = await fetch(path, {
       method: method || (body ? "POST" : "GET"),
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "X-Picbed-UI": "1" },
       body: body ? JSON.stringify(body) : undefined,
     });
     const data = await res.json();
