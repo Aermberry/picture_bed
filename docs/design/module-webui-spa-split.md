@@ -81,7 +81,7 @@ src/ui/static.ts # 缩为 barrel：export { INDEX_HTML } from './spa/index.js'
 
 - `docs/architecture.md` §7.1 前端行 + 开放问题 8：冻结措辞由"轻量 Vite + 原生 SPA"改为"原生 SPA 拆分为 `src/ui/spa/` 真实 TS 模块，tsc 直编、静态路由下发（不引入 React/Vite）"；
 - `docs/design/module-webui.md` 头部增加本文件指针；
-- `scripts/validate-design.ps1` 文件清单加入本文件。
+- `scripts/validate.mjs`（`--profile=design`）文件清单加入本文件。
 
 ## 交付物与验收
 
