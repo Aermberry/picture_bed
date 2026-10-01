@@ -21,6 +21,7 @@ node_modules/
 .pnp.js
 
 # Build
+# tsc → dist/；electron.vite → out/；electron-builder → release/
 dist/
 build/
 out/
@@ -36,6 +37,7 @@ release/
 *.swo
 
 # picbed local state
+# picbed.toml = 本机仓库/分支配置（src/config.ts: CONFIG_NAME），绝不入库
 .picbed/
 picbed.toml
 coverage/
@@ -49,3 +51,4 @@ coverage/
 # Local agent tooling — never pushed (was tracked before 2026-10-01)
 .agents/
 .mimocode/
+.codebuddy/
