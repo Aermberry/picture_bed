@@ -3,8 +3,8 @@ import http from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { getToken, loadConfig } from '../config.js';
-import { probeGhToken } from '../store.js';
 import { clearUserToken, writeUserToken } from '../user-token.js';
+import { probeGhToken, spawnGhLogin } from '../store.js';
 import type { JsonEnvelope, ResolvedConfig } from '../types.js';
 import {
   asAppError,
@@ -19,6 +19,8 @@ import {
   runPlan,
   runRevert,
   runSync,
+  serializeConfigToml,
+  importConfigToml,
   writeConfigKey,
 } from '../app/index.js';
 import { RootBinder, ensureDocExt } from './root.js';
@@ -118,6 +120,13 @@ export function createUiServer(opts: UiServerOptions): {
     status: string;
   }[] = [];
 
+  /** gh auth login 会话状态（单例，同时只允许一个登录流程） */
+  let ghLoginSession: {
+    status: 'running' | 'done' | 'error';
+    output: string;
+    error?: string;
+  } | null = null;
+
   const loadCfg = (): ResolvedConfig => loadConfig({ cwd, configPath: opts.configPath });
 
   const server = http.createServer(async (req, res) => {
@@ -143,21 +152,7 @@ export function createUiServer(opts: UiServerOptions): {
         return;
       }
 
-      if (req.method === 'GET' && url.pathname === '/app.js') {
-        const js = rendererMainJs();
-        if (js === null) {
-          send(500, envelope(false, 'api.static', undefined, {
-            code: 'E_STATIC',
-            message: 'renderer/main.js missing; run scripts/extract-renderer.mjs',
-          }));
-          return;
-        }
-        res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'no-store' });
-        res.end(js);
-        return;
-      }
-
-      if (req.method === 'GET' && url.pathname === '/main.js') {
+      if (req.method === 'GET' && (url.pathname === '/app.js' || url.pathname === '/main.js')) {
         const js = rendererMainJs();
         if (js === null) {
           send(500, envelope(false, 'api.static', undefined, {
@@ -549,7 +544,7 @@ export function createUiServer(opts: UiServerOptions): {
         if (!token) {
           send(401, envelope(false, 'api.gallery', undefined, {
             code: 'E_TOKEN',
-            message: '需要 GitHub Token：请先 gh 一键登录、粘贴 PAT，或配置 PICBED_GITHUB_TOKEN',
+            message: '需要 GitHub Token：请在设置中粘贴 PAT 保存、配置 PICBED_GITHUB_TOKEN，或本机 gh auth login 后自动读取',
           }));
           return;
         }
@@ -584,6 +579,7 @@ export function createUiServer(opts: UiServerOptions): {
             download_url?: string;
             html_url?: string;
             size?: number;
+            sha?: string;
           }>;
           const items = Array.isArray(list)
             ? list.map((it) => ({
@@ -592,6 +588,7 @@ export function createUiServer(opts: UiServerOptions): {
                 type: it.type === 'dir' ? 'dir' : 'file',
                 url: it.download_url || it.html_url || '',
                 size: it.size ?? null,
+                sha: it.sha ?? null,
               }))
             : [];
           send(200, envelope(true, 'api.gallery', {
@@ -609,28 +606,76 @@ export function createUiServer(opts: UiServerOptions): {
         return;
       }
 
-      if (req.method === 'POST' && url.pathname === '/api/auth/gh') {
-        // gh 一键登录：环境变量优先，否则 gh auth token（区分未装/未登录）
-        const envTok = process.env.PICBED_GITHUB_TOKEN || process.env.GITHUB_TOKEN;
-        if (envTok) {
-          send(200, envelope(true, 'api.auth.gh', {
-            source: 'env',
-            tokenMask: '••••••••',
+      if (req.method === 'POST' && url.pathname === '/api/gallery/delete') {
+        // 图库批量删除：调用 GitHub Contents DELETE 逐个删除选中文件
+        const cfg = loadCfg();
+        const owner = cfg.github.owner;
+        const repo = cfg.github.repo;
+        const token = getToken();
+        const branch = cfg.github.branch;
+        if (!owner || !repo) {
+          send(400, envelope(false, 'api.gallery.delete', undefined, {
+            code: 'E_CONFIG',
+            message: '请先在设置中配置 github.owner / github.repo',
           }));
           return;
         }
-        const probed = probeGhToken();
-        if (probed.token) {
-          send(200, envelope(true, 'api.auth.gh', {
-            source: 'gh',
-            tokenMask: '••••••••',
+        if (!token) {
+          send(401, envelope(false, 'api.gallery.delete', undefined, {
+            code: 'E_TOKEN',
+            message: '需要 GitHub Token：请在设置中粘贴 PAT 保存、配置 PICBED_GITHUB_TOKEN，或本机 gh auth login 后自动读取',
           }));
           return;
         }
-        send(401, envelope(false, 'api.auth.gh', { reason: probed.reason }, {
-          code: probed.reason === 'not-installed' ? 'E_GH_MISSING' : 'E_TOKEN',
-          message: probed.message || '未能取得 GitHub Token',
-        }));
+        const body = JSON.parse((await readBody(req)) || '{}') as {
+          items?: Array<{ path?: string; sha?: string; name?: string }>;
+        };
+        const targets = Array.isArray(body.items)
+          ? body.items
+              .filter((it) => it && it.path && it.sha)
+              .map((it) => ({ path: String(it.path), sha: String(it.sha), name: String(it.name || it.path) }))
+          : [];
+        if (!targets.length) {
+          send(400, envelope(false, 'api.gallery.delete', undefined, {
+            code: 'E_BAD_REQUEST',
+            message: 'items ({path,sha}[]) required',
+          }));
+          return;
+        }
+        const headers: Record<string, string> = {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/vnd.github+json',
+          'X-GitHub-Api-Version': '2022-11-28',
+          'User-Agent': 'picbed',
+        };
+        const deleted: Array<{ path: string; name: string }> = [];
+        const failed: Array<{ path: string; name: string; error: string }> = [];
+        for (const t of targets) {
+          try {
+            const deleteUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${t.path
+              .split('/')
+              .map(encodeURIComponent)
+              .join('/')}`;
+            const res = await fetch(deleteUrl, {
+              method: 'DELETE',
+              headers: { ...headers, 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                message: cfg.upload.commitMessage || 'picbed: delete image',
+                sha: t.sha,
+                branch,
+              }),
+            });
+            if (!res.ok) {
+              const text = await res.text();
+              failed.push({ path: t.path, name: t.name, error: `GitHub API ${res.status}: ${text}` });
+              continue;
+            }
+            deleted.push({ path: t.path, name: t.name });
+          } catch (e) {
+            failed.push({ path: t.path, name: t.name, error: e instanceof Error ? e.message : String(e) });
+          }
+        }
+        send(200, envelope(true, 'api.gallery.delete', { deleted: deleted.length, failed }, undefined, failed.length > 0 ? [`部分失败 ${failed.length} 个`] : undefined));
         return;
       }
 
@@ -669,6 +714,110 @@ export function createUiServer(opts: UiServerOptions): {
         return;
       }
 
+      // ── gh 一键登录：启动 / 轮询 ──
+      if (req.method === 'POST' && url.pathname === '/api/auth/gh-login/start') {
+        if (ghLoginSession && ghLoginSession.status === 'running') {
+          send(409, envelope(false, 'api.auth.gh-login', undefined, {
+            code: 'E_RUNNING',
+            message: 'gh auth login 正在进行中，请先完成或等待结束',
+          }));
+          return;
+        }
+        // 先检查是否已安装 gh
+        const probe = probeGhToken();
+        if (probe.reason === 'not-installed') {
+          send(400, envelope(false, 'api.auth.gh-login', undefined, {
+            code: 'E_GH_NOT_FOUND',
+            message: probe.message || '未检测到 GitHub CLI（gh）',
+          }));
+          return;
+        }
+        // 如果已有 token，提示无需登录
+        if (probe.token) {
+          writeUserToken(probe.token);
+          ghLoginSession = { status: 'done', output: '已通过 gh CLI 获取 token，无需重复登录' };
+          send(200, envelope(true, 'api.auth.gh-login', {
+            status: 'done',
+            message: 'gh 已登录，自动获取 token',
+            tokenMask: '••••••••',
+          }));
+          return;
+        }
+
+        ghLoginSession = { status: 'running', output: '' };
+        try {
+          const { promise } = spawnGhLogin((chunk) => {
+            if (ghLoginSession) {
+              ghLoginSession.output += chunk;
+            }
+          });
+          promise.then(() => {
+            if (!ghLoginSession) return;
+            // 登录成功后尝试读取 token
+            const after = probeGhToken();
+            if (after.token) {
+              writeUserToken(after.token);
+              ghLoginSession = {
+                status: 'done',
+                output: ghLoginSession.output + '\n✅ 登录成功，已保存 token',
+              };
+            } else {
+              ghLoginSession = {
+                status: 'done',
+                output: ghLoginSession.output + '\n✅ gh auth login 已完成',
+              };
+            }
+          }).catch((err) => {
+            if (ghLoginSession) {
+              ghLoginSession = {
+                status: 'error',
+                output: ghLoginSession.output,
+                error: err instanceof Error ? err.message : String(err),
+              };
+            }
+          });
+          send(200, envelope(true, 'api.auth.gh-login', {
+            status: 'running',
+            message: 'gh auth login 已启动，请在弹出的浏览器中完成授权',
+          }));
+        } catch (err) {
+          ghLoginSession = null;
+          send(500, envelope(false, 'api.auth.gh-login', undefined, {
+            code: 'E_SPAWN',
+            message: err instanceof Error ? err.message : String(err),
+          }));
+        }
+        return;
+      }
+
+      if (req.method === 'GET' && url.pathname === '/api/auth/gh-login/status') {
+        if (!ghLoginSession) {
+          send(200, envelope(true, 'api.auth.gh-login', { status: 'idle' }));
+          return;
+        }
+        const result: Record<string, unknown> = {
+          status: ghLoginSession.status,
+          output: ghLoginSession.output,
+        };
+        if (ghLoginSession.error) result.error = ghLoginSession.error;
+        // 完成或出错后清理 session（但保留 output 供最后一次读取）
+        const isTerminal = ghLoginSession.status === 'done' || ghLoginSession.status === 'error';
+        send(200, envelope(true, 'api.auth.gh-login', result));
+        if (isTerminal) {
+          // 延迟清理，让前端有机会读取最终状态
+          setTimeout(() => { ghLoginSession = null; }, 5000);
+        }
+        return;
+      }
+
+      if (req.method === 'POST' && url.pathname === '/api/auth/gh-login/cancel') {
+        if (ghLoginSession && ghLoginSession.status === 'running') {
+          ghLoginSession = { status: 'error', output: ghLoginSession.output, error: '用户取消' };
+        }
+        send(200, envelope(true, 'api.auth.gh-login', { cancelled: true }));
+        return;
+      }
+
       if (req.method === 'GET' && url.pathname === '/api/config') {
         const cfg = loadCfg();
         send(200, envelope(true, 'api.config', publicConfig(cfg, { root: binder.root })));
@@ -692,6 +841,50 @@ export function createUiServer(opts: UiServerOptions): {
         const cfg = loadCfg();
         const out = writeConfigKey(cfg, body.key ?? '', body.value ?? '', Boolean(body.dryRun));
         send(200, envelope(true, 'api.config', out));
+        return;
+      }
+
+      if (req.method === 'GET' && url.pathname === '/api/config/export') {
+        // 导出：可移植 picbed.toml 文本；绝不含 token
+        const cfg = loadCfg();
+        send(200, envelope(true, 'api.config.export', { toml: serializeConfigToml(cfg) }));
+        return;
+      }
+
+      if (req.method === 'POST' && url.pathname === '/api/config/import') {
+        // 导入：校验 + 归一化后整体写回配置文件（不含 token）
+        const body = JSON.parse((await readBody(req)) || '{}') as {
+          toml?: string;
+          confirm?: boolean;
+          dryRun?: boolean;
+        };
+        if (body.confirm !== true && !body.dryRun) {
+          send(409, envelope(false, 'api.config.import', undefined, {
+            code: 'E_CONFIRM',
+            message: 'config import writes files; set confirm: true (or dryRun: true)',
+          }));
+          return;
+        }
+        const toml = String(body.toml ?? '');
+        if (!toml.trim()) {
+          send(400, envelope(false, 'api.config.import', undefined, {
+            code: 'E_USAGE',
+            message: 'toml is empty；请提供导出的 picbed.toml 文本',
+          }));
+          return;
+        }
+        try {
+          const cfg = loadCfg();
+          const out = importConfigToml(cfg, toml, Boolean(body.dryRun));
+          send(200, envelope(true, 'api.config.import', {
+            file: out.file,
+            dryRun: out.dryRun,
+            config: publicConfig(out.config),
+          }));
+        } catch (e) {
+          const appErr = asAppError(e);
+          send(httpStatusForCode(appErr.code), envelope(false, 'api.config.import', undefined, appErr));
+        }
         return;
       }
 

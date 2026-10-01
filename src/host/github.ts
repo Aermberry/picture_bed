@@ -151,6 +151,29 @@ export class GitHubHostAdapter implements HostAdapter {
     }
   }
 
+  async deleteFile(
+    repoPath: string,
+    sha: string,
+    message: string,
+    branch: string,
+  ): Promise<void> {
+    const res = await fetch(this.urlFor(repoPath), {
+      method: 'DELETE',
+      headers: {
+        ...this.headers(),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ message, sha, branch }),
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      throw Object.assign(new Error(`DELETE contents failed: ${res.status} ${text}`), {
+        code: 'E_REMOTE',
+        status: res.status,
+      });
+    }
+  }
+
   composeUrls(repoPath: string): HostUrls {
     return composeGithubUrls({ github: this.cfg, url: this.url }, repoPath);
   }

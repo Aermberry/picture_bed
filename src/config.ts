@@ -61,6 +61,51 @@ export function parseSimpleToml(text: string): Record<string, Record<string, str
   return out;
 }
 
+/**
+ * Normalize a GitHub owner/repo reference to bare slugs.
+ * Users often paste a full URL (`https://github.com/o/r`, `git@github.com:o/r.git`)
+ * or an `o/r` slug into the repo field; the rest of the code interpolates
+ * `repos/${owner}/${repo}`, so a URL there yields a malformed API path (GitHub 404).
+ */
+export function normalizeGithubRef(
+  rawOwner: string,
+  rawRepo: string,
+): { owner: string; repo: string } {
+  const stripProto = (s: string) =>
+    s.replace(/^[a-z][a-z0-9+.-]*:\/\//i, '').replace(/^git@/i, '');
+
+  let owner = (rawOwner || '').trim();
+  let repo = (rawRepo || '').trim().replace(/[\/\\]+$/, '');
+
+  const isUrl = /^[a-z][a-z0-9+.-]*:\/\//i.test(repo) || /^git@/i.test(repo);
+  if (isUrl || repo.includes('/')) {
+    // Split on "/", "\" and the scp-style ":"; drop a leading host segment (has a dot).
+    const parts = stripProto(repo)
+      .replace(/\.git$/i, '')
+      .split(/[\\/:]/)
+      .filter(Boolean);
+    if (parts.length && parts[0].includes('.')) parts.shift();
+    if (parts.length >= 2) {
+      owner = parts[parts.length - 2];
+      repo = parts[parts.length - 1];
+    } else if (parts.length === 1) {
+      repo = parts[0];
+    }
+  } else {
+    repo = repo.replace(/\.git$/i, '');
+  }
+
+  // owner must be a bare slug too (defensive against a URL/slash in the owner field).
+  const ownerParts = stripProto(owner)
+    .replace(/\.git$/i, '')
+    .split(/[\\/:]/)
+    .filter(Boolean);
+  if (ownerParts.length && ownerParts[0].includes('.')) ownerParts.shift();
+  owner = ownerParts[ownerParts.length - 1] ?? '';
+
+  return { owner, repo };
+}
+
 export function findConfigPath(startDir: string): string | undefined {
   let dir = path.resolve(startDir);
   for (;;) {
@@ -103,11 +148,16 @@ export function loadConfig(opts: {
     process.env.PICBED_HOST_TYPE ?? fileData.host?.type ?? DEFAULTS.host.type;
   const hostType = hostTypeRaw === 'local' ? ('local' as const) : ('github' as const);
 
+  const ghRef = normalizeGithubRef(
+    envOwner ?? fileData.github?.owner ?? DEFAULTS.github.owner,
+    envRepo ?? fileData.github?.repo ?? DEFAULTS.github.repo,
+  );
+
   const cfg: ResolvedConfig = {
     host: { type: hostType },
     github: {
-      owner: envOwner ?? fileData.github?.owner ?? DEFAULTS.github.owner,
-      repo: envRepo ?? fileData.github?.repo ?? DEFAULTS.github.repo,
+      owner: ghRef.owner,
+      repo: ghRef.repo,
       branch: envBranch ?? fileData.github?.branch ?? DEFAULTS.github.branch,
       dir: envDir ?? fileData.github?.dir ?? DEFAULTS.github.dir,
     },
