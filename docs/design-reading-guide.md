@@ -189,6 +189,37 @@
 
 ---
 
+## 10.1 图长在设计过程里（2026-10-02）
+
+> 原则：**不单独制作 UML 图**。图是某个模块设计步骤的产物，必须就地长在该模块的文档里。
+
+### 何时画
+
+按「**只画复杂任务**」原则（AGENTS.md §核心惯例）：
+
+| 情形 | 画什么 | 本项目的例子 |
+|------|--------|--------------|
+| 端口契约 + 多个实现 | class 图 | [`module-transfer.md`](design/module-transfer.md) §端口（`HostAdapter` + github/local） |
+| 跨多文件的编排链 | sequence 图 | [`module-app.md`](design/module-app.md) §复杂任务（`runSync` 全链路） |
+| 多分支判定 / 状态机 | state 图 | [`module-transfer.md`](design/module-transfer.md) §F6（plan 五分类决策） |
+| 进程与本地状态的接缝 | sequence 图 | [`module-webui.md`](design/module-webui.md) §F20.2（gh 登录 spawn + 轮询） |
+| 依赖方向（防边界破坏） | component 图 | [`architecture.md`](architecture.md) §2.5.4 |
+| ❌ 单个工具函数 / 字段列表 / 一次性示例 | **不画**；用 TS 类型或一段 Markdown | — |
+
+### 画在哪：每张图要有三件套
+
+1. **图前**：这一节要解决的问题，以及图的**输入**（数据模型 / 调用签名 / 前提约束）。
+2. **图**：PlantUML 代码块（```plantuml），保留 `@startuml/@enduml` 便于直接渲染；**不写 skinparam**——皮肤属于渲染工具，不属于设计语义。
+3. **图后**：从这张图能读出哪些**否则读不出来**的结论（职责边界、判定顺序、失败隔离点），并回指到守护它的测试（如 `tests/layering.test.ts`）。**写不出结论的图说明它不该存在**。
+
+### 维护
+
+- 改接口签名、编排顺序、状态分支时，图与其后的结论**一起改**。
+- **不要**把图放进 `diagrams/` 之类的独立目录：脱离上下文的图必然漂移（本项目曾有一批孤立 `.puml`，零外部引用，现已全部并入各模块文档）。
+- 渲染：VS Code 插件 `jebbs.plantuml`（需 Graphviz），或粘贴到 https://www.plantuml.com/plantuml/uml/ 。
+
+---
+
 ## 10. 维护约定
 
 新增功能点：先在 `features-index.md` 登记 → 在 `module-*` 加「功能点映射」链回总表 → 若影响分期更新 `architecture.md` §9 → 必要时修订本指南。

@@ -51,6 +51,92 @@ src/app/
 | `readConfigKey` / `writeConfigKey` | 键枚举 + **url.style 校验** + TOML 改写 | CLI `config get/set`；API `/api/config` |
 | `runs.ts`（RunRecorder） | `./.picbed/runs/*.json` 追加 / 读取 | CLI 与 Web 共用（审计 F21） |
 
+## 复杂任务：sync 编排链（为什么必须画出来）
+
+`runSync` 是唯一一次同时触碰「读取文本 → 网络写 → 本地写 → 审计」的服务，而其中**文本快照只能取一次**（§行为增量 7）。这条约束在单个服务描述里看不出来，因此画出全链路：
+
+```plantuml
+@startuml sync-orchestration
+title sync 编排时序（runSync · 单次 collect+plan）
+
+actor "User / UI" as U
+participant "CLI / WebUI" as CLI
+participant "runSync" as SYNC
+participant "runPlan" as PLAN
+participant "collect" as COLLECT
+participant "scanDocs / extractRefs" as INGEST
+participant "resolveAssets" as RESOLVE
+participant "buildPlan" as BUILD
+participant "Manifest store" as MAN
+participant "createHostAdapter" as FACT
+participant "HostAdapter" as ADAPTER
+participant "GitHub Contents API" as GH
+participant "applyRewrites" as REWRITE
+
+U -> CLI: picbed sync <path> --yes
+CLI -> SYNC: runSync({ root, cfg, cwd, getToken })
+
+== 1. 单次 collect + plan（文本快照）==
+SYNC -> PLAN: runPlan(root, cfg, cwd)
+PLAN -> COLLECT: collect(root, cfg)
+COLLECT -> INGEST: scanDocs + extractRefs
+INGEST --> COLLECT: docs[] + ImageRef[]
+COLLECT -> RESOLVE: resolveAssets(refs, { scanRoot })
+RESOLVE --> COLLECT: { assets, blocked, remoteSkips }
+COLLECT --> PLAN: CollectResult
+PLAN -> MAN: loadManifest(cwd)
+PLAN -> BUILD: buildPlan({ assets, blocked, remoteSkips, manifest })
+BUILD --> PLAN: SyncPlanItem[]（含 skip-cache / upload / blocked）
+PLAN --> SYNC: { collected, plan, summary }
+
+== 2. 鉴权 + 适配器 ==
+SYNC -> SYNC: token = getToken()
+alt 需要 token 但没有
+    SYNC --> CLI: throw E_TOKEN
+end
+SYNC -> FACT: createHostAdapter(cfg, token)
+FACT --> SYNC: HostAdapter
+
+== 3. 上传（按 sha 去重）==
+loop plan 中 action == 'upload'
+    SYNC -> MAN: findCachedUrl(sha256)
+    alt 缓存命中
+        SYNC --> SYNC: items.push({ skip-cache, publicUrl })
+    else 未命中
+        SYNC -> ADAPTER: remotePath(sha256, localPath)
+        SYNC -> ADAPTER: putFile(repoPath, bytes, message, branch)
+        ADAPTER -> GH: PUT /repos/{o}/{r}/contents/{path}
+        GH --> ADAPTER: 201 Created
+        SYNC -> ADAPTER: composeUrls(repoPath)
+        SYNC -> MAN: mergeManifest(entries)
+    end
+end
+
+== 4. 回写审计 ==
+loop 每个 doc
+    SYNC -> REWRITE: applyRewrites({ docPath, content, items, backup, dryRun })
+    REWRITE --> SYNC: { outPath, entries }
+    SYNC -> MAN: mergeManifest(entries)
+end
+SYNC -> MAN: saveManifest(cwd, manifest)
+SYNC -> SYNC: recordRun({ command:'sync', items, errors })
+SYNC --> CLI: { ok, uploaded, rewrittenDocs, partial, runId }
+
+note right of SYNC
+    **失败隔离 + partial**
+    单文件失败不中断后续
+    partial = !ok && (uploaded + rewritten > 0)
+end note
+@enduml
+```
+
+由这张图得出的规则：
+
+1. **上传与回写共用同一份 `CollectResult`**：时刻 1 只做一次 scan/extract/resolve，之后不再重扫——这就是 §行为增量 7 的"同一文本快照"，也是为什么 `runSync` 不接受调用方传入的 plan 结果。
+2. **鉴权失败发生在任何写之前**：`E_TOKEN` 在阶段 2 抛出，此时还没 PUT 也没改文档，故失败可安全重试。
+3. **manifest 是两次写的中间层**：先把每个 asset 的 URL `mergeManifest` 进内存，最后才 `saveManifest`——对应"每次 run 最多一次 manifest 保存"（§不变式 2）。
+4. **partial 由 (uploaded+rewritten) 判定**，与具体错误数无关，保证 CLI 退出码 6 与 Web 207 同源。
+
 ## 错误映射（单一来源）
 
 | code | 含义 | 退出码 | HTTP |
