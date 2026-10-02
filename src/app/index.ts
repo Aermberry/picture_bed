@@ -9,7 +9,22 @@ export { listManifestView, runRevert } from './revert.js';
 export type { RevertResult } from './revert.js';
 export { doctorService, githubProbe, publicConfig } from './doctor.js';
 export type { DoctorCheck, DoctorProbe, DoctorReport } from './doctor.js';
-export { readConfigKey, writeConfigKey, serializeConfigToml, importConfigToml } from './settings.js';
+export {
+  readConfigKey,
+  writeConfigKey,
+  serializeConfigToml,
+  importConfigToml,
+  resolvedConfig,
+} from './settings.js';
+export {
+  clearSavedToken,
+  currentToken,
+  probeGh,
+  saveUserToken,
+  startGhLogin,
+} from './auth.js';
+export { uploadSingleAsset } from './upload.js';
+export type { UploadOneOptions, UploadOneResult } from './upload.js';
 export {
   createRepoDir,
   normalizeRepoDirPath,

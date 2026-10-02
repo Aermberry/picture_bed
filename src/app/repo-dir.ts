@@ -1,4 +1,4 @@
-import { GitHubHostAdapter } from '../host/github.js';
+import { createHostAdapter } from '../host/index.js';
 import type { ResolvedConfig } from '../types.js';
 import { AppError, asAppError, TOKEN_HINT } from './errors.js';
 
@@ -96,7 +96,11 @@ export async function createRepoDir(opts: CreateRepoDirOptions): Promise<CreateR
     throw new AppError('E_BAD_REQUEST', '目录名不能为空（仓库根目录无需创建）');
   }
 
-  const adapter = new GitHubHostAdapter(cfg.github, token, cfg.url);
+  // 经端口工厂取适配器，不再绑死 GitHub 实现；目录能力是可选能力
+  const adapter = createHostAdapter(cfg, token);
+  if (typeof adapter.entryType !== 'function') {
+    throw new AppError('E_CONFIG', `当前后端（${adapter.type}）不支持目录能力`);
+  }
 
   const existing = await adapter.entryType(target);
   if (existing === 'file') {

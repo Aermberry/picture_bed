@@ -14,11 +14,11 @@ import {
   runSync,
   TOKEN_HINT,
   writeConfigKey,
+  uploadSingleAsset,
+  type UploadOneResult,
 } from './app/index.js';
 import { CONFIG_NAME, configTemplate, getToken, loadConfig } from './config.js';
-import { createHostAdapter, hostRequiresToken, uploadAsset } from './host/index.js';
 import { EXIT, type ExitCode, type JsonEnvelope, type ResolvedConfig } from './types.js';
-import { sha256Hex } from './lib/hash.js';
 
 function emit<T>(
   json: boolean,
@@ -542,25 +542,21 @@ export async function run(argv: string[]): Promise<ExitCode> {
           path: abs,
         });
       }
-      const token = getToken();
-      if (hostRequiresToken(cfg) && !token) {
-        return fail(json, command, EXIT.CONFIG, {
-          code: 'E_TOKEN',
-          message: 'missing GitHub token (PICBED_GITHUB_TOKEN / GITHUB_TOKEN / GitHub CLI `gh`)',
-          hint: TOKEN_HINT,
+      // 编排下沉到 app/upload.ts：CLI 只负责参数与退出码
+      let uploaded: UploadOneResult;
+      try {
+        uploaded = await uploadSingleAsset({ cfg, file: abs, cwd });
+      } catch (err) {
+        const e = asAppError(err);
+        return fail(json, command, e.exitCode, {
+          code: e.code,
+          message: e.message,
+          ...(e.path ? { path: e.path } : {}),
+          ...(e.hint ? { hint: e.hint } : {}),
         });
       }
-      const bytes = fs.readFileSync(abs);
-      const sha256 = sha256Hex(bytes);
-      const host = createHostAdapter(cfg, token);
-      const remote = await uploadAsset(host, {
-        asset: { localPath: abs, sha256 },
-        bytes,
-        cfg,
-      });
-      const urls = host.composeUrls(remote.repoPath);
-      emit(json, { schemaVersion: 1, ok: true, command, data: { ...remote, ...urls, remotePath: remote.repoPath, hostType: host.type } }, () => {
-        console.log(remote.publicUrl);
+      emit(json, { schemaVersion: 1, ok: true, command, data: uploaded }, () => {
+        console.log(uploaded.publicUrl);
       });
       return EXIT.OK;
     }

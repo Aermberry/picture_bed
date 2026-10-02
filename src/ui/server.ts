@@ -2,13 +2,12 @@ import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { getToken, loadConfig } from '../config.js';
-import { clearUserToken, writeUserToken } from '../user-token.js';
-import { probeGhToken, spawnGhLogin } from '../infra/gh-cli.js';
 import type { JsonEnvelope, ResolvedConfig } from '../types.js';
 import {
   asAppError,
+  clearSavedToken,
   createRepoDir,
+  currentToken,
   doctorService,
   getRun,
   githubProbe,
@@ -22,6 +21,10 @@ import {
   runSync,
   serializeConfigToml,
   importConfigToml,
+  probeGh,
+  resolvedConfig,
+  saveUserToken,
+  startGhLogin,
   writeConfigKey,
 } from '../app/index.js';
 import { RootBinder, ensureDocExt } from './root.js';
@@ -146,7 +149,7 @@ export function createUiServer(opts: UiServerOptions): {
     error?: string;
   } | null = null;
 
-  const loadCfg = (): ResolvedConfig => loadConfig({ cwd, configPath: opts.configPath });
+  const loadCfg = (): ResolvedConfig => resolvedConfig(cwd, opts.configPath);
 
   const server = http.createServer(async (req, res) => {
     const hostHeader = req.headers.host ?? '';
@@ -607,7 +610,7 @@ export function createUiServer(opts: UiServerOptions): {
           root,
           cfg,
           cwd,
-          getToken,
+          getToken: currentToken,
           command: 'api.sync',
           includeDocs,
           includeImages,
@@ -633,7 +636,7 @@ export function createUiServer(opts: UiServerOptions): {
         const cfg = loadCfg();
         const owner = cfg.github.owner;
         const repo = cfg.github.repo;
-        const token = getToken();
+        const token = currentToken();
         if (!owner || !repo) {
           send(400, envelope(false, 'api.gallery', undefined, {
             code: 'E_CONFIG',
@@ -711,7 +714,7 @@ export function createUiServer(opts: UiServerOptions): {
         const cfg = loadCfg();
         const owner = cfg.github.owner;
         const repo = cfg.github.repo;
-        const token = getToken();
+        const token = currentToken();
         const branch = cfg.github.branch;
         if (!owner || !repo) {
           send(400, envelope(false, 'api.gallery.delete', undefined, {
@@ -794,7 +797,7 @@ export function createUiServer(opts: UiServerOptions): {
           return;
         }
         if (body.clear) {
-          clearUserToken();
+          clearSavedToken();
           send(200, envelope(true, 'api.auth.token', { cleared: true, tokenMask: '' }));
           return;
         }
@@ -806,7 +809,7 @@ export function createUiServer(opts: UiServerOptions): {
           }));
           return;
         }
-        writeUserToken(tok);
+        saveUserToken(tok);
         send(200, envelope(true, 'api.auth.token', {
           source: 'user',
           tokenMask: maskToken(tok),
@@ -824,7 +827,7 @@ export function createUiServer(opts: UiServerOptions): {
           return;
         }
         // 先检查是否已安装 gh
-        const probe = probeGhToken();
+        const probe = probeGh();
         if (probe.reason === 'not-installed') {
           send(400, envelope(false, 'api.auth.gh-login', undefined, {
             code: 'E_GH_NOT_FOUND',
@@ -834,7 +837,7 @@ export function createUiServer(opts: UiServerOptions): {
         }
         // 如果已有 token，提示无需登录
         if (probe.token) {
-          writeUserToken(probe.token);
+          saveUserToken(probe.token);
           ghLoginSession = { status: 'done', output: '已通过 gh CLI 获取 token，无需重复登录' };
           send(200, envelope(true, 'api.auth.gh-login', {
             status: 'done',
@@ -846,7 +849,7 @@ export function createUiServer(opts: UiServerOptions): {
 
         ghLoginSession = { status: 'running', output: '' };
         try {
-          const { promise } = spawnGhLogin((chunk) => {
+          const { promise } = startGhLogin((chunk) => {
             if (ghLoginSession) {
               ghLoginSession.output += chunk;
             }
@@ -854,9 +857,9 @@ export function createUiServer(opts: UiServerOptions): {
           promise.then(() => {
             if (!ghLoginSession) return;
             // 登录成功后尝试读取 token
-            const after = probeGhToken();
+            const after = probeGh();
             if (after.token) {
-              writeUserToken(after.token);
+              saveUserToken(after.token);
               ghLoginSession = {
                 status: 'done',
                 output: ghLoginSession.output + '\n✅ 登录成功，已保存 token',
@@ -953,7 +956,7 @@ export function createUiServer(opts: UiServerOptions): {
         try {
           const result = await createRepoDir({
             cfg: loadCfg(),
-            getToken,
+            getToken: currentToken,
             path: body.path ?? '',
             confirm: body.confirm === true,
           });
@@ -1018,7 +1021,7 @@ export function createUiServer(opts: UiServerOptions): {
 
       if (req.method === 'POST' && url.pathname === '/api/doctor') {
         const cfg = loadCfg();
-        const view = await doctorService({ cfg, getToken, probeApi: githubProbe });
+        const view = await doctorService({ cfg, getToken: currentToken, probeApi: githubProbe });
         send(view.ok ? 200 : 400, envelope(view.ok, 'api.doctor', view, view.ok ? null : {
           code: 'E_DOCTOR',
           message: 'doctor failed: ' + view.failures.join(','),
@@ -1117,7 +1120,7 @@ export function createUiServer(opts: UiServerOptions): {
               return;
             }
             if (m === 'auto') {
-              await runSync({ root, cfg, cwd, getToken, command: 'api.sync' });
+              await runSync({ root, cfg, cwd, getToken: currentToken, command: 'api.sync' });
             }
           },
         });
