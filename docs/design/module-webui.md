@@ -34,6 +34,30 @@ webui/
 └─ (无 host / 无 rewrite 写盘实现——经应用服务调用)
 ```
 
+### 实现落点（2026-10-02 补）：server 只做装配
+
+`src/ui/server.ts` 曾是一个 1119 行的单函数（30 条路由 + 静态下发 + 安检 + 编排混在一起）。
+现按「协议不常改 / 业务常改」切分，新增接口不再触碰安全代码：
+
+```
+src/ui/
+├─ server.ts            # 仅装配：安检 → 静态下发 → 路由表（<200 行，零 '/api/' 字面量）
+├─ context.ts           # UiRouteContext / UiRoute（命中返回 true 的路由契约）
+├─ gh-login.ts          # 登录会话状态（原闭包里的可变 let）
+├─ http/                # 协议与安检（不常改）
+│  ├─ guard.ts          #   Host 解析/绑定地址、/api 同源、POST 头、请求体上限
+│  ├─ body.ts           #   readBody（64 KiB 上限，超限仍 drain 以便送达 413）
+│  ├─ envelope.ts       #   统一 JSON 信封 / send / sendRaw / Host 归一化
+│  ├─ static.ts         #   index.html 注入、renderer/main.js、dev 模式探测
+│  └─ errors.ts         #   未捕获异常 → HTTP 状态码（由 app/errors.ts 派生）
+└─ routes/              # 业务路由（按资源分组，每个 <250 行）
+   ├─ health.ts session.ts preview.ts plan.ts sync.ts revert.ts
+   ├─ gallery.ts auth.ts config.ts system.ts runs.ts watch.ts
+```
+
+不变量：`http/` 不 import `routes/`，`routes/` 只经 `UiRouteContext` 拿依赖；
+由 `tests/layering.test.ts` 断言 server.ts 不含 `'/api/'` 且行数 <250。
+
 ## 领域模型
 
 ```text
