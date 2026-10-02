@@ -31,6 +31,15 @@ describe('src/lib 单点收敛', () => {
     expect(offenders.map((f) => f.rel)).toEqual([]);
   });
 
+  it('扩展名 → MIME 映射只在 src/lib/img.ts 出现', () => {
+    // 只认图片专属 MIME 字面量，故 ui/http/static.ts 的**静态资源**表（.js/.css/.html/.svg）不算重复：
+    // 那是下发 renderer 资源用的，与「图片资产」是两套语义。
+    const offenders = files
+      .filter((f) => f.rel !== 'lib/img.ts')
+      .filter((f) => /'image\/(png|jpeg|gif|webp|avif|bmp|x-icon)'/.test(f.text));
+    expect(offenders.map((f) => f.rel)).toEqual([]);
+  });
+
   it('sha256 只在 src/lib/hash.ts 里计算', () => {
     const offenders = files
       .filter((f) => f.rel !== 'lib/hash.ts')

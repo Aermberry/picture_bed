@@ -2,28 +2,13 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createHostAdapter, hostRequiresToken, uploadAsset } from '../host/index.js';
 import { sha256Hex } from '../lib/hash.js';
+import { mimeOf } from '../lib/img.js';
 import { findCachedUrl, loadManifest, saveManifest } from '../manifest.js';
 import { applyRewrites, mergeManifest } from '../rewrite.js';
 import type { Asset, ResolvedConfig, SyncPlanItem } from '../types.js';
 import { AppError, TOKEN_HINT } from './errors.js';
 import { runPlan } from './plan.js';
 import { newRunId, recordRun } from './run-store.js';
-
-function mimeOf(p: string): string {
-  const ext = path.extname(p).toLowerCase();
-  const map: Record<string, string> = {
-    '.png': 'image/png',
-    '.jpg': 'image/jpeg',
-    '.jpeg': 'image/jpeg',
-    '.gif': 'image/gif',
-    '.webp': 'image/webp',
-    '.avif': 'image/avif',
-    '.svg': 'image/svg+xml',
-    '.bmp': 'image/bmp',
-    '.ico': 'image/x-icon',
-  };
-  return map[ext] ?? 'application/octet-stream';
-}
 
 function standaloneAsset(localPath: string): Asset {
   const abs = path.resolve(localPath);
