@@ -109,6 +109,9 @@
 
 ### 2.2 领域服务层（核心能力）
 
+> ⚠️ 下面这些是**讨论用的逻辑角色名**，不是代码里的类名或文件名（源码中真实同名的只有 `HostAdapter` 家族与 `DoctorService`）。
+> 想知道每个角色落在哪个文件、导出什么函数，见 **§2.5.2 概念 → 代码实体**。
+
 - **DocumentScanner**：遍历目录，按扩展名/忽略规则得到 `DocFile[]`。
 - **RefExtractor**：从 MD/HTML 抽取 `ImageRef[]`（精确偏移，跳过 fenced/inline code）。
 - **AssetResolver**：相对文档目录解析路径；校验存在性/MIME/扩展名；拒绝越界与默认拒绝绝对路径。
@@ -165,6 +168,86 @@ package.json   files=[bin, dist, README.md]
 | npm tarball | 208 文件 / 120.5 KB | **274 文件 / 160.6 KB**（+33%） |
 
 守卫：`tests/package-surface.test.ts`（manifest 级：入口/bin/exports 不得越界发布面）+ `npm run validate:pack`（真实 `npm pack --dry-run --json` 审计 tarball，需先 `npm run build`）。npm 导出面细则见 `design/module-desktop.md`「npm 包导出面」。
+
+### 2.5 当前实现地图（2026-10-02 补）
+
+> §2–§2.3 描述的是**逻辑角色**（`DocumentScanner` 这类名字便于讨论，**不是**代码里的类名／文件名）。本节才是磁盘上的实际代码，两者由 2.5.2 的映射表连接。
+
+#### 2.5.1 运行时形态：一份编排，四个宿主
+
+同一份应用编排（`src/app/*`）被四个宿主复用，**任何宿主都不复制业务规则**：
+
+```text
+[1] picbed <cmd>  bin/picbed.js → src/cli.ts（commander，547 行）──────────┐
+                                                                            │
+[2] picbed ui     同一 cli.ts 的 `ui` 子命令 → import('./ui/index.js')       ├─► src/app/*
+                  → createUiServer → listen(127.0.0.1:4780) → 浏览器 /api/* │      │
+                                                                            │      ▼
+[3] picbed-mcp    bin/picbed-mcp.js → src/mcp/server.ts（stdio JSON-RPC）───┤   src/{scan,extract,resolve,
+                                                                            │        plan,rewrite,manifest}.ts
+[4] Electron 桌面  desktop/main.mjs:80 动态 import('../dist/ui/index.js')   │              │
+                  → 同一个 createUiServer                                    │              ▼
+                  → dev: listen(4780) 供 Vite proxy /api；prod: listen(0)   │        src/host/*（适配器）
+                  → BrowserWindow.loadURL(uiHandle.url) ────────────────────┘
+```
+
+| 宿主 | 入口 | 关键事实 |
+|------|------|----------|
+| CLI | `bin/picbed.js` → `dist/cli.js` ← `src/cli.ts` | commander；`ui` 子命令在同一文件懒加载 UI 服务器（`cli.ts:295`）；默认 host `127.0.0.1` / port `4780`（`cli.ts:116-117`），非回环绑定会告警（`cli.ts:292`） |
+| Web UI | `src/ui/server.ts` `createUiServer`（190 行，**只装配**） | 一个 Node 进程同时承载静态下发与 `/api/*`；流程为 安检（`http/guard`）→ 静态（`http/static`）→ 路由表（`routes/`） |
+| MCP | `src/mcp/server.ts`（204 行） | stdio JSON-RPC，供 Agent 调用，与 CLI 共用 `src/app/*` |
+| 桌面 | `desktop/main.mjs` | **不重新实现 UI**：动态 `import('../dist/ui/index.js')` 取 `createUiServer`（`main.mjs:80-86`）；dev 固定 `4780` 让 Vite 代理 `/api`，prod 用 `listen(0)` 由 OS 分配（`main.mjs:87-90`），窗口加载 `uiHandle.url`（`main.mjs:149`） |
+
+#### 2.5.2 §2.2 概念 → 代码实体
+
+| §2.2 概念 | 代码实体 | 备注 |
+|-----------|----------|------|
+| `DocumentScanner` | `src/scan.ts` → `scanDocs()` | |
+| `RefExtractor` | `src/extract.ts` → `extractRefs()` + `blankCodeRegions()` | 代码块防护抽成独立函数 |
+| `AssetResolver` | `src/resolve.ts` → `resolveAssets()` | 越界判定取 `src/lib/paths.ts` |
+| `Deduper` | **`src/resolve.ts:103-112` 内联**（`sha256Hex` → 以 sha 为 key 合并引用） | **无**独立类/文件 |
+| `PlanBuilder` | `src/plan.ts` → `buildPlan()` | 输出五态 action |
+| `LinkRewriter` | `src/rewrite.ts` → `rewriteDoc()` / `applyRewrites()` / `writeDocAtomic()` / `revertDoc()` | 原子写在同文件 |
+| `ManifestStore` | `src/manifest.ts` → `loadManifest` / `saveManifest` / `upsertEntry` / `findCachedUrl()` | |
+| `HostAdapter` 工厂 | `src/host/index.ts` → `createHostAdapter()`；实现在 `github.ts` / `local.ts` | 代码中**真实同名** |
+| `DoctorService` | `src/app/doctor.ts` → `doctorService()` | 代码中**真实同名** |
+| `SyncOrchestrator` | `src/app/sync.ts` → `runSync()` | scan → … → manifest 全流程 |
+| `RunRecorder` | `src/app/run-store.ts` → `recordRun` / `listRuns` / `getRun()` | |
+| `ConfirmGate` | 写操作的确认语义，落在 `src/ui/routes/{sync,revert}.ts` 等路由 | 类名不存在 |
+| `ViewMapper` / `WebUiFacade` / `AppShell` / `SideNav` / `DropZone` | `renderer/index.html` + `renderer/src/features/*`（如 `drop.js` 英雄区） | 纯前端，**不在** `src/` |
+| `NativeBridge` / `DesktopShell` | `desktop/main.mjs` + `desktop/preload.cjs`（`picbedNative` 桥） | |
+
+已核实：22 个角色名里仅 `HostAdapter`、`GitHubHostAdapter`、`LocalHostAdapter`、`DoctorService`、`picbedNative` 在源码中真实出现，其余为讨论用名，勿按名 grep。
+
+#### 2.5.3 `src/` 目录职责（61 文件 / 约 5.0k 行）
+
+| 路径 | 角色 | 要点 |
+|------|------|------|
+| `src/*.ts`（根目录） | **领域核心**（无网络 I/O） | `scan` / `extract` / `resolve` / `plan` / `rewrite` / `manifest` / `types` / `watch` / `user-token` / `config`；注意是**根目录平铺**，不存在 `core/` 目录 |
+| `src/app/` | 应用编排（唯一实现） | `index.ts` 为统一出口；CLI / WebUI / MCP 都只从这里取能力 |
+| `src/lib/` | 跨层单点 | `paths` / `img` / `hash` / `mask`——「错了即安全/数据事故」的横切逻辑（见 §2 开头） |
+| `src/host/` | 图床适配器 | `index.ts` 工厂 + `github` / `local` 实现 |
+| `src/infra/` | 外部进程 / 凭据 | `gh-cli.ts`（170 行）复用 `gh auth token` |
+| `src/ui/` | Web 控制台服务端 | `server.ts` 装配、`http/`（guard / body / envelope / static / errors）、`routes/`（12 个路由）、`root.ts` RootBinder、`watch.ts` WatchController、`gh-login.ts` 登录会话 |
+| `src/mcp/` | MCP stdio 包装 | `server.ts`（204 行） |
+| `src/ui/spa/` | 前端入口常量 | 运行时读取 `renderer/index.html` 导出 `INDEX_HTML`——**不是**第二份 HTML |
+| `renderer/` | 前端源码 | 零构建浏览器原生 ESM，见 §2.4 |
+
+#### 2.5.4 依赖方向与守卫
+
+依赖**只能向内**：呈现层（`cli.ts` / `ui/**` / `mcp/**`）→ `app` → 领域核心 → `host` / `infra`。这不是口头约定，由 **`tests/layering.test.ts`** 强制执行：
+
+| 规则 | 断言位置 |
+|------|----------|
+| 呈现层不直连 `host/` / `infra/` / `user-token` | `layering.test.ts:28` |
+| `ui/**` 不直连 `config.ts`，配置一律走 `app/settings.ts` 的 `resolvedConfig` | `:40` |
+| `app/**` 不深连具体适配器实现，只走 `host` 端口 | `:48` |
+| `app/**` 零呈现依赖（不碰 `node:http` / `commander` / `ui`） | `:55` |
+| `host/**` 不反向依赖 `app/**` | `:77` |
+| `ui/server.ts` 只做装配：不含 `'/api/'` 字面量且 <250 行 | `:62` |
+| 业务路由都在 `ui/routes/` 下，各 <250 行 | `:69` |
+
+另两道守卫：跨层单点由 `tests/lib-single-source.test.ts` 守；npm 发布面由 `tests/package-surface.test.ts` + `npm run validate:pack` 守（见 §2.4）。
 
 ---
 
