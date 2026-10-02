@@ -165,6 +165,18 @@ electron-builder 要点：
 - NSIS：`oneClick: true`，`perMachine: false`（用户级，免管理员）
 - 无签名证书阶段：允许未签名；SmartScreen 提示属预期
 
+### npm 包导出面（与桌面注入分离）
+
+npm 包的公共面 = 两个 `bin`（`picbed` / `picbed-mcp`）+ `package.json`：
+
+- **无 `main` / `module` / `types`**：Electron 入口只经 `extraMetadata.main` 注入**打包后的桌面应用**，
+  dev 由 `desktop-dev.mjs` 显式传 `--entry`。npm 包声明 `"main": "desktop/main.mjs"`
+  会让 npm 把该文件硬塞进 tarball（实测 208 → 209 文件），且 `require('picbed')` 会去跑 Electron 主进程。
+- **`exports`: 仅 `{ "./package.json": "./package.json" }`**：没有库入口，`picbed/dist/**` 深导入一律
+  `ERR_PACKAGE_PATH_NOT_EXPORTED`。
+- `files`: `bin`、`dist`、`README.md`。
+- 守卫：`tests/package-surface.test.ts`（manifest 级：files / bin / 入口 / exports 不得越界、禁通配）+ `scripts/validate.mjs --profile=pack`（真实 `npm pack --dry-run --json` 审计 tarball，需先 `npm run build`；CI 的 `validate:ci` 已含）。
+
 ## F24 桌面应用壳与安装包
 
 - 输入：桌面应用启动（开始菜单 / 快捷方式 / `.exe`）。
