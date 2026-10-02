@@ -295,14 +295,19 @@ describe('F24 desktop shell', () => {
     expect(fs.existsSync(path.join(repoRoot, 'electron.vite.config.mjs'))).toBe(true);
   });
 
-  it('package.json main points at Electron source entry (desktop/main.mjs)', () => {
+  it('Electron entry stays out of the npm package (no dangling package.json main)', () => {
     const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8')) as {
       main?: string;
       files: string[];
     };
-    expect(pkg.main).toBe('desktop/main.mjs');
-    // npm pack still excludes desktop runtime
+    // 入口只注入打包后的桌面应用（electron-builder extraMetadata.main），dev 由
+    // desktop-dev.mjs 显式传 --entry。npm 包一旦声明 `"main": "desktop/main.mjs"`，
+    // npm 会把该文件硬塞进 tarball（实测 209 → 208 文件之差），且 require('picbed')
+    // 会直接跑 Electron 主进程。
+    expect(pkg.main).toBeUndefined();
     expect(pkg.files.join(' ')).not.toMatch(/desktop|electron|release/);
+    const builder = fs.readFileSync(path.join(repoRoot, 'electron-builder.yml'), 'utf8');
+    expect(builder).toContain('main: desktop/main.mjs');
   });
 
   it('main.mjs loads Vite dev URL in dev and local UI server in prod', () => {
