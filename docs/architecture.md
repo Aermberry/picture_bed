@@ -248,7 +248,7 @@ picbed/
 │  │  ── 跨层单点（错了即安全/数据事故的横切逻辑；tests/lib-single-source 守护）──
 │  ├─ lib/
 │  │  ├─ paths.ts                    //   本地路径越界判定的唯一实现
-│  │  ├─ img.ts                      //   图片扩展名 / MIME 的唯一真源
+│  │  ├─ img.ts                      //   图片扩展名 / MIME 的唯一真源（IMAGE_EXT / IMAGE_MIME / mimeOf）
 │  │  ├─ hash.ts                     //   sha256 唯一实现 + 远端文件名 12 位短摘要
 │  │  └─ mask.ts                     //   token 掩码唯一实现（config / app / ui 共用）
 │  │
@@ -336,7 +336,7 @@ picbed/
 │  ├─ build-desktop.mjs              //   electron-builder 打包（extraMetadata.main 注入 Electron 入口）
 │  └─ desktop-dev.mjs                //   桌面 dev 编排：起 Vite + electron，代理 /api
 │
-└─ tests/                            // vitest（148 用例 / 17 个用例文件 + 1 个辅助；架构约定都有活守卫）
+└─ tests/                            // vitest（149 用例 / 17 个用例文件 + 1 个辅助；架构约定都有活守卫）
    ├─ layering.test.ts               //   分层 7 条断言（§2.5.4）
    ├─ lib-single-source.test.ts      //   跨层单点：横切逻辑只许在 src/lib/
    ├─ package-surface.test.ts        //   npm 导出面：files/bin/exports 不得越界
