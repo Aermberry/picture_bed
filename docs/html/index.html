@@ -154,7 +154,8 @@
 
       <section id="architecture">
         <h2>4. 总体架构</h2>
-        <p>分发形态（npm / 桌面）→ CLI / WebUI（呈现）→ 应用编排 → 领域核心（无 I/O）→ Host / LocalStore 适配器。</p>
+        <p>分发形态（npm / 桌面）→ CLI / WebUI（呈现）→ 应用编排 → 领域核心（无 I/O）→ Host / LocalStore 适配器。<br>
+          <strong>一份编排、四个宿主</strong>：同一份 <code>src/app/*</code> 被 <code>picbed &lt;cmd&gt;</code>（<code>src/cli.ts</code>）、<code>picbed ui</code>（<code>src/ui/server.ts</code>，<code>127.0.0.1:4780</code>）、<code>picbed-mcp</code>（<code>src/mcp/server.ts</code>，stdio）与 Electron 桌面壳（<code>desktop/main.mjs</code> 动态 <code>import('../dist/ui/index.js')</code> 取同一个 <code>createUiServer</code>）复用，任何宿主都不复制业务规则。</p>
         <figure class="diagram" aria-label="架构图">
           <svg viewBox="0 0 680 520" xmlns="http://www.w3.org/2000/svg" role="img">
             <defs>
@@ -198,6 +199,8 @@
             <text x="340" y="500" text-anchor="middle" font-size="11" fill="#64748B">图片字节只读 · 回写只改文档 URL 子串 · token 不进核心模型</text>
           </svg>
         </figure>
+        <p><strong>依赖方向（由 <code>tests/layering.test.ts</code> 强制）</strong>：呈现层（<code>cli.ts</code> / <code>ui/**</code> / <code>mcp/**</code>）→ <code>app</code> → 领域核心 → <code>host</code> / <code>infra</code>。呈现层不得直连适配器与凭据存储；<code>app/**</code> 零呈现依赖（不碰 <code>node:http</code> / <code>commander</code> / <code>ui</code>）；<code>host/**</code> 不反向依赖 <code>app/**</code>。另由 <code>tests/lib-single-source.test.ts</code> 守跨层单点、<code>tests/package-surface.test.ts</code> + <code>npm run validate:pack</code> 守发布面。</p>
+        <p>逻辑角色名（<code>DocumentScanner</code> 等）与磁盘文件的对应关系见表下注记，完整映射见 <code>docs/architecture.md</code> §2.5.2——这些名字多为讨论用名，源码中真实同名的只有 <code>HostAdapter</code> 家族与 <code>DoctorService</code>，勿按名 grep。</p>
       </section>
 
       <section id="modules">
