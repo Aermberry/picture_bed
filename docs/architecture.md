@@ -130,6 +130,42 @@
 - **唯一实现**落在 `src/app/`（collect/plan/sync/revert/doctor/config/runs，见 `design/module-app.md`）；CLI 与 WebUI 只做协议适配（参数解析 / JSON 信封 / HTTP 状态码）与确认门，不各自复制编排逻辑。
 - **错误单一来源**：`AppError { code, exitCode, path?, hint? }` 统一定义 code → 退出码 → HTTP 状态码映射，见 `design/module-app.md`。
 
+### 2.4 源码目录与发布单元（2026-10-02 补）
+
+**不变式：放进 `src/` = 进 npm 包。** 一条链决定了这件事——
+
+```
+tsconfig.json  rootDir=src · include=src/** · outDir=dist
+      ↓
+package.json   files=[bin, dist, README.md]
+```
+
+于是顶层目录的划分维度**不是「是不是源码」**，而是**「发布目标」**：`renderer/`、`desktop/`、`scripts/`、`tests/` 同样是源码，但都不属于 npm 包，所以在链外。
+
+| 目录 | 内容 | 谁构建 | 产物 | 发布目标 |
+|------|------|--------|------|----------|
+| `src/` | CLI / MCP / UI 服务器（TypeScript strict，`checkJs`） | `tsc` | `dist/**` | **npm 包** + 桌面包 |
+| `renderer/` | Web 控制台前端 F16–F23（浏览器原生 ESM，**零构建**） | 无（原样） | 自身 | 桌面包；`picbed ui` 由 UI 服务器静态下发 |
+| `desktop/` | Electron 壳（main ESM + preload CJS） | `electron-vite` | `out/main` `out/preload` | 桌面包 |
+| `scripts/` | 构建 / 巡检工具 | 无（`node` 直跑） | — | 仓库本地 / CI |
+| `tests/` | vitest 用例与夹具 | 无 | — | 仓库本地 |
+
+约束（移动前先看这些）：
+
+1. **`src/ui/http/static.ts`** 用 `new URL('../../../renderer')` 按**包根相对位置**定位渲染器；renderer 一旦进 `dist/`，相对路径会对不上 Vite dev 的另一套根。
+2. **`electron.vite.config.mjs`** 的 `renderer.root` 是 Vite 静态根、rollup input 是 `renderer/index.html`。把 root 上提到 `src/` 会让 dev server 把**整个 `src/` 当静态根暴露**（TS 源码可被 HTTP 取到）。
+3. **`renderer/` 是 Electron/Vite 生态术语**（`main` / `preload` / `renderer` 三块；main process / renderer process）。不改成 `console/` 之类自造名：改名要在 ≥5 处同步（含测试断言与设计文档），却丢掉生态可识别性。
+
+实测代价（把 `renderer/` + `scripts/` 复制进 `src/` 各编译一次）：
+
+| 指标 | 现状 | 移进 `src/` |
+|------|------|-------------|
+| `tsc` 错误 | 0 | **50 行**（`TS7053` / `TS7006`…strict 下的浏览器 JS） |
+| `dist/` 文件 | 204 | 270（+`dist/renderer` 57、+`dist/scripts` 9） |
+| npm tarball | 208 文件 / 120.5 KB | **274 文件 / 160.6 KB**（+33%） |
+
+守卫：`tests/package-surface.test.ts`（manifest 级：入口/bin/exports 不得越界发布面）+ `npm run validate:pack`（真实 `npm pack --dry-run --json` 审计 tarball，需先 `npm run build`）。npm 导出面细则见 `design/module-desktop.md`「npm 包导出面」。
+
 ---
 
 ## 3. 领域模型（栈无关）
