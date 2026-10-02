@@ -47,7 +47,7 @@
 
 分层 + 单向依赖：**CLI / WebUI（呈现）→ 应用编排 → 领域核心 → 主机/文件系统适配器**。核心域无网络 I/O，便于单测。
 
-**跨层单点（`src/lib/`，2026-10-02 补）**：越界判定、图片扩展名、摘要计算、token 掩码这类「错了即安全/数据事故」的横切逻辑，只放在 `src/lib/`（`paths.ts` / `img.ts` / `hash.ts` / `mask.ts`），任何层都从这里取用——此前它们在 6 / 3 / 3 / 2 处各自实现。例外：`app/repo-dir.ts` 的**远端**目录路径规则（段字符白名单 + 长度上限）与本地 FS 越界是两套语义，不合并；`watch.ts` 的根外事件退化为绝对路径也不是越界守卫。防回归见 `tests/lib-single-source.test.ts`。
+**跨层单点（`src/lib/`，2026-10-02 补）**：越界判定、图片扩展名、摘要计算、token 掩码、文档类型判定这类「错了即安全/数据事故」的横切逻辑，只放在 `src/lib/`（`paths.ts` / `img.ts` / `hash.ts` / `mask.ts` / `doc.ts`），任何层都从这里取用——此前它们在 6 / 3 / 3 / 2 / 2 处各自实现。例外：`app/repo-dir.ts` 的**远端**目录路径规则（段字符白名单 + 长度上限）与本地 FS 越界是两套语义，不合并；`watch.ts` 的根外事件退化为绝对路径也不是越界守卫。防回归见 `tests/lib-single-source.test.ts`。
 
 ```
 ┌──────────────────────────────────────────────────────────┐
@@ -250,7 +250,8 @@ picbed/
 │  │  ├─ paths.ts                    //   本地路径越界判定的唯一实现
 │  │  ├─ img.ts                      //   图片扩展名 / MIME 的唯一真源（IMAGE_EXT / IMAGE_MIME / mimeOf）
 │  │  ├─ hash.ts                     //   sha256 唯一实现 + 远端文件名 12 位短摘要
-│  │  └─ mask.ts                     //   token 掩码唯一实现（config / app / ui 共用）
+│  │  ├─ mask.ts                     //   token 掩码唯一实现（config / app / ui 共用）
+│  │  └─ doc.ts                      //   文档类型（markdown / html）判定的唯一实现（kindOf）
 │  │
 │  │  ── 应用编排（唯一实现；CLI / WebUI / MCP 一律从这里取能力）──
 │  ├─ app/
@@ -336,16 +337,16 @@ picbed/
 │  ├─ build-desktop.mjs              //   electron-builder 打包（extraMetadata.main 注入 Electron 入口）
 │  └─ desktop-dev.mjs                //   桌面 dev 编排：起 Vite + electron，代理 /api
 │
-└─ tests/                            // vitest（149 用例 / 17 个用例文件 + 1 个辅助；架构约定都有活守卫）
+└─ tests/                            // vitest（151 用例 / 17 个用例文件 + 1 个辅助；架构约定都有活守卫）
    ├─ layering.test.ts               //   分层 7 条断言（§2.5.4）
    ├─ lib-single-source.test.ts      //   跨层单点：横切逻辑只许在 src/lib/
    ├─ package-surface.test.ts        //   npm 导出面：files/bin/exports 不得越界
    ├─ architecture-map.test.ts       //   §2.5 字面量 vs 实现：目录树条目 / 文件计数 / 行数偏差即失败
    ├─ renderer-source.ts             //   辅助（非用例）：读渲染层源做断言，供其它用例复用
-   └─ （其余 12 个用例文件：cli/ui/ui-panels/pipeline/host/mcp/desktop/auth/config/watch/repo-dir/extract/user-token）
+   └─ （其余 13 个用例文件：cli/ui/ui-panels/pipeline/host/mcp/desktop/auth/config/watch/repo-dir/extract/user-token）
 ```
 
-规模：`src/` 60 文件 / 约 5.5k 行（2026-10-02 实测 5,451 行）；`renderer/` 21 文件；`desktop/` 4 文件（preload 只允许 `.cjs` 一份，`tests/desktop.test.ts` 守着）；`scripts/` 3 文件；`tests/` 17 个用例文件 + 1 个辅助。
+规模：`src/` 61 文件 / 约 5.4k 行（2026-10-02 实测 5,441 行；旧值 5,451 偏大约 20 行，已订正）；`renderer/` 21 文件；`desktop/` 4 文件（preload 只允许 `.cjs` 一份，`tests/desktop.test.ts` 守着）；`scripts/` 3 文件；`tests/` 17 个用例文件 + 1 个辅助。
 
 #### 2.5.4 依赖方向与守卫
 
