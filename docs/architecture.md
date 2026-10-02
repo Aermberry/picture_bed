@@ -219,19 +219,125 @@ package.json   files=[bin, dist, README.md]
 
 已核实：22 个角色名里仅 `HostAdapter`、`GitHubHostAdapter`、`LocalHostAdapter`、`DoctorService`、`picbedNative` 在源码中真实出现，其余为讨论用名，勿按名 grep。
 
-#### 2.5.3 `src/` 目录职责（61 文件 / 约 5.0k 行）
+#### 2.5.3 全仓目录树（逐文件职责）
 
-| 路径 | 角色 | 要点 |
-|------|------|------|
-| `src/*.ts`（根目录） | **领域核心**（无网络 I/O） | `scan` / `extract` / `resolve` / `plan` / `rewrite` / `manifest` / `types` / `watch` / `user-token` / `config`；注意是**根目录平铺**，不存在 `core/` 目录 |
-| `src/app/` | 应用编排（唯一实现） | `index.ts` 为统一出口；CLI / WebUI / MCP 都只从这里取能力 |
-| `src/lib/` | 跨层单点 | `paths` / `img` / `hash` / `mask`——「错了即安全/数据事故」的横切逻辑（见 §2 开头） |
-| `src/host/` | 图床适配器 | `index.ts` 工厂 + `github` / `local` 实现 |
-| `src/infra/` | 外部进程 / 凭据 | `gh-cli.ts`（170 行）复用 `gh auth token` |
-| `src/ui/` | Web 控制台服务端 | `server.ts` 装配、`http/`（guard / body / envelope / static / errors）、`routes/`（12 个路由）、`root.ts` RootBinder、`watch.ts` WatchController、`gh-login.ts` 登录会话 |
-| `src/mcp/` | MCP stdio 包装 | `server.ts`（204 行） |
-| `src/ui/spa/` | 前端入口常量 | 运行时读取 `renderer/index.html` 导出 `INDEX_HTML`——**不是**第二份 HTML |
-| `renderer/` | 前端源码 | 零构建浏览器原生 ESM，见 §2.4 |
+> 注释来自代码事实（文件头 doc / 导出符号 / 既有守卫），非命名推测。读法：先看 §2.4 的「目录 × 发布目标」，再看本树「每个文件干什么」，最后看 §2.5.4「谁能 import 谁」。
+
+```text
+picbed/
+├─ bin/                              // npm 包入口垫片（发布面内）
+│  ├─ picbed.js                      //   picbed 命令入口 → dist/cli.js
+│  └─ picbed-mcp.js                  //   picbed-mcp 命令入口 → dist/mcp/server.js
+│
+├─ src/                              // ★ 唯一进 npm 包的源码树（tsc → dist/）
+│  │
+│  │  ── 领域核心（根目录平铺；无网络 I/O；不存在 core/ 目录）──
+│  ├─ types.ts                       // 领域模型唯一真源：DocFile/ImageRef/Asset/SyncPlanItem/ManifestEntry…
+│  ├─ scan.ts                        // scanDocs() 遍历目录产出 DocFile[]          （= DocumentScanner）
+│  ├─ extract.ts                     // extractRefs() 从 MD/HTML 抽 ImageRef[]；blankCodeRegions() 防代码块误伤
+│  ├─ resolve.ts                     // resolveAssets() 相对路径→本地文件 + sha256 合并去重（AssetResolver；Deduper 内联在此，无独立类）
+│  ├─ plan.ts                        // buildPlan() 产出 upload|skip-cache|skip-remote|rewrite-only|blocked 五态
+│  ├─ rewrite.ts                     // rewriteDoc()/applyRewrites() 偏移切片替换；writeDocAtomic() 原子写；revertDoc() 回滚
+│  ├─ manifest.ts                    // .picbed/manifest.json 读写：load/save/upsertEntry/findCachedUrl
+│  ├─ watch.ts                       // fs.watch 调度；根外事件退化为绝对路径（非越界守卫，见 §2 开头的例外说明）
+│  ├─ config.ts                      // picbed.toml 解析/校验/模板；token 只从 env / gh 取，禁止入库
+│  ├─ user-token.ts                  // 本机用户级 PAT 存储（~/.picbed/credentials.json；不进 git、不写 toml）
+│  │
+│  │  ── 跨层单点（错了即安全/数据事故的横切逻辑；tests/lib-single-source 守护）──
+│  ├─ lib/
+│  │  ├─ paths.ts                    //   本地路径越界判定的唯一实现
+│  │  ├─ img.ts                      //   图片扩展名 / MIME 的唯一真源
+│  │  ├─ hash.ts                     //   sha256 唯一实现 + 远端文件名 12 位短摘要
+│  │  └─ mask.ts                     //   token 掩码唯一实现（config / app / ui 共用）
+│  │
+│  │  ── 应用编排（唯一实现；CLI / WebUI / MCP 一律从这里取能力）──
+│  ├─ app/
+│  │  ├─ index.ts                    //   统一出口（facade）
+│  │  ├─ errors.ts                   //   AppError：code → 退出码 → HTTP 状态码的唯一映射
+│  │  ├─ collect.ts                  //   collect() 收集工作集文档
+│  │  ├─ plan.ts                     //   runPlan() 预览计划
+│  │  ├─ sync.ts                     //   runSync() 上传→回写→manifest 全流水线（= SyncOrchestrator）
+│  │  ├─ revert.ts                   //   runRevert() 按 manifest 还原本地链接
+│  │  ├─ upload.ts                   //   uploadSingleAsset() 单文件上传
+│  │  ├─ doctor.ts                   //   doctorService() 配置完整性/凭据/连通自检（按 host.type 分派）
+│  │  ├─ settings.ts                 //   resolvedConfig() —— ui 层取配置的唯一入口（禁直连 config.ts）
+│  │  ├─ auth.ts                     //   鉴权 façade：token 获取与 gh 登录能力，UI/CLI 只许从这里取
+│  │  ├─ repo-dir.ts                 //   远端目录规则：段白名单(字母数字_-.与CJK)+长度上限（GitHub 无空目录 API）
+│  │  └─ run-store.ts                //   .picbed/runs/ 运行记录：recordRun/listRuns/getRun（= RunRecorder）
+│  │
+│  │  ── 图床适配器（端口 + 实现，F13 双后端）──
+│  ├─ host/
+│  │  ├─ types.ts                    //   HostAdapter 端口接口（AC7 语义稳定）
+│  │  ├─ index.ts                    //   createHostAdapter() 工厂：github | local（代码中真实同名）
+│  │  ├─ github.ts                   //   GitHubHostAdapter：Contents API 上传 + raw/jsdelivr/custom URL
+│  │  └─ local.ts                    //   LocalHostAdapter：本地目录后端
+│  │
+│  ├─ infra/                         // 外部进程/凭据基础设施
+│  │  └─ gh-cli.ts                   //   无 OAuth App 的 token 来源：gh auth token / gh api
+│  │
+│  │  ── WebUI 呈现层（服务端；picbed ui 与 Electron 桌面共用同一份）──
+│  ├─ ui/
+│  │  ├─ server.ts                   //   createUiServer()：安检→静态→路由表；只装配无业务（<200 行，layering 守卫）
+│  │  ├─ root.ts                     //   RootBinder：拖拽策略 A——先绑根，再把相对线索映射到真实 FS
+│  │  ├─ watch.ts                    //   WatchController：watch 的 UI 状态机（preview | confirm-each | auto）
+│  │  ├─ gh-login.ts                 //   GhLoginStore：gh auth login 会话单例（同时只允许一个流程）
+│  │  ├─ context.ts                  //   UiRouteContext：安检放行后交给路由的依赖注入（含拖拽工作集条目）
+│  │  ├─ http/                       //   HTTP 协议横切
+│  │  │  ├─ guard.ts                 //     同源 / X-Picbed-UI / Host / 请求体安检
+│  │  │  ├─ body.ts                  //     请求体大小上限
+│  │  │  ├─ envelope.ts              //     统一 JSON 信封（CLI / MCP / WebUI 同形状）
+│  │  │  ├─ errors.ts                //     未捕获异常 → 状态码+信封（状态码真源在 app/errors.ts）
+│  │  │  └─ static.ts                //     下发 renderer/**；/src/** 仅白名单后缀、禁目录逃逸
+│  │  ├─ routes/                     //   业务路由（12 个，各 <250 行，layering 守卫）
+│  │  │  ├─ session.ts               //     根绑定 + 拖拽工作集（服务端唯一可变状态）
+│  │  │  ├─ plan.ts                  //     /api/scan + /api/plan
+│  │  │  ├─ sync.ts                  //     /api/sync：ConfirmGate + dryRun + 工作集作用域
+│  │  │  ├─ revert.ts                //     /api/revert：ConfirmGate；清单损坏单独 400
+│  │  │  ├─ preview.ts               //     图片预览 MIME（仅预览用；上传语义以 manifest/adapter 为准）
+│  │  │  ├─ runs.ts                  //     运行记录：列表 + 单条
+│  │  │  ├─ config.ts                //     配置读写（token 掩码）
+│  │  │  ├─ auth.ts                  //     PAT 粘贴保存/清除（写凭据文件，不写 toml）
+│  │  │  ├─ watch.ts                 //     监听：状态 / 启动 / 停止
+│  │  │  ├─ gallery.ts               //     图库：远端目录浏览 + 批量删除选中
+│  │  │  ├─ system.ts                //     系统类只读端点：doctor 自检 + manifest 视图 + 远程目录创建
+│  │  │  └─ health.ts                //     /api/health 存活探针
+│  │  └─ spa/                        //   运行时读 renderer/index.html 导出 INDEX_HTML（单一 UI 源，非第二份 HTML）
+│  │
+│  └─ mcp/                           // MCP 呈现层
+│     └─ server.ts                   //   stdio JSON-RPC：Agent 通道，复用 src/app/*，零自有业务
+│
+├─ renderer/                         // Web 控制台前端（零构建，浏览器原生 ESM；进桌面包+静态下发，不进 npm 包）
+│  ├─ index.html                     //   壳层结构：Sidebar 72px + 四视图（上传/管理/图库/设置）
+│  ├─ styles.css                     //   主题令牌（CSS 变量；JS 只写 data-theme/data-logo）
+│  ├─ main.js                        //   <20 行，仅 import 引导（逻辑全在 src/ 下）
+│  └─ src/
+│     ├─ app.js                      //   视图装配：init 各 feature 并接线导航
+│     ├─ lib/                        //   api.js(fetch+X-Picbed-UI 封装) / dom.js / files.js / titles.js
+│     ├─ components/                 //   toast.js / modal.js / selectable-grid.js（可复用 UI）
+│     └─ features/                   //   按功能垂直切：drop(拖拽) photo-wall gallery manage settings
+│                                    //     theme logo dir-picker gh-login health（一功能一文件）
+│
+├─ desktop/                          // Electron 壳（进桌面包；npm 包不含）
+│  ├─ main.mjs                       //   主进程：动态 import('../dist/ui/index.js') 复用 createUiServer；
+│  │                                 //     窗口状态记忆 / 对话框 IPC / dev 热重载；零业务规则
+│  ├─ preload.cjs                    //   contextBridge 暴露 picbedNative（CJS 真源）：仅目录/文件对话框，不暴露 token 与任意 FS
+│  ├─ preload.mjs                    //   ⚠ 遗留 ESM 副本，全仓零引用（真源是 preload.cjs）——待清理
+│  ├─ icon.png                       //   electron-builder 安装包图标（buildResources）
+│  └─ make-icon.py                   //   图标生成脚本（一次性工具，代码零引用）
+│
+├─ scripts/                          // 构建/巡检工具（node 直跑；仓库本地与 CI）
+│  ├─ validate.mjs                   //   四 profile 门禁：design / bootstrap / scripts / pack（真实 tarball 审计）
+│  ├─ build-desktop.mjs              //   electron-builder 打包（extraMetadata.main 注入 Electron 入口）
+│  └─ desktop-dev.mjs                //   桌面 dev 编排：起 Vite + electron，代理 /api
+│
+└─ tests/                            // vitest（141 用例 / 16 文件；架构约定都有活守卫）
+   ├─ layering.test.ts               //   分层 7 条断言（§2.5.4）
+   ├─ lib-single-source.test.ts      //   跨层单点：横切逻辑只许在 src/lib/
+   ├─ package-surface.test.ts        //   npm 导出面：files/bin/exports 不得越界
+   └─ （其余 13 个：cli/ui/pipeline/host/mcp/desktop/auth/config/watch/repo-dir/extract/user-token）
+```
+
+规模：`src/` 61 文件 / 约 5.0k 行；`renderer/` 21 文件；`desktop/` 5 文件（含 1 个零引用遗留 `preload.mjs` 待清理）；`scripts/` 3 文件；`tests/` 16 文件。
 
 #### 2.5.4 依赖方向与守卫
 
