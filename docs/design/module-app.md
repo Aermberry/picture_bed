@@ -19,6 +19,8 @@
 - **错误单一来源**：编排失败统一为 `AppError { code, exitCode, path?, hint? }`；CLI 退出码与 Web HTTP 状态码由同一张表派生（见 §错误映射）。
 - **Token 不落盘**：app 只经注入的 `getToken()` 取 token；RunRecord / warnings / errors 不含 secret。
 - **确认门属呈现层**：CLI `--yes`、HTTP `confirm` 由呈现层判定；app 暴露 `runSync` / `runRevert` 等**无确认参数**的写服务。
+- **呈现层只经 façade 取配置与鉴权（2026-10-02 补）**：`app/settings.ts#resolvedConfig` 与 `app/auth.ts`（`currentToken` / `saveUserToken` / `clearSavedToken` / `probeGh` / `startGhLogin`）。CLI / WebUI **不得**直接 import `config.ts` / `user-token.ts` / `infra/gh-cli.ts`——此前 `ui/server.ts` 三处直连，绕过了统一错误码与日志脱敏。
+- **写操作一律有 app 入口（2026-10-02 补）**：`picbed upload` 的上传编排下沉到 `app/upload.ts#uploadSingleAsset`；CLI 只做参数校验与 `AppError → 退出码`。呈现层不得直接 `createHostAdapter` / `uploadAsset`。防回归见 `tests/layering.test.ts`。
 
 ## 模块文件夹结构（实现落点）
 
