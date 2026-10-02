@@ -12,6 +12,7 @@ transfer 将 ingest 产出的 `Asset` 变为可写回的 `RemoteImage`：先形�
 - **不改文档文本**（rewrite 职责）。
 - **不读目录发明引用**（ingest 职责）；可接受单文件路径（F11）。
 - Token 仅在适配器边界注入，不进入领域结果对象。
+- **适配器经端口取用（2026-10-02 补）**：编排层只用 `host/index.js` 的端口工厂 `createHostAdapter`，**不**深连 `host/github.js` / `host/local.js`。目录能力（F20）是端口上的**可选能力** `HostAdapter.entryType?()`——GitHub 经 Contents API 实现，其它后端可不实现，编排层须先判空并报 `E_CONFIG`。
 
 ## 模块文件夹结构（栈无关）
 
