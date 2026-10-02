@@ -90,6 +90,20 @@ npm run build
 npm test
 ```
 
+## 源码组织
+
+一句话不变式：**放进 `src/` = 进 npm 包**（`tsconfig` 的 `rootDir=src` → `dist/`，再经 `package.json` 的 `files` 发布）。所以顶层目录按**发布目标**划分，而不是按「是不是源码」——`renderer/`、`desktop/`、`scripts/`、`tests/` 里的也都是源码，只是不属于 npm 包。
+
+| 目录 | 内容 | 构建 | 去哪 |
+|------|------|------|------|
+| `src/` | CLI / MCP / UI 服务器（TypeScript） | `tsc` → `dist/` | **npm 包** + 桌面包 |
+| `renderer/` | Web 控制台前端 F16–F23（浏览器原生 ESM，零构建） | 无 | 桌面包；`picbed ui` 静态下发 |
+| `desktop/` | Electron 壳 | `electron-vite` → `out/` | 桌面包 |
+| `scripts/` | 构建 / 巡检工具 | `node` 直跑 | 仓库本地 / CI |
+| `tests/` | vitest 用例 | — | 仓库本地 |
+
+改了目录、`package.json` 的 `files` / `bin` / `main` / `exports` 之后，跑 `npm run validate:pack`（需先 `npm run build`）确认打包面没跑偏。详见 [`docs/architecture.md`](docs/architecture.md) §2.4。
+
 ## 鉴权（无 OAuth App）
 
 GitHub 图床需要 **访问令牌（token）**，**两种方式**（优先级从高到低）：
