@@ -1,7 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import type { DocFile, DocKind, ScanConfig } from './types.js';
+import type { DocFile, ScanConfig } from './types.js';
 import { normalizeExt, normalizeExtToken } from './lib/img.js';
+import { kindOf } from './lib/doc.js';
 
 const DEFAULT_EXT = ['md', 'html', 'htm'];
 
@@ -18,11 +19,6 @@ function ignored(relPosix: string, patterns: string[]): boolean {
     if (cleaned && p.startsWith(cleaned + '/')) return true;
   }
   return false;
-}
-
-function kindOf(filePath: string): DocKind {
-  const ext = path.extname(filePath).toLowerCase();
-  return ext === '.md' || ext === '.markdown' ? 'markdown' : 'html';
 }
 
 export function scanDocs(root: string, scan: ScanConfig): DocFile[] {
