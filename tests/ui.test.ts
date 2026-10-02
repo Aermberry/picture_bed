@@ -9,9 +9,12 @@ import { createUiServer, type UiServerHandle } from '../src/ui/server.js';
 import { SPA_CSS } from '../src/ui/spa/styles.js';
 import { loadConfig } from '../src/config.js';
 import { runSync } from '../src/app/sync.js';
+import { rendererEntryJs, rendererJsAll } from './renderer-source.js';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const spaApp = fs.readFileSync(path.join(repoRoot, 'renderer', 'main.js'), 'utf8');
+// UI 契约针对「渲染器整体源码」：main.js 入口 + src/** 子模块
+const spaApp = rendererJsAll();
+const spaEntry = rendererEntryJs();
 
 function tmp(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'picbed-ui-'));
@@ -325,6 +328,20 @@ describe('ui server F16–F18', () => {
     expect(spaApp).not.toMatch(/querySelector\("\.bg"\)\.setAttribute/);
   });
 
+  it('serves renderer ESM submodules under /src/** and blocks escapes', async () => {
+    const mod = await fetch(base + '/src/features/theme.js');
+    expect(mod.status).toBe(200);
+    expect(mod.headers.get('content-type')).toContain('javascript');
+    expect(await mod.text()).toContain('THEME_WHITELIST');
+
+    // 白名单外 / 目录逃逸一律 404（不泄漏包内文件）
+    for (const bad of ['/src/../package.json', '/src/../src/ui/server.ts', '/src/features/theme.css']) {
+      const res = await fetch(base + bad);
+      // undici 会先在客户端归一化 `/src/..`，服务端再兜一层：两者都不得 200
+      expect([200].includes(res.status)).toBe(false);
+    }
+  });
+
   it('serves SPA assets as external routes (/styles.css, /main.js)', async () => {
     const html = await (await fetch(base + '/')).text();
     expect(html).toContain('styles.css');
@@ -339,10 +356,10 @@ describe('ui server F16–F18', () => {
     const js = await fetch(base + '/main.js');
     expect(js.status).toBe(200);
     expect(js.headers.get('content-type')).toContain('javascript');
-    expect(await js.text()).toBe(spaApp);
+    expect(await js.text()).toBe(spaEntry);
     const legacy = await fetch(base + '/app.js');
     expect(legacy.status).toBe(200);
-    expect(await legacy.text()).toBe(spaApp);
+    expect(await legacy.text()).toBe(spaEntry);
   });
 });
 

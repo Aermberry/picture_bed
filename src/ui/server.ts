@@ -10,7 +10,7 @@ import type { UiRoute, UiRouteContext, WorksetItem } from './context.js';
 import { envelope, makeSend, normalizeHostname, sendRaw } from './http/envelope.js';
 import { readBody } from './http/body.js';
 import { checkApiRequest, checkHost, parseHost, rejectionEnvelope } from './http/guard.js';
-import { detectUiDevMode, renderIndexHtml, rendererMainJs } from './http/static.js';
+import { detectUiDevMode, renderIndexHtml, rendererMainJs, rendererAsset } from './http/static.js';
 import { sendAppError } from './http/errors.js';
 import { authRoutes } from './routes/auth.js';
 import { configRoutes } from './routes/config.js';
@@ -115,6 +115,19 @@ export function createUiServer(opts: UiServerOptions): {
       }
       if (req.method === 'GET' && pathname === '/styles.css') {
         sendRaw(res, 200, 'text/css; charset=utf-8', SPA_CSS);
+        return;
+      }
+      // renderer/main.js 拆成 ESM 后，浏览器按相对路径回源 /src/**
+      if (req.method === 'GET' && pathname.startsWith('/src/')) {
+        const asset = rendererAsset(pathname);
+        if (!asset) {
+          send(404, envelope(false, 'api.static', undefined, {
+            code: 'E_STATIC',
+            message: `no renderer asset ${pathname}`,
+          }));
+          return;
+        }
+        sendRaw(res, 200, asset.type, asset.body);
         return;
       }
       if (req.method === 'GET' && (pathname === '/app.js' || pathname === '/main.js')) {
