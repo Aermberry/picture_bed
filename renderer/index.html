@@ -155,7 +155,15 @@
             <div class="form-group-title">仓库信息</div>
             <div class="form-row"><label>Owner</label><input type="text" id="cfgOwner" placeholder="github.owner" /></div>
             <div class="form-row"><label>Repo</label><input type="text" id="cfgRepo" placeholder="github.repo" /></div>
-            <div class="form-row"><label>Branch</label><input type="text" id="cfgBranch" placeholder="github.branch" /></div>
+            <div class="form-row branch-row">
+              <label>Branch</label>
+              <div class="branch-wrap">
+                <input type="text" id="cfgBranch" placeholder="github.branch" autocomplete="off" spellcheck="false" readonly aria-readonly="true" class="branch-field" title="仅显示当前选中的分支；点此从仓库分支列表中选择" />
+                <div class="branch-picker" id="branchPicker" hidden>
+                  <div class="branch-picker-list" id="branchPickerList"></div>
+                </div>
+              </div>
+            </div>
             <div class="form-row dir-row">
               <label>目录</label>
               <input type="text" id="cfgDir" placeholder="github.dir" autocomplete="off" spellcheck="false" readonly aria-readonly="true" class="dir-field" title="仅显示当前选中的目录；点此或「选择目录」按钮浏览仓库目录" />

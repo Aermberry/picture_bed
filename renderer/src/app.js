@@ -7,6 +7,7 @@ import { initGallery, loadGallery } from "./features/gallery.js";
 import { initManage, refreshManage } from "./features/manage.js";
 import { initSettings, loadConfigForm } from "./features/settings.js";
 import { initDirPicker } from "./features/dir-picker.js";
+import { initBranchPicker } from "./features/branch-picker.js";
 import { initGhLogin } from "./features/gh-login.js";
 import { initWall } from "./features/photo-wall.js";
 import { initDropZone } from "./features/drop.js";
@@ -53,6 +54,7 @@ export function bootstrap() {
   initManage();
   initSettings();
   initDirPicker();
+  initBranchPicker();
   initGhLogin();
   initWall();
   initDropZone();

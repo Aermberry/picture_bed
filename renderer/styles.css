@@ -770,6 +770,37 @@
     .dir-picker-new .btn-primary{flex-shrink:0; padding:8px 14px; font-size:13px}
     .btn[disabled]{opacity:.6; cursor:not-allowed}
 
+    /* 分支下拉（设置页 github.branch）：同目录只读态；点击/聚焦在输入框下方展开分支列表 */
+    .form-row input[type="text"].branch-field{
+      cursor:pointer; background:var(--c-bg-2); user-select:text;
+    }
+    .form-row input[type="text"].branch-field:focus{
+      cursor:pointer; background:var(--c-surface); border-color:var(--c-primary);
+      box-shadow:0 0 0 3px rgba(78,147,192,.12);
+    }
+    .branch-wrap{position:relative; flex:1; min-width:0; display:flex}
+    .branch-wrap input[type="text"]{width:100%}
+    .branch-picker{
+      position:absolute; top:calc(100% + 4px); left:0; right:0; z-index:46;
+      background:var(--c-surface); border:1px solid var(--c-border); border-radius:var(--r-md);
+      box-shadow:var(--shadow-2); padding:4px; max-height:260px; overflow:auto;
+    }
+    .branch-picker[hidden]{display:none!important}
+    .branch-picker-item{
+      display:flex; align-items:center; gap:8px; padding:7px 10px;
+      border-radius:var(--r-sm); cursor:pointer; font-size:13px;
+      color:var(--c-text); transition:background .15s, color .15s;
+    }
+    .branch-picker-item:hover{background:var(--c-primary-soft); color:var(--c-primary)}
+    .branch-picker-item .ico{flex-shrink:0}
+    .branch-picker-item .name{flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+    .branch-picker-item .tag{flex-shrink:0}
+    .branch-picker-item.current{
+      background:var(--c-primary-mist); color:var(--c-primary); font-weight:600;
+      box-shadow:inset 3px 0 0 0 var(--c-primary);
+    }
+    .branch-picker-empty{padding:14px 10px; font-size:12px; color:var(--c-text-3); text-align:center}
+
     /* 目录选择浮层 · 窄屏/竖窗全宽（须在 .dir-picker 基础规则之后） */
     @media (max-width:720px){
       .dir-picker{

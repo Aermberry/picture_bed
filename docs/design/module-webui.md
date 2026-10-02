@@ -89,6 +89,7 @@ WebUiFacade
   # POST /api/watch/stop
   # GET  /api/events          # SSE/长轮询：watch 与 sync 进度（实现可选）
   # GET  /api/gallery         # ?path= 列仓库目录/文件（F17 管理视图）
+  # GET  /api/branches        # 列仓库分支（F20 设置页 Branch 下拉）
   # POST /api/repo/mkdir      # { path, confirm: true } 新建远程目录（.gitkeep 占位）· F20
   # POST /api/auth/token      # { token?, clear? , confirm: true } 粘贴 PAT → 本机凭据（~/.picbed/credentials.json，不写 picbed.toml）
   # POST /api/auth/gh-login/start    # 启动 gh auth login（**仅 POST**；GET → 404 no route）。已 gh auth login → 直接 {status:'done'}；否则 spawn `gh auth login --web` 并轮询
@@ -292,6 +293,14 @@ sequenceDiagram
 - **种子路径不存在时的回退（2026-10-01 补）**：`github.dir` 指向的远端目录可能尚未创建（404 `E_NOT_FOUND`）——浮层**不得死在报错上**：自动回退到**最近存在的祖先目录**列出其子文件夹，同时以**引导性提示**（非红色错误）说明「目录 X 不存在，已定位到其上级」；将缺失的末段**预填**到「新建文件夹」输入框，用户点「新建并选用」即可创建并选中该目录。仅仓库根也不可达（网络/权限/配置错）时才显示错误。
 - **新建目录**：`POST /api/repo/mkdir { path, confirm: true }`；编排在 **app 层** `src/app/repo-dir.ts`，经 `GitHubHostAdapter.putFile('<path>/.gitkeep', 空内容)` 提交占位文件（GitHub 无空目录 API）。**响应与日志无 token。**
 - **路径校验**（前后端各一次）：去首尾 `/`；拒绝空段 / `..` / 前导 `/` / 盘符与反斜杠；段字符限 `A-Za-z0-9._\-` 与中文；总长 ≤ 200。
+
+### F20.3 分支选择（2026-10-03 · 远端分支下拉）
+
+设置页 `github.branch` 行提供分支下拉，交互与 F20.1 目录选择同构但更轻：
+
+- **载体**：输入框下方锚定的**小下拉**（`#branchPicker`，DOM 常驻默认 `hidden`）；触发 = 点击/聚焦 Branch 输入框；收起 = 点外部 / `Esc`。
+- **列分支**：`GET /api/branches`（Branches API `per_page=100`，**只读**，无写操作）；当前 `github.branch` 高亮；owner/repo 不齐 → `E_CONFIG`·400，缺 token → `E_TOKEN`·401，仓库不可达 → `E_NOT_FOUND`·404——错误在下拉内联提示并附引导文案，不弹 toast 报错。
+- **选用**：点选分支即 `POST /api/config { key: 'github.branch', confirm: true }` 立即保存；成功后回填输入框并 toast。Branch 输入框为**只读展示态**（同 `github.dir`），值唯一来源是下拉点选。
 - **回填**：选中或新建成功 → 立即 `POST /api/config { key:'github.dir', value, confirm:true }` 落盘并刷新表单与 toast，**不再要求点「保存设置」**。
 - **输入框只读（2026-10-01 补）**：设置页 `github.dir` 输入框为**只读展示态**（`readonly`）——不接受手工键入，只显示当前选中目录；取值仅来自浮层点选或新建回填。行为要点：① `readonly` 不影响 focus/click，仍是浮层触发入口之一；② 「保存设置」写入的 `github.dir` 恒等于最后一次选择结果，不存在「手输值与实际仓库不一致」的状态；③ 视觉上用 `cursor:pointer` + `background:var(--c-bg-2)` 表达「可点选、不可编辑」，聚焦时仍给主色边框与柔焦点环。呈现规格见 [`wireframes/ui-shell.md`](wireframes/ui-shell.md) §1.3。
 - **幂等**：目标目录已存在（`.gitkeep` 已在）→ 视为成功（`created:false`）。

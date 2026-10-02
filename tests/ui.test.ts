@@ -120,6 +120,13 @@ describe('ui server F16–F18', () => {
     expect(JSON.stringify(noRepo.data)).not.toMatch(/ghp_/);
   });
 
+  it('F20.3 GET /api/branches reports config gaps (no owner/repo in fixture)', async () => {
+    const { status, data } = await api('/api/branches');
+    expect(status).toBe(400);
+    expect(data.error.code).toBe('E_CONFIG');
+    expect(JSON.stringify(data)).not.toMatch(/ghp_/);
+  });
+
   it('F20.1 /api/repo/mkdir rejects requests without the UI header (hardening)', async () => {
     const res = await fetch(base + '/api/repo/mkdir', {
       method: 'POST',

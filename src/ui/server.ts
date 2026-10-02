@@ -13,6 +13,7 @@ import { checkApiRequest, checkHost, parseHost, rejectionEnvelope } from './http
 import { detectUiDevMode, renderIndexHtml, rendererMainJs, rendererAsset } from './http/static.js';
 import { sendAppError } from './http/errors.js';
 import { authRoutes } from './routes/auth.js';
+import { branchRoutes } from './routes/branches.js';
 import { configRoutes } from './routes/config.js';
 import { galleryRoutes } from './routes/gallery.js';
 import { healthRoute } from './routes/health.js';
@@ -55,6 +56,7 @@ const ROUTES: UiRoute[] = [
   syncRoute,
   revertRoute,
   galleryRoutes,
+  branchRoutes,
   authRoutes,
   configRoutes,
   systemRoutes,
