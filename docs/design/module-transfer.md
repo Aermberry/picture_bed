@@ -44,105 +44,70 @@ HostAdapter
 
 契约速览即上文代码块；下图把**端口 + 两个实现 + 工厂 + 传输数据契约**放在一张图里，用于确认「换后端要动哪些文件」：
 
-```plantuml
-@startuml transfer-port-and-adapters
-title transfer 端口与适配器（F13 多图床）
-
-package "Port · 端口契约" {
-    interface HostAdapter <<interface>> {
-        + type : string
-        + requiresToken : boolean
-        + exists(repoPath) : Promise<boolean>
-        + putFile(repoPath, bytes, message, branch) : Promise<void>
-        + deleteFile(repoPath, sha, message, branch) : Promise<void>
-        + composeUrls(repoPath) : HostUrls
-        + remotePath(sha256, localPath, now?) : string
-        + entryType?(repoPath) : Promise<'file'|'dir'|null>
+```mermaid
+classDiagram
+    class HostAdapter {
+        <<interface>>
+        +type : string
+        +requiresToken : boolean
+        +exists(repoPath) Promise~boolean~
+        +putFile(repoPath, bytes, message, branch) Promise~void~
+        +deleteFile(repoPath, sha, message, branch) Promise~void~
+        +composeUrls(repoPath) HostUrls
+        +remotePath(sha256, localPath) string
+        +entryType(repoPath) Promise~boolean~
     }
     class HostUrls {
-        + publicUrl : string
-        + rawUrl : string
-        + cdnUrl? : string
+        +publicUrl : string
+        +rawUrl : string
+        +cdnUrl : string
     }
-    HostAdapter ..> HostUrls : returns
-}
-
-package "Domain · 传输数据契约" {
     class Asset {
-        + localPath : string
-        + sha256 : string
-        + bytes : number
-        + mime : string
+        +localPath : string
+        +sha256 : string
+        +bytes : number
+        +mime : string
     }
     class RemoteImage {
-        + publicUrl : string
-        + rawUrl : string
-        + cdnUrl? : string
-        + repoPath : string
-        + sha256 : string
+        +publicUrl : string
+        +rawUrl : string
+        +cdnUrl : string
+        +repoPath : string
+        +sha256 : string
     }
     class SyncPlanItem {
-        + action : PlanAction
-        + asset? : Asset
-        + remote? : RemoteImage
-        + reason? : string
+        +action : PlanAction
+        +asset : Asset
+        +remote : RemoteImage
+        +reason : string
     }
-    Asset ..> RemoteImage : 上传后产出
-    SyncPlanItem --> RemoteImage : remote?
-    SyncPlanItem --> Asset : asset?
-}
-
-package "GitHub Adapter · Contents API" {
     class GitHubHostAdapter {
-        + type = "github"
-        + requiresToken = true
+        +type : github
+        +requiresToken : true
     }
-    class "composeGithubUrls()" <<function>>
-    class "githubRemotePath()" <<function>>
-    class "probeGithubAccess()" <<function>>
-    class "uploadAsset()" <<function>>
-}
-
-package "Local Adapter · 本地目录" {
     class LocalHostAdapter {
-        + type = "local"
-        + requiresToken = false
-        - abs(repoPath) : string
+        +type : local
+        +requiresToken : false
+        +abs(repoPath) string
     }
-    class "localRemotePath()" <<function>>
-}
+    class createHostAdapter {
+        <<factory>>
+        +create(cfg, token) HostAdapter
+    }
 
-package "Factory · 端口工厂" {
-    class "createHostAdapter(cfg, token?)" <<function>>
-}
+    HostAdapter <|.. GitHubHostAdapter : implements
+    HostAdapter <|.. LocalHostAdapter : implements
+    HostAdapter ..> HostUrls : returns
+    Asset ..> RemoteImage : 上传后产出
+    SyncPlanItem --> Asset : asset
+    SyncPlanItem --> RemoteImage : remote
+    createHostAdapter ..> HostAdapter : creates
+    createHostAdapter ..> GitHubHostAdapter : 当 host.type 为 github
+    createHostAdapter ..> LocalHostAdapter : 当 host.type 为 local
 
-GitHubHostAdapter ..|> HostAdapter : implements
-LocalHostAdapter ..|> HostAdapter : implements
-GitHubHostAdapter ..> RemoteImage : returns
-LocalHostAdapter ..> RemoteImage : returns
-
-createHostAdapter ..> HostAdapter : creates
-createHostAdapter ..> GitHubHostAdapter : "host.type='github'"
-createHostAdapter ..> LocalHostAdapter : "host.type='local'"
-
-note right of GitHubHostAdapter
-    **认证头**
-    Authorization: Bearer {token}
-    Accept: application/vnd.github+json
-    **PUT contents**
-    GET 探测 sha → PUT {message, content: b64, branch, sha?}
-    失败 → 抛 E_REMOTE（保留 HTTP status）
-end note
-
-note right of LocalHostAdapter
-    **路径安全**
-    abs = resolve(root, repoPath)
-    必须 isUnderRoot(root, abs)，否则 E_LOCAL
-    **URL 风格**
-    raw: `{publicBase}/{path}`
-    custom: customTemplate 替换占位符
-end note
-@enduml
+    note for GitHubHostAdapter "唯一需要 token 的实现：Bearer 头与 Accept 头在此封装"
+    note for LocalHostAdapter "abs 必须过 isUnderRoot，否则 E_LOCAL；全程不需要 token"
+    note for RemoteImage "字段里没有 token，故可安全进 manifest 与加密封响应"
 ```
 
 由这张图得出的边界：
@@ -174,69 +139,25 @@ RemoteImage  { publicUrl, rawUrl, cdnUrl?, repoPath, sha256 }
 
 上表是「条件 → action」的平铺；真正实现时判定有**先后顺序**（先看 raw 形态，再查缓存），一条 ref 只会落在叶子状态之一。决策顺序本身就是规则，故给出状态转移图：
 
-```plantuml
-@startuml plan-action-decision
-title SyncPlanItem 分类决策（F6 · 一个 ImageRef 的最终归属）
+```mermaid
+flowchart TD
+    REF[extractRefs 产出 ImageRef] --> RAW{raw 形态判定}
 
-[*] --> RefResolve : extractRefs() 产出 { raw, start, alt, kind }
+    RAW -->|空 / 页内锚点 / data:| BL[blocked<br/>E_SKIP_REF]
+    RAW -->|http 或 https 开头| SR[skip-remote<br/>已是公网 URL]
+    RAW -->|file:// 协议| FU[blocked<br/>E_FILE_URL]
+    RAW -->|其余视为本地路径| LOCAL{路径合格判定}
 
-state "raw 格式判定" as RAW {
-    [*] --> decide
-    decide --> DataOrAnchor : 空 / 页内锚点 / data:
-    decide --> RemoteUrl : /^https?:\/\//
-    decide --> FileUrl : file://
-    decide --> LocalPath : 其余
-}
+    LOCAL -->|越界 / 不存在 / 非图片扩展名| BL
+    LOCAL -->|在根内且是图片| CACHE{manifest 查 sha256}
 
-RefResolve --> decide
+    CACHE -->|命中相同摘要| SC[skip-cache<br/>仍要 rewrite 替换]
+    CACHE -->|未命中| UP[upload<br/>唯一触发 putFile 的分支]
 
-state "本地路径解析" as LOCAL {
-    [*] --> pathCheck
-    pathCheck --> Invalid : isUnderRoot==false\n或 ENOENT / 非图片扩展名
-    pathCheck --> Valid : 合法 + isImageExt
-}
-
-LocalPath --> pathCheck
-Invalid --> Blocked
-Valid --> CacheLookup : sha256 hex
-
-state "manifest 查缓存" as CACHE {
-    [*] --> lookup
-    lookup --> Hit : entry.sha256 相同
-    lookup --> Miss
-}
-
-CacheLookup --> lookup
-
-DataOrAnchor --> Blocked : E_SKIP_REF
-FileUrl --> Blocked : E_FILE_URL\n（除非 --allow-absolute）
-RemoteUrl --> SkipRemote : 已是公网 URL
-Hit --> SkipCache
-Miss --> Upload
-
-state "blocked" as Blocked
-state "skip-remote" as SkipRemote
-state "skip-cache" as SkipCache
-state "upload" as Upload
-
-Blocked --> [*]
-SkipRemote --> [*]
-SkipCache --> [*]
-Upload --> [*]
-
-note bottom of Blocked
-    **不执行任何写**
-    reason: `${code}: ${reason}`
-end note
-note bottom of SkipCache
-    **命中 manifest**
-    仍消耗一次 rewrite 替换
-end note
-note bottom of Upload
-    **唯一触发 putFile 的分支**
-    失败入 errors，不影响其他项
-end note
-@enduml
+    BL --> OUT[输出 SyncPlanItem 带 reason]
+    SR --> OUT
+    SC --> OUT
+    UP --> OUT
 ```
 
 由这张图得出的规则：

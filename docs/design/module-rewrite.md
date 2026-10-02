@@ -57,70 +57,56 @@ ManifestEntry {
 
 revert 要串起 manifest 读取、扫描、反向替换、原子写、run 记录五件事，且**损坏的 manifest 必须立即失败而非静默重建**，这条约束只有在时序里才看得清楚：
 
-```plantuml
-@startuml revert-flow
-title revert 编排时序（F9 · manifest → 反向替换 → 原子写）
+```mermaid
+sequenceDiagram
+    actor U as 人或 UI
+    participant CLI as CLI / WebUI
+    participant RVT as runRevert
+    participant LM as loadManifest
+    participant FS as 文件系统
+    participant SC as scanDocs
+    participant RD as revertDoc
+    participant WDA as writeDocAtomic
+    participant RS as run-store
 
-actor "User / UI" as U
-participant "CLI / WebUI" as CLI
-participant "runRevert" as RVT
-participant "loadManifest" as LM
-participant "scanDocs" as SC
-participant "revertDoc" as RD
-participant "writeDocAtomic" as WDA
-participant "run-store" as RS
-participant "Filesystem" as FS
+    U ->> CLI: revert 命令并确认
+    CLI ->> RVT: runRevert
 
-U -> CLI: picbed revert <path> --yes
-CLI -> RVT: runRevert({ root, cfg, cwd, dryRun })
-
-CLI -> LM: loadManifest(cwd)
-LM -> FS: read .picbed/manifest.json
-alt 文件不存在
-    LM --> RVT: { version: 1, entries: [] }
-else 解析失败 / shape 错
-    LM --> RVT: throw E_MANIFEST_CORRUPT
-    RVT -> RS: recordRun({ errorCode: 'E_MANIFEST_CORRUPT' })
-    RVT --> CLI: { ok:false, errorCode:'E_MANIFEST_CORRUPT' }
-end
-
-RVT -> SC: scanDocs(root, cfg.scan)
-SC --> RVT: docs[]
-
-loop 每个 doc
-    RVT -> FS: readFileSync(doc.path)
-    FS --> RVT: text
-    RVT -> RVT: entries = manifest.filter(e.doc 命中该 path)
-    alt entries 为空 或 next === text
-        RVT --> RVT: continue（无可替换）
+    Note over RVT, FS: ① 读 manifest：损坏必须立即失败
+    RVT ->> LM: 读取 .picbed/manifest.json
+    LM ->> FS: 读文件
+    alt 文件不存在
+        LM -->> RVT: 空清单，按无历史处理
+    else 解析失败或结构不对
+        LM -->> RVT: 抛 E_MANIFEST_CORRUPT
+        RVT ->> RS: 记录失败 RunRecord
+        RVT -->> CLI: 返回 E_MANIFEST_CORRUPT
     end
-    RVT -> RD: revertDoc(text, entries)
-    note right of RD
-        **反向应用**
-        publicUrl → 还原为 entry.raw
-        同样按 start 倒序切片替换
-    end note
-    RD --> RVT: next
-    alt dryRun
-        RVT --> RVT: planned.push(rel)
-    else 实际写入
-        RVT -> WDA: writeDocAtomic(doc.path, next)
-        WDA -> FS: write tmp + rename
-        RVT --> RVT: rewritten.push(rel)
+
+    RVT ->> SC: 扫描当前文档集合
+    SC -->> RVT: 文档列表
+
+    loop 每个文档
+        RVT ->> FS: 读原文
+        FS -->> RVT: 文本
+        RVT ->> RVT: 取本文档命中的条目
+        alt 无条目或替换后与原文相同
+            RVT ->> RVT: 跳过，不写入
+        else 有可替换内容
+            RVT ->> RD: 反向替换公网 URL 为本地路径
+            RD -->> RVT: 新文本
+            alt dry-run
+                RVT ->> RVT: 记入 planned
+            else 实际写入
+                RVT ->> WDA: 原子写（临时文件后改名）
+                RVT ->> RVT: 记入 rewritten
+            end
+        end
     end
-end
 
-RVT -> RS: recordRun({ command:'revert', ok, counts, errors })
-RS -> FS: write .picbed/runs/<id>.json
-RVT --> CLI: { ok, dryRun, rewritten, planned, errors, runId }
-
-note right of RVT
-    **失败隔离**
-    单 doc 失败 → errors.push
-    ok = errors.length === 0
-    否则 errorCode = E_PARTIAL
-end note
-@enduml
+    RVT ->> RS: 写 RunRecord
+    RS ->> FS: 落 .picbed/runs 记录
+    RVT -->> CLI: 结果含 planned / rewritten / errors
 ```
 
 由这张图得出的规则：

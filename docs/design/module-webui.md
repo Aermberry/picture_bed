@@ -229,68 +229,51 @@ WebUI SPA **同时**服务浏览器（`picbed ui`）与 Electron 壳（[`module-
 
 登录不引入 OAuth App，而是**代用户在服务端 spawn `gh auth login --web`**，前端每 2s 轮询状态。难点全在"进程生命周期 × HTTP 无状态"的接缝处，故给出时序：
 
-```plantuml
-@startuml gh-login-flow
-title gh 一键登录（F15 · UI → spawn gh → 落盘凭据）
+```mermaid
+sequenceDiagram
+    actor U as 用户
+    participant FE as 浏览器
+    participant SVR as UI 服务端
+    participant SPAWN as spawnGhLogin
+    participant GH as gh 命令行
+    participant WEB as GitHub 设备流
+    participant FILE as 凭据文件
 
-actor "User" as U
-participant "Browser" as FE
-participant "UI Server" as SVR
-participant "spawnGhLogin" as SPAWN
-participant "gh CLI" as GH
-participant "GitHub 设备流" as WEB
-participant "~/.picbed/credentials.json" as FILE
+    U ->> FE: 点击 GitHub 一键登录
+    FE ->> SVR: POST 登录开始
 
-U -> FE: 点击「GitHub 一键登录」
-FE -> SVR: POST /api/auth/gh-login/start
+    SVR ->> SVR: 探测本机是否已有 token
+    alt 未安装 gh
+        SVR -->> FE: 400 E_GH_NOT_FOUND
+    else 已有 token
+        SVR ->> FILE: 写入本机凭据
+        SVR -->> FE: 直接完成并返回掩码
+    else 需要浏览器授权
+        SVR ->> SPAWN: 启动登录子进程
+        SPAWN ->> GH: 执行 gh auth login 网页模式
+        SVR -->> FE: 进行中
 
-SVR -> SVR: probeGhToken()
-alt 未安装 gh
-    SVR --> FE: 400 E_GH_NOT_FOUND
-else 已有 token
-    SVR -> FILE: writeUserToken(token)
-    SVR --> FE: 200 { status:'done', tokenMask }
-else 需浏览器授权
-    SVR -> SPAWN: spawnGhLogin(onData)
-    SPAWN -> GH: spawn `gh auth login --web --hostname github.com`
-    SVR --> FE: 200 { status:'running' }
+        GH ->> WEB: 打开设备登录页
+        U ->> WEB: 输入一次性码并授权
+        WEB -->> GH: 授权完成
+        GH -->> SPAWN: 输出累积到会话
+    Note right of SPAWN: gh 会弹协议与主机菜单，<br/>按定时器多次回车自动推进
 
-    GH -> WEB: 打开 device login 页
-    U -> WEB: 粘贴 one-time code 并授权
-    WEB --> GH: 200 OK
-    GH -> SPAWN: stdout → session.output
+        loop 每 2 秒轮询
+            FE ->> SVR: 查询登录状态
+            SVR -->> FE: 进行中并带上累积输出
+        end
 
-    SPAWN -> GH: stdin '\n'（t=300/1000/2000/3000ms）
-    note right of SPAWN
-        **菜单自动确认**
-        gh 会弹出协议/主机选择菜单
-        多次回车推进到等待授权
-    end note
-
-    loop 每 2 秒
-        FE -> SVR: GET /api/auth/gh-login/status
-        SVR --> FE: { status:'running', output }
+        GH -->> SPAWN: 进程退出
+        SVR ->> SVR: 重新读取新 token
+        SVR ->> FILE: 以 0600 权限落盘
+        SVR -->> FE: 完成
+        FE ->> FE: 刷新配置表单显示掩码
     end
 
-    GH -> GH: exit code = 0
-    SVR -> SVR: probeGhToken() 读新 token
-    SVR -> FILE: writeUserToken（mode 0600）
-    SVR --> FE: { status:'done' }
-    FE -> FE: loadConfigForm() → 显示掩码
-end
-
-alt 退出非 0 / 用户取消
-    SVR -> SVR: session = { status:'error', error }
-    SVR --> FE: { status:'error', error }
-end
-
-note right of FILE
-    **凭据存储**
-    ~/.picbed/credentials.json
-    可由 PICBED_USER_TOKEN_PATH 覆盖
-    权限 0o600
-end note
-@enduml
+    alt 退出码非 0 或用户取消
+        SVR -->> FE: 错误态
+    end
 ```
 
 由这张图得出的规则：
