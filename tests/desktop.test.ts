@@ -5,9 +5,11 @@ import { describe, expect, it } from 'vitest';
 import { INDEX_HTML } from '../src/ui/static.js';
 import { SPA_CSS } from '../src/ui/spa/styles.js';
 import { detectUiDevMode } from '../src/ui/server.js';
+import { esmSyntaxError, rendererEntryJs, rendererJsAll, rendererModuleRelPaths } from './renderer-source.js';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const spaApp = fs.readFileSync(path.join(repoRoot, 'renderer', 'main.js'), 'utf8');
+// UI 契约针对「渲染器整体源码」：main.js 入口 + src/** 子模块
+const spaApp = rendererJsAll();
 const viteConfig = fs.readFileSync(path.join(repoRoot, 'electron.vite.config.mjs'), 'utf8');
 
 describe('F24 desktop shell', () => {
@@ -50,6 +52,20 @@ describe('F24 desktop shell', () => {
     expect(fs.existsSync(path.join(repoRoot, 'renderer', 'index.html'))).toBe(true);
     expect(fs.existsSync(path.join(repoRoot, 'renderer', 'styles.css'))).toBe(true);
     expect(fs.existsSync(path.join(repoRoot, 'renderer', 'main.js'))).toBe(true);
+  });
+
+  it('renderer is modular: thin entry + feature-sized src modules', () => {
+    // 入口只做引导（曾是一个 1395 行的单模块）
+    expect(rendererEntryJs().split('\n').length).toBeLessThan(20);
+    const modules = rendererModuleRelPaths();
+    expect(modules.length).toBeGreaterThan(8);
+    expect(modules).toContain('src/app.js');
+    for (const rel of modules) {
+      const text = fs.readFileSync(path.join(repoRoot, 'renderer', rel), 'utf8');
+      expect(text.split('\n').length, `${rel} 过大`).toBeLessThan(330);
+      // 渲染器是浏览器原生 ESM：不得出现裸模块引用
+      expect(text).not.toMatch(/^\s*import\s+[^'"]*from\s+['"][^./]/m);
+    }
   });
 
   it('drop renders local blob previews before awaiting the server', () => {
@@ -309,8 +325,14 @@ describe('F24 desktop shell', () => {
     expect(main).toContain('vite session → electron-vite restarts');
   });
 
-  it('served scripts are syntactically valid (app.ts stays plain JS; inline scripts stay tiny)', () => {
-    expect(() => new Function(spaApp)).not.toThrow();
+  it('served scripts are syntactically valid (renderer is native ESM; inline scripts stay tiny)', async () => {
+    // 渲染器是浏览器原生 ESM，逐文件按模块语法解析（顶层碰 document 在 node 下是
+    // ReferenceError，属正常；只有 SyntaxError 才是语法问题）
+    for (const rel of rendererModuleRelPaths()) {
+      const code = fs.readFileSync(path.join(repoRoot, 'renderer', rel), 'utf8');
+      expect(await esmSyntaxError(code), `${rel} 语法错误`).toBeNull();
+    }
+    expect(await esmSyntaxError(rendererEntryJs()), 'main.js 语法错误').toBeNull();
     const scripts = [...INDEX_HTML.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
     expect(scripts.length).toBeGreaterThan(0);
     for (const s of scripts) {
