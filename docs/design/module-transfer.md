@@ -42,6 +42,115 @@ HostAdapter
 
 工厂：`createHostAdapter(cfg, token?)` 按 `host.type` 选择后端。
 
+契约速览即上文代码块；下图把**端口 + 两个实现 + 工厂 + 传输数据契约**放在一张图里，用于确认「换后端要动哪些文件」：
+
+```plantuml
+@startuml transfer-port-and-adapters
+title transfer 端口与适配器（F13 多图床）
+
+package "Port · 端口契约" {
+    interface HostAdapter <<interface>> {
+        + type : string
+        + requiresToken : boolean
+        + exists(repoPath) : Promise<boolean>
+        + putFile(repoPath, bytes, message, branch) : Promise<void>
+        + deleteFile(repoPath, sha, message, branch) : Promise<void>
+        + composeUrls(repoPath) : HostUrls
+        + remotePath(sha256, localPath, now?) : string
+        + entryType?(repoPath) : Promise<'file'|'dir'|null>
+    }
+    class HostUrls {
+        + publicUrl : string
+        + rawUrl : string
+        + cdnUrl? : string
+    }
+    HostAdapter ..> HostUrls : returns
+}
+
+package "Domain · 传输数据契约" {
+    class Asset {
+        + localPath : string
+        + sha256 : string
+        + bytes : number
+        + mime : string
+    }
+    class RemoteImage {
+        + publicUrl : string
+        + rawUrl : string
+        + cdnUrl? : string
+        + repoPath : string
+        + sha256 : string
+    }
+    class SyncPlanItem {
+        + action : PlanAction
+        + asset? : Asset
+        + remote? : RemoteImage
+        + reason? : string
+    }
+    Asset ..> RemoteImage : 上传后产出
+    SyncPlanItem --> RemoteImage : remote?
+    SyncPlanItem --> Asset : asset?
+}
+
+package "GitHub Adapter · Contents API" {
+    class GitHubHostAdapter {
+        + type = "github"
+        + requiresToken = true
+    }
+    class "composeGithubUrls()" <<function>>
+    class "githubRemotePath()" <<function>>
+    class "probeGithubAccess()" <<function>>
+    class "uploadAsset()" <<function>>
+}
+
+package "Local Adapter · 本地目录" {
+    class LocalHostAdapter {
+        + type = "local"
+        + requiresToken = false
+        - abs(repoPath) : string
+    }
+    class "localRemotePath()" <<function>>
+}
+
+package "Factory · 端口工厂" {
+    class "createHostAdapter(cfg, token?)" <<function>>
+}
+
+GitHubHostAdapter ..|> HostAdapter : implements
+LocalHostAdapter ..|> HostAdapter : implements
+GitHubHostAdapter ..> RemoteImage : returns
+LocalHostAdapter ..> RemoteImage : returns
+
+createHostAdapter ..> HostAdapter : creates
+createHostAdapter ..> GitHubHostAdapter : "host.type='github'"
+createHostAdapter ..> LocalHostAdapter : "host.type='local'"
+
+note right of GitHubHostAdapter
+    **认证头**
+    Authorization: Bearer {token}
+    Accept: application/vnd.github+json
+    **PUT contents**
+    GET 探测 sha → PUT {message, content: b64, branch, sha?}
+    失败 → 抛 E_REMOTE（保留 HTTP status）
+end note
+
+note right of LocalHostAdapter
+    **路径安全**
+    abs = resolve(root, repoPath)
+    必须 isUnderRoot(root, abs)，否则 E_LOCAL
+    **URL 风格**
+    raw: `{publicBase}/{path}`
+    custom: customTemplate 替换占位符
+end note
+@enduml
+```
+
+由这张图得出的边界：
+
+1. **编排层只认两处**：`createHostAdapter` 工厂与 `HostAdapter` 接口。图里 `GitHubHostAdapter` / `LocalHostAdapter` 对上层是**不可见的实现细节**——`tests/layering.test.ts` 禁止 `app/*` 与呈现层深连 `host/github.ts` / `host/local.ts`。
+2. **token 只活在适配器内**：`GitHubHostAdapter.requiresToken = true` 是唯一要求 token 的地方，`RemoteImage` / `SyncPlanItem` 的字段里也没有 token——配合 §数据的 manifest 不变量与 `E_TOKEN` 前置校验，保证凭据不流入结果对象。
+3. **`entryType?` 是可选能力**：只有 GitHub 实现了目录项判定（Contents API），`local` 可不实现；图上的 `?` 就是调用方的判空义务，未实现时报 `E_CONFIG`（F20 远程目录浏览的 fallback 依据）。
+
 ## 数据
 
 ```
@@ -62,6 +171,80 @@ RemoteImage  { publicUrl, rawUrl, cdnUrl?, repoPath, sha256 }
 | 已远程、仅需替换（可选策略） | `rewrite-only` |
 
 `plan` 与 `sync --dry-run` **不得**调用 `putFile`。
+
+上表是「条件 → action」的平铺；真正实现时判定有**先后顺序**（先看 raw 形态，再查缓存），一条 ref 只会落在叶子状态之一。决策顺序本身就是规则，故给出状态转移图：
+
+```plantuml
+@startuml plan-action-decision
+title SyncPlanItem 分类决策（F6 · 一个 ImageRef 的最终归属）
+
+[*] --> RefResolve : extractRefs() 产出 { raw, start, alt, kind }
+
+state "raw 格式判定" as RAW {
+    [*] --> decide
+    decide --> DataOrAnchor : 空 / 页内锚点 / data:
+    decide --> RemoteUrl : /^https?:\/\//
+    decide --> FileUrl : file://
+    decide --> LocalPath : 其余
+}
+
+RefResolve --> decide
+
+state "本地路径解析" as LOCAL {
+    [*] --> pathCheck
+    pathCheck --> Invalid : isUnderRoot==false\n或 ENOENT / 非图片扩展名
+    pathCheck --> Valid : 合法 + isImageExt
+}
+
+LocalPath --> pathCheck
+Invalid --> Blocked
+Valid --> CacheLookup : sha256 hex
+
+state "manifest 查缓存" as CACHE {
+    [*] --> lookup
+    lookup --> Hit : entry.sha256 相同
+    lookup --> Miss
+}
+
+CacheLookup --> lookup
+
+DataOrAnchor --> Blocked : E_SKIP_REF
+FileUrl --> Blocked : E_FILE_URL\n（除非 --allow-absolute）
+RemoteUrl --> SkipRemote : 已是公网 URL
+Hit --> SkipCache
+Miss --> Upload
+
+state "blocked" as Blocked
+state "skip-remote" as SkipRemote
+state "skip-cache" as SkipCache
+state "upload" as Upload
+
+Blocked --> [*]
+SkipRemote --> [*]
+SkipCache --> [*]
+Upload --> [*]
+
+note bottom of Blocked
+    **不执行任何写**
+    reason: `${code}: ${reason}`
+end note
+note bottom of SkipCache
+    **命中 manifest**
+    仍消耗一次 rewrite 替换
+end note
+note bottom of Upload
+    **唯一触发 putFile 的分支**
+    失败入 errors，不影响其他项
+end note
+@enduml
+```
+
+由这张图得出的规则：
+
+1. **`upload` 是唯一触碰网络的分支**——`plan` / `sync --dry-run` 只要走到 Miss 之前就返回，因此"`plan` 不得调用 `putFile`"是**结构性保证**而非约定（`buildPlan` 不持有 adapter 实例）。
+2. **`skip-cache` 也要 rewrite**：命中缓存省的是 PUT，不是替换——否则文档仍指向本地路径。
+3. **`blocked` 不写任何东西**：既不上传也不替换，只在输出里带 `reason`，供 UI 打 FAIL 标签。
+4. **越界与 disciplines 判定先于 sha256**：`isUnderRoot` 与扩展名白名单在 `lib/paths.ts` / `lib/img.ts`（跨层单点），不在此重复实现。
 
 ## F7 GitHub 图床上传
 

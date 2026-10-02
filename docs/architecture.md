@@ -340,7 +340,97 @@ picbed/
 
 #### 2.5.4 依赖方向与守卫
 
-依赖**只能向内**：呈现层（`cli.ts` / `ui/**` / `mcp/**`）→ `app` → 领域核心 → `host` / `infra`。这不是口头约定，由 **`tests/layering.test.ts`** 强制执行：
+依赖**只能向内**：呈现层（`cli.ts` / `ui/**` / `mcp/**`）→ `app` → 领域核心 → `host` / `infra`。下面的箭头就是这个约束全貌；**紧接着落在它上面的 7 条断言才是真正的执行者**：
+
+```plantuml
+@startuml module-dependencies
+title 模块依赖方向（app 层为唯一编排边界）
+
+package "Entrypoints · 入口层" {
+    [CLI\nsrc/cli.ts] as CLI
+    [WebUI\nsrc/ui/server.ts] as WEB
+    [MCP\nsrc/mcp/server.ts] as MCP
+    [Desktop\ndesktop/main.mjs] as DESK
+}
+
+package "app · 应用编排层" {
+    [sync · plan · collect\nrevert · doctor · upload] as APP
+    [settings · auth] as AUTH
+    [run-store] as RS
+    [errors\n(AppError)] as ERR
+}
+
+package "Domain · 领域核心" {
+    [scan · extract · resolve\nplan · rewrite · manifest] as DOMAIN
+    [config] as CFG
+    [types] as TY
+}
+
+package "Port · 端口" {
+    interface "HostAdapter" as HA
+    [createHostAdapter\n端口工厂] as HF
+}
+
+package "Infra · 基础设施" {
+    [infra/gh-cli] as GHC
+    [user-token] as UT
+    [lib/paths · img · hash · mask] as LIB
+}
+
+package "Host Implementations" {
+    [GitHubHostAdapter] as GH_ADP
+    [LocalHostAdapter] as LC_ADP
+}
+
+package "External" {
+    [GitHub API] as API
+    [Filesystem\n.picbed/*] as FS
+}
+
+CLI --> APP
+WEB --> APP
+WEB --> AUTH
+MCP --> APP
+DESK --> AUTH : "import dist/ui/index.js"
+
+APP --> DOMAIN
+APP --> CFG
+APP --> RS
+APP --> ERR
+APP --> HF
+AUTH --> CFG
+AUTH --> GHC
+AUTH --> UT
+
+DOMAIN --> TY
+DOMAIN --> LIB
+CFG --> LIB
+
+GH_ADP ..|> HA
+LC_ADP ..|> HA
+HF --> HA : creates
+HF --> GH_ADP : "github"
+HF --> LC_ADP : "local"
+
+GH_ADP --> API
+LC_ADP --> FS
+GHC --> UT
+
+note bottom of CLI
+    **呈现层守则**
+    只做协议适配：argv / HTTP / stdio
+    不直连 host/* 与 infra/*
+end note
+@enduml
+```
+
+这张图要记住的三件事（逐条对应下面的守卫断言）：
+
+1. **`app/*` 是唯一横向边界**：四个入口都指向它，**彼此之间不互调**（桌面 Boot UI 的方式是 `import dist/ui/index.js`，不是 IPC 复制业务）。
+2. **呈现层不得越过 `app` 直达 `host/*` 与 `infra/*`**——这是历史上漂移的来源（Web 侧自己实现了 doctor/config/鉴权）。
+3. **`Domain` 与 Port/Infra 之间没有箭头**：领域核心对「用哪个 host、token 从哪来、HTTP 怎么发」一无所知，换后端只需动 Port 与 Implementations 两个包。
+
+依赖**只能向内**不是口头约定，由 **`tests/layering.test.ts`** 强制执行：
 
 | 规则 | 断言位置 |
 |------|----------|

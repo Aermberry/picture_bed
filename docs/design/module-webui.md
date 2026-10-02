@@ -225,6 +225,81 @@ WebUI SPA **同时**服务浏览器（`picbed ui`）与 Electron 壳（[`module-
 - doctor：调用 DoctorService；视图展示 `checks[]/failures[]`；缺 token 时 hint 展开 PAT / `gh auth` 说明（同 F15）。
 - 失败：非法键/枚举 → 退出码 2 语义；鉴权类失败 → 退出码 3 语义。
 
+### F20.2 gh 一键登录（画布上的 spawn + 轮询）
+
+登录不引入 OAuth App，而是**代用户在服务端 spawn `gh auth login --web`**，前端每 2s 轮询状态。难点全在"进程生命周期 × HTTP 无状态"的接缝处，故给出时序：
+
+```plantuml
+@startuml gh-login-flow
+title gh 一键登录（F15 · UI → spawn gh → 落盘凭据）
+
+actor "User" as U
+participant "Browser" as FE
+participant "UI Server" as SVR
+participant "spawnGhLogin" as SPAWN
+participant "gh CLI" as GH
+participant "GitHub 设备流" as WEB
+participant "~/.picbed/credentials.json" as FILE
+
+U -> FE: 点击「GitHub 一键登录」
+FE -> SVR: POST /api/auth/gh-login/start
+
+SVR -> SVR: probeGhToken()
+alt 未安装 gh
+    SVR --> FE: 400 E_GH_NOT_FOUND
+else 已有 token
+    SVR -> FILE: writeUserToken(token)
+    SVR --> FE: 200 { status:'done', tokenMask }
+else 需浏览器授权
+    SVR -> SPAWN: spawnGhLogin(onData)
+    SPAWN -> GH: spawn `gh auth login --web --hostname github.com`
+    SVR --> FE: 200 { status:'running' }
+
+    GH -> WEB: 打开 device login 页
+    U -> WEB: 粘贴 one-time code 并授权
+    WEB --> GH: 200 OK
+    GH -> SPAWN: stdout → session.output
+
+    SPAWN -> GH: stdin '\n'（t=300/1000/2000/3000ms）
+    note right of SPAWN
+        **菜单自动确认**
+        gh 会弹出协议/主机选择菜单
+        多次回车推进到等待授权
+    end note
+
+    loop 每 2 秒
+        FE -> SVR: GET /api/auth/gh-login/status
+        SVR --> FE: { status:'running', output }
+    end
+
+    GH -> GH: exit code = 0
+    SVR -> SVR: probeGhToken() 读新 token
+    SVR -> FILE: writeUserToken（mode 0600）
+    SVR --> FE: { status:'done' }
+    FE -> FE: loadConfigForm() → 显示掩码
+end
+
+alt 退出非 0 / 用户取消
+    SVR -> SVR: session = { status:'error', error }
+    SVR --> FE: { status:'error', error }
+end
+
+note right of FILE
+    **凭据存储**
+    ~/.picbed/credentials.json
+    可由 PICBED_USER_TOKEN_PATH 覆盖
+    权限 0o600
+end note
+@enduml
+```
+
+由这张图得出的规则：
+
+1. **会话是单例**：`GhLoginStore` 同时只允许一个登录流程（`tests/desktop.test.ts` 断言 UI 与桌面共用同一份 store），第二个 `/start` 直接复用既有状态。
+2. **轮询只暴露 `output` 累积文本**：HTTP 拿不到进程句柄，状态机只能有三个终值 `done` / `error` / `running`；上层不得依据输出文本做分支判断。
+3. **token 不过 HTML**：颁证直接落盘 `~/.picbed/credentials.json`（0600），响应体只有掩码——与 F20「不提供显示原文」同源。
+4. **Windows spawn 分叉藏在 `infra/gh-cli.ts`**：`gh.exe`/`gh` 用 `shell=false`，`gh.cmd` 必须 `shell=true`（避开 CVE-2024-27980），ENOENT 则换下一个候选；UI 层不知道这些细节。
+
 ### F20.1 目录选择（2026-10-01 · 远程目录浏览 + 新建）
 
 设置页 `github.dir` 行提供目录选择器；呈现规格见 [`wireframes/ui-shell.md`](wireframes/ui-shell.md) §1.3。
