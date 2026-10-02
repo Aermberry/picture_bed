@@ -25,7 +25,13 @@ desktop 是**桌面应用壳**限界上下文：在保留 npm CLI 本地开发/�
 renderer/                 # UI 单源（Vite root）
   index.html
   styles.css
-  main.js
+  main.js                 # 仅引导：import { bootstrap } from './src/app.js'
+  src/                    # 渲染器 ESM 模块（浏览器原生，不经打包也可直发）
+    app.js                # 装配：导航 / 视图切换 / 各 feature init
+    lib/                  # dom、api（唯一 fetch 出口 + X-Picbed-UI）、files、titles
+    components/           # toast、modal（confirm / 外链详情）、selectable-grid
+    features/             # theme、logo、health、drop、photo-wall、gallery、manage、
+                          # settings、dir-picker、gh-login（各 <330 行）
 desktop/                  # Electron 壳
   main.mjs                # 主进程：createUiServer + 窗口 + IPC + 生命周期
   preload.cjs             # contextBridge：picbedNative.*

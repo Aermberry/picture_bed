@@ -48,7 +48,7 @@ src/ui/
 │  ├─ guard.ts          #   Host 解析/绑定地址、/api 同源、POST 头、请求体上限
 │  ├─ body.ts           #   readBody（64 KiB 上限，超限仍 drain 以便送达 413）
 │  ├─ envelope.ts       #   统一 JSON 信封 / send / sendRaw / Host 归一化
-│  ├─ static.ts         #   index.html 注入、renderer/main.js、dev 模式探测
+│  ├─ static.ts         #   index.html 注入、renderer/{main.js,src/**}、dev 模式探测
 │  └─ errors.ts         #   未捕获异常 → HTTP 状态码（由 app/errors.ts 派生）
 └─ routes/              # 业务路由（按资源分组，每个 <250 行）
    ├─ health.ts session.ts preview.ts plan.ts sync.ts revert.ts
