@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import { isImageExt } from './lib/img.js';
+import { isImageExt, mimeOf } from './lib/img.js';
 import { sha256Hex } from './lib/hash.js';
 import { isUnderRoot } from './lib/paths.js';
 import type { Asset, BlockedItem, ImageRef } from './types.js';
@@ -123,18 +123,4 @@ export function resolveAssets(
   };
 }
 
-function mimeOf(p: string): string {
-  const ext = path.extname(p).toLowerCase();
-  const map: Record<string, string> = {
-    '.png': 'image/png',
-    '.jpg': 'image/jpeg',
-    '.jpeg': 'image/jpeg',
-    '.gif': 'image/gif',
-    '.webp': 'image/webp',
-    '.avif': 'image/avif',
-    '.svg': 'image/svg+xml',
-    '.bmp': 'image/bmp',
-    '.ico': 'image/x-icon',
-  };
-  return map[ext] ?? 'application/octet-stream';
-}
+

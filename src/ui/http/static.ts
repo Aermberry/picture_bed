@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { INDEX_HTML } from '../static.js';
+import { isUnderRoot } from '../../lib/paths.js';
 
 /**
  * 「规范」入口仅本地调试可见（F23/F24）。
@@ -62,7 +63,7 @@ export function rendererAsset(rel: string): { body: Buffer; type: string } | nul
   if (rel.includes('..')) return null;
   const root = rendererRoot();
   const file = path.resolve(root, rel.replace(/^\/+/, ''));
-  if (file !== root && !file.startsWith(root + path.sep)) return null;
+  if (!isUnderRoot(root, file)) return null;
   const type = ASSET_TYPES[path.extname(file).toLowerCase()];
   if (!type) return null;
   if (!fs.existsSync(file) || !fs.statSync(file).isFile()) return null;

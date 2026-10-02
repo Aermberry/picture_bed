@@ -1,14 +1,10 @@
-import path from 'node:path';
 import type { DocFile, DocKind, ImageRef, RefSyntax } from './types.js';
 
 // 单点：src/lib/img.ts（原三份副本之一）
 export { IMAGE_EXT, isImageExt } from './lib/img.js';
 import { isImageExt } from './lib/img.js';
-
-function kindOf(docPath: string): DocKind {
-  const ext = path.extname(docPath).toLowerCase();
-  return ext === '.md' || ext === '.markdown' ? 'markdown' : 'html';
-}
+// 单点：src/lib/doc.ts（原 scan.ts 与 extract.ts 两份副本）
+import { kindOf } from './lib/doc.js';
 
 /** Strip fenced/inline code spans so we do not rewrite false refs. */
 export function blankCodeRegions(text: string): string {
