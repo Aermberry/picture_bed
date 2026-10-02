@@ -20,6 +20,19 @@ describe('F24 desktop shell', () => {
     expect(fs.existsSync(path.join(repoRoot, 'electron-builder.yml'))).toBe(true);
   });
 
+  it('preload 真源唯一：只允许 desktop/preload.cjs', () => {
+    // 历史上同时存在 preload.mjs（全仓零引用的 ESM 副本）。两份 preload 意味着两份
+    // contextBridge 实现：改一个忘一个就成了发布出去的安全面漂移，且 electron-vite
+    // 的 preload entry（electron.vite.config.mjs）与 main.mjs 的加载路径都只认 .cjs。
+    const preloads = fs
+      .readdirSync(path.join(repoRoot, 'desktop'))
+      .filter((name) => name.startsWith('preload.'))
+      .sort();
+    expect(preloads).toEqual(['preload.cjs']);
+    const viteConfig = fs.readFileSync(path.join(repoRoot, 'electron.vite.config.mjs'), 'utf8');
+    expect(viteConfig).toContain('desktop/preload.cjs');
+  });
+
   it('npm pack stays CLI-only (no desktop runtime in files whitelist)', () => {
     const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8')) as {
       files: string[];
