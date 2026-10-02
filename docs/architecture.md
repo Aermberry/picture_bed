@@ -342,86 +342,77 @@ picbed/
 
 依赖**只能向内**：呈现层（`cli.ts` / `ui/**` / `mcp/**`）→ `app` → 领域核心 → `host` / `infra`。下面的箭头就是这个约束全貌；**紧接着落在它上面的 7 条断言才是真正的执行者**：
 
-```plantuml
-@startuml module-dependencies
-title 模块依赖方向（app 层为唯一编排边界）
+```mermaid
+flowchart LR
+    subgraph 入口层
+        CLI[CLI 命令]
+        WEB[Web 控制台]
+        MCP[MCP 服务]
+        DESK[桌面壳]
+    end
 
-package "Entrypoints · 入口层" {
-    [CLI\nsrc/cli.ts] as CLI
-    [WebUI\nsrc/ui/server.ts] as WEB
-    [MCP\nsrc/mcp/server.ts] as MCP
-    [Desktop\ndesktop/main.mjs] as DESK
-}
+    subgraph 应用编排层
+        APP[编排服务<br/>计划与同步与回滚与自检]
+        AUTH[配置与鉴权]
+        RS[运行记录]
+        ERR[错误码映射]
+    end
 
-package "app · 应用编排层" {
-    [sync · plan · collect\nrevert · doctor · upload] as APP
-    [settings · auth] as AUTH
-    [run-store] as RS
-    [errors\n(AppError)] as ERR
-}
+    subgraph 领域核心
+        DOMAIN[扫描抽取解析计划回写清单]
+        CFG[配置加载]
+        TY[领域类型]
+    end
 
-package "Domain · 领域核心" {
-    [scan · extract · resolve\nplan · rewrite · manifest] as DOMAIN
-    [config] as CFG
-    [types] as TY
-}
+    subgraph 端口
+        HA[HostAdapter 接口]
+        HF[端口工厂]
+    end
 
-package "Port · 端口" {
-    interface "HostAdapter" as HA
-    [createHostAdapter\n端口工厂] as HF
-}
+    subgraph 基础设施
+        GHC[gh 命令行封装]
+        UT[本机凭据读写]
+        LIB[路径与图片与摘要与掩码]
+    end
 
-package "Infra · 基础设施" {
-    [infra/gh-cli] as GHC
-    [user-token] as UT
-    [lib/paths · img · hash · mask] as LIB
-}
+    subgraph 适配器实现
+        GHAD[GitHub 适配器]
+        LCAD[本地目录适配器]
+    end
 
-package "Host Implementations" {
-    [GitHubHostAdapter] as GH_ADP
-    [LocalHostAdapter] as LC_ADP
-}
+    subgraph 外部
+        API[GitHub 接口]
+        FSX[本地文件系统]
+    end
 
-package "External" {
-    [GitHub API] as API
-    [Filesystem\n.picbed/*] as FS
-}
+    CLI --> APP
+    WEB --> APP
+    WEB --> AUTH
+    MCP --> APP
+    DESK --> APP
 
-CLI --> APP
-WEB --> APP
-WEB --> AUTH
-MCP --> APP
-DESK --> AUTH : "import dist/ui/index.js"
+    APP --> DOMAIN
+    APP --> CFG
+    APP --> RS
+    APP --> ERR
+    APP --> HF
+    AUTH --> CFG
+    AUTH --> GHC
+    AUTH --> UT
 
-APP --> DOMAIN
-APP --> CFG
-APP --> RS
-APP --> ERR
-APP --> HF
-AUTH --> CFG
-AUTH --> GHC
-AUTH --> UT
+    DOMAIN --> TY
+    DOMAIN --> LIB
+    CFG --> LIB
 
-DOMAIN --> TY
-DOMAIN --> LIB
-CFG --> LIB
+    GHAD -.->|实现| HA
+    LCAD -.->|实现| HA
+    HF --> HA
+    HF --> GHAD
+    HF --> LCAD
 
-GH_ADP ..|> HA
-LC_ADP ..|> HA
-HF --> HA : creates
-HF --> GH_ADP : "github"
-HF --> LC_ADP : "local"
-
-GH_ADP --> API
-LC_ADP --> FS
-GHC --> UT
-
-note bottom of CLI
-    **呈现层守则**
-    只做协议适配：argv / HTTP / stdio
-    不直连 host/* 与 infra/*
-end note
-@enduml
+    GHAD --> API
+    LCAD --> FSX
+    GHC --> UT
 ```
 
 这张图要记住的三件事（逐条对应下面的守卫断言）：

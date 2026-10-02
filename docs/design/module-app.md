@@ -55,79 +55,78 @@ src/app/
 
 `runSync` 是唯一一次同时触碰「读取文本 → 网络写 → 本地写 → 审计」的服务，而其中**文本快照只能取一次**（§行为增量 7）。这条约束在单个服务描述里看不出来，因此画出全链路：
 
-```plantuml
-@startuml sync-orchestration
-title sync 编排时序（runSync · 单次 collect+plan）
+```mermaid
+sequenceDiagram
+    actor U as 人或 UI
+    participant CLI as CLI / WebUI
+    participant SYNC as runSync
+    participant PLAN as runPlan
+    participant COLLECT as collect
+    participant INGEST as scanDocs + extractRefs
+    participant RESOLVE as resolveAssets
+    participant BUILD as buildPlan
+    participant MAN as manifest 存储
+    participant FACT as createHostAdapter
+    participant ADAPTER as HostAdapter
+    participant GH as GitHub API
+    participant REWRITE as applyRewrites
 
-actor "User / UI" as U
-participant "CLI / WebUI" as CLI
-participant "runSync" as SYNC
-participant "runPlan" as PLAN
-participant "collect" as COLLECT
-participant "scanDocs / extractRefs" as INGEST
-participant "resolveAssets" as RESOLVE
-participant "buildPlan" as BUILD
-participant "Manifest store" as MAN
-participant "createHostAdapter" as FACT
-participant "HostAdapter" as ADAPTER
-participant "GitHub Contents API" as GH
-participant "applyRewrites" as REWRITE
+    U ->> CLI: sync 命令并确认
+    CLI ->> SYNC: runSync
 
-U -> CLI: picbed sync <path> --yes
-CLI -> SYNC: runSync({ root, cfg, cwd, getToken })
-
-== 1. 单次 collect + plan（文本快照）==
-SYNC -> PLAN: runPlan(root, cfg, cwd)
-PLAN -> COLLECT: collect(root, cfg)
-COLLECT -> INGEST: scanDocs + extractRefs
-INGEST --> COLLECT: docs[] + ImageRef[]
-COLLECT -> RESOLVE: resolveAssets(refs, { scanRoot })
-RESOLVE --> COLLECT: { assets, blocked, remoteSkips }
-COLLECT --> PLAN: CollectResult
-PLAN -> MAN: loadManifest(cwd)
-PLAN -> BUILD: buildPlan({ assets, blocked, remoteSkips, manifest })
-BUILD --> PLAN: SyncPlanItem[]（含 skip-cache / upload / blocked）
-PLAN --> SYNC: { collected, plan, summary }
-
-== 2. 鉴权 + 适配器 ==
-SYNC -> SYNC: token = getToken()
-alt 需要 token 但没有
-    SYNC --> CLI: throw E_TOKEN
-end
-SYNC -> FACT: createHostAdapter(cfg, token)
-FACT --> SYNC: HostAdapter
-
-== 3. 上传（按 sha 去重）==
-loop plan 中 action == 'upload'
-    SYNC -> MAN: findCachedUrl(sha256)
-    alt 缓存命中
-        SYNC --> SYNC: items.push({ skip-cache, publicUrl })
-    else 未命中
-        SYNC -> ADAPTER: remotePath(sha256, localPath)
-        SYNC -> ADAPTER: putFile(repoPath, bytes, message, branch)
-        ADAPTER -> GH: PUT /repos/{o}/{r}/contents/{path}
-        GH --> ADAPTER: 201 Created
-        SYNC -> ADAPTER: composeUrls(repoPath)
-        SYNC -> MAN: mergeManifest(entries)
+    rect rgb(242, 248, 252)
+    Note over SYNC, PLAN: ① 单次 collect + plan（此后不再重扫）
+    SYNC ->> PLAN: runPlan
+    PLAN ->> COLLECT: collect
+    COLLECT ->> INGEST: 扫描文档并抽取引用
+    INGEST -->> COLLECT: 文档列表 + 图片引用列表
+    COLLECT ->> RESOLVE: 解析并去重
+    RESOLVE -->> COLLECT: 资产 / blocked / remoteSkips
+    COLLECT -->> PLAN: CollectResult
+    PLAN ->> MAN: 读取 manifest
+    PLAN ->> BUILD: buildPlan
+    BUILD -->> PLAN: SyncPlanItem 列表
+    PLAN -->> SYNC: plan 与摘要
     end
-end
 
-== 4. 回写审计 ==
-loop 每个 doc
-    SYNC -> REWRITE: applyRewrites({ docPath, content, items, backup, dryRun })
-    REWRITE --> SYNC: { outPath, entries }
-    SYNC -> MAN: mergeManifest(entries)
-end
-SYNC -> MAN: saveManifest(cwd, manifest)
-SYNC -> SYNC: recordRun({ command:'sync', items, errors })
-SYNC --> CLI: { ok, uploaded, rewrittenDocs, partial, runId }
+    rect rgb(252, 248, 242)
+    Note over SYNC, FACT: ② 鉴权与适配器（早于任何写）
+    SYNC ->> SYNC: 取 token
+    alt 需要 token 却没有
+        SYNC -->> CLI: 抛 E_TOKEN
+    end
+    SYNC ->> FACT: createHostAdapter
+    FACT -->> SYNC: HostAdapter 实例
+    end
 
-note right of SYNC
-    **失败隔离 + partial**
-    单文件失败不中断后续
-    partial = !ok && (uploaded + rewritten > 0)
-end note
-@enduml
+    rect rgb(244, 250, 244)
+    Note over SYNC, GH: ③ 上传：按 sha 去重，缓存优先
+    loop 每个 upload 项
+        SYNC ->> MAN: 查缓存 URL
+        alt 缓存命中
+            SYNC ->> SYNC: 记为 skip-cache
+        else 未命中
+            SYNC ->> ADAPTER: 计算远端路径
+            SYNC ->> ADAPTER: putFile
+            ADAPTER ->> GH: PUT contents
+            GH -->> ADAPTER: 201
+            SYNC ->> ADAPTER: 合成 URL
+            SYNC ->> MAN: 合并 manifest 条目
+        end
+    end
+    end
+
+    rect rgb(250, 244, 250)
+    Note over SYNC, MAN: ④ 回写 + 审计
+    loop 每个文档
+        SYNC ->> REWRITE: 按偏移倒序替换
+        REWRITE -->> SYNC: 新内容与条目
+        SYNC ->> MAN: 合并 manifest 条目
+    end
+    SYNC ->> MAN: 保存 manifest（整程一次）
+    SYNC ->> SYNC: 写 RunRecord
+    SYNC -->> CLI: 结果与 runId
+    end
 ```
 
 由这张图得出的规则：
