@@ -320,10 +320,9 @@ picbed/
 ├─ desktop/                          // Electron 壳（进桌面包；npm 包不含）
 │  ├─ main.mjs                       //   主进程：动态 import('../dist/ui/index.js') 复用 createUiServer；
 │  │                                 //     窗口状态记忆 / 对话框 IPC / dev 热重载；零业务规则
-│  ├─ preload.cjs                    //   contextBridge 暴露 picbedNative（CJS 真源）：仅目录/文件对话框，不暴露 token 与任意 FS
-│  ├─ preload.mjs                    //   ⚠ 遗留 ESM 副本，全仓零引用（真源是 preload.cjs）——待清理
+│  ├─ preload.cjs                    //   contextBridge 暴露 picbedNative（唯一真源）：仅目录/文件对话框，不暴露 token 与任意 FS
 │  ├─ icon.png                       //   electron-builder 安装包图标（buildResources）
-│  └─ make-icon.py                   //   图标生成脚本（一次性工具，代码零引用）
+│  └─ make-icon.py                   //   图标生成脚本（一次性工具，代码零引用；随 files: desktop/**/* 进桌面包）
 │
 ├─ scripts/                          // 构建/巡检工具（node 直跑；仓库本地与 CI）
 │  ├─ validate.mjs                   //   四 profile 门禁：design / bootstrap / scripts / pack（真实 tarball 审计）
@@ -337,7 +336,7 @@ picbed/
    └─ （其余 13 个：cli/ui/pipeline/host/mcp/desktop/auth/config/watch/repo-dir/extract/user-token）
 ```
 
-规模：`src/` 61 文件 / 约 5.0k 行；`renderer/` 21 文件；`desktop/` 5 文件（含 1 个零引用遗留 `preload.mjs` 待清理）；`scripts/` 3 文件；`tests/` 16 文件。
+规模：`src/` 61 文件 / 约 5.0k 行；`renderer/` 21 文件；`desktop/` 4 文件（preload 只允许 `.cjs` 一份，`tests/desktop.test.ts` 守着）；`scripts/` 3 文件；`tests/` 16 文件。
 
 #### 2.5.4 依赖方向与守卫
 
