@@ -109,7 +109,7 @@
 
 ### 2.2 领域服务层（核心能力）
 
-> ⚠️ 下面这些是**讨论用的逻辑角色名**，不是代码里的类名或文件名（源码中真实同名的只有 `HostAdapter` 家族与 `DoctorService`）。
+> ⚠️ 下面这些是**讨论用的逻辑角色名**，不是代码里的类名或文件名（源码中真实字面出现的只有 `HostAdapter` 家族与 `picbedNative`；`DoctorService` 对应的是**函数** `doctorService()`，无同名类型/类）。
 > 想知道每个角色落在哪个文件、导出什么函数，见 **§2.5.2 概念 → 代码实体**。
 
 - **DocumentScanner**：遍历目录，按扩展名/忽略规则得到 `DocFile[]`。
@@ -178,7 +178,7 @@ package.json   files=[bin, dist, README.md]
 同一份应用编排（`src/app/*`）被四个宿主复用，**任何宿主都不复制业务规则**：
 
 ```text
-[1] picbed <cmd>  bin/picbed.js → src/cli.ts（commander，547 行）──────────┐
+[1] picbed <cmd>  bin/picbed.js → src/cli.ts（commander，578 行）──────────┐
                                                                             │
 [2] picbed ui     同一 cli.ts 的 `ui` 子命令 → import('./ui/index.js')       ├─► src/app/*
                   → createUiServer → listen(127.0.0.1:4780) → 浏览器 /api/* │      │
@@ -194,8 +194,8 @@ package.json   files=[bin, dist, README.md]
 | 宿主 | 入口 | 关键事实 |
 |------|------|----------|
 | CLI | `bin/picbed.js` → `dist/cli.js` ← `src/cli.ts` | commander；`ui` 子命令在同一文件懒加载 UI 服务器（`cli.ts:295`）；默认 host `127.0.0.1` / port `4780`（`cli.ts:116-117`），非回环绑定会告警（`cli.ts:292`） |
-| Web UI | `src/ui/server.ts` `createUiServer`（190 行，**只装配**） | 一个 Node 进程同时承载静态下发与 `/api/*`；流程为 安检（`http/guard`）→ 静态（`http/static`）→ 路由表（`routes/`） |
-| MCP | `src/mcp/server.ts`（204 行） | stdio JSON-RPC，供 Agent 调用，与 CLI 共用 `src/app/*` |
+| Web UI | `src/ui/server.ts` `createUiServer`（204 行，**只装配**） | 一个 Node 进程同时承载静态下发与 `/api/*`；流程为 安检（`http/guard`）→ 静态（`http/static`）→ 路由表（`routes/`） |
+| MCP | `src/mcp/server.ts`（213 行） | stdio JSON-RPC，供 Agent 调用，与 CLI 共用 `src/app/*` |
 | 桌面 | `desktop/main.mjs` | **不重新实现 UI**：动态 `import('../dist/ui/index.js')` 取 `createUiServer`（`main.mjs:80-86`）；dev 固定 `4780` 让 Vite 代理 `/api`，prod 用 `listen(0)` 由 OS 分配（`main.mjs:87-90`），窗口加载 `uiHandle.url`（`main.mjs:149`） |
 
 #### 2.5.2 §2.2 概念 → 代码实体
@@ -210,14 +210,14 @@ package.json   files=[bin, dist, README.md]
 | `LinkRewriter` | `src/rewrite.ts` → `rewriteDoc()` / `applyRewrites()` / `writeDocAtomic()` / `revertDoc()` | 原子写在同文件 |
 | `ManifestStore` | `src/manifest.ts` → `loadManifest` / `saveManifest` / `upsertEntry` / `findCachedUrl()` | |
 | `HostAdapter` 工厂 | `src/host/index.ts` → `createHostAdapter()`；实现在 `github.ts` / `local.ts` | 代码中**真实同名** |
-| `DoctorService` | `src/app/doctor.ts` → `doctorService()` | 代码中**真实同名** |
+| `DoctorService` | `src/app/doctor.ts` → `doctorService()` | **函数**形态，非同名类型/类（`DoctorService` 字面量不在源码中） |
 | `SyncOrchestrator` | `src/app/sync.ts` → `runSync()` | scan → … → manifest 全流程 |
 | `RunRecorder` | `src/app/run-store.ts` → `recordRun` / `listRuns` / `getRun()` | |
 | `ConfirmGate` | 写操作的确认语义，落在 `src/ui/routes/{sync,revert}.ts` 等路由 | 类名不存在 |
 | `ViewMapper` / `WebUiFacade` / `AppShell` / `SideNav` / `DropZone` | `renderer/index.html` + `renderer/src/features/*`（如 `drop.js` 英雄区） | 纯前端，**不在** `src/` |
 | `NativeBridge` / `DesktopShell` | `desktop/main.mjs` + `desktop/preload.cjs`（`picbedNative` 桥） | |
 
-已核实：22 个角色名里仅 `HostAdapter`、`GitHubHostAdapter`、`LocalHostAdapter`、`DoctorService`、`picbedNative` 在源码中真实出现，其余为讨论用名，勿按名 grep。
+已核实：22 个角色名里仅 `HostAdapter`、`GitHubHostAdapter`、`LocalHostAdapter`、`picbedNative` 在源码中**字面出现**；`DoctorService` 对应的是**函数** `doctorService()`（大小写不同，无同名类型/类），其余为讨论用名，勿按名 grep。
 
 #### 2.5.3 全仓目录树（逐文件职责）
 
@@ -230,6 +230,8 @@ picbed/
 │  └─ picbed-mcp.js                  //   picbed-mcp 命令入口 → dist/mcp/server.js
 │
 ├─ src/                              // ★ 唯一进 npm 包的源码树（tsc → dist/）
+│  │
+│  ├─ cli.ts                         // CLI 呈现层入口：commander 装配 + `ui` 子命令懒加载（见 §2.5.1）
 │  │
 │  │  ── 领域核心（根目录平铺；无网络 I/O；不存在 core/ 目录）──
 │  ├─ types.ts                       // 领域模型唯一真源：DocFile/ImageRef/Asset/SyncPlanItem/ManifestEntry…
@@ -277,11 +279,13 @@ picbed/
 │  │
 │  │  ── WebUI 呈现层（服务端；picbed ui 与 Electron 桌面共用同一份）──
 │  ├─ ui/
-│  │  ├─ server.ts                   //   createUiServer()：安检→静态→路由表；只装配无业务（<200 行，layering 守卫）
+│  │  ├─ index.ts                    //   统一出口：re-export createUiServer / INDEX_HTML（cli 与 desktop 都从这里取）
+│  │  ├─ server.ts                   //   createUiServer()：安检→静态→路由表；只装配无业务（实测 204 行，layering 守卫 <250 行）
 │  │  ├─ root.ts                     //   RootBinder：拖拽策略 A——先绑根，再把相对线索映射到真实 FS
 │  │  ├─ watch.ts                    //   WatchController：watch 的 UI 状态机（preview | confirm-each | auto）
 │  │  ├─ gh-login.ts                 //   GhLoginStore：gh auth login 会话单例（同时只允许一个流程）
 │  │  ├─ context.ts                  //   UiRouteContext：安检放行后交给路由的依赖注入（含拖拽工作集条目）
+│  │  ├─ static.ts                   //   1 行 re-export INDEX_HTML（对外薄壳；真身在 http/static.ts）
 │  │  ├─ http/                       //   HTTP 协议横切
 │  │  │  ├─ guard.ts                 //     同源 / X-Picbed-UI / Host / 请求体安检
 │  │  │  ├─ body.ts                  //     请求体大小上限
@@ -301,7 +305,10 @@ picbed/
 │  │  │  ├─ gallery.ts               //     图库：远端目录浏览 + 批量删除选中
 │  │  │  ├─ system.ts                //     系统类只读端点：doctor 自检 + manifest 视图 + 远程目录创建
 │  │  │  └─ health.ts                //     /api/health 存活探针
-│  │  └─ spa/                        //   运行时读 renderer/index.html 导出 INDEX_HTML（单一 UI 源，非第二份 HTML）
+│  │  └─ spa/
+│  │     ├─ index.ts                 //   INDEX_HTML：运行时读 renderer/index.html（单一 UI 源，非第二份 HTML）
+│  │     ├─ styles.ts                //   SPA_CSS：server.ts 据此下发 /styles.css
+│  │     └─ globals.d.ts             //   Window.picbedNative / __PICBED_UI_DEV__ 环境类型（不 emit）
 │  │
 │  └─ mcp/                           // MCP 呈现层
 │     └─ server.ts                   //   stdio JSON-RPC：Agent 通道，复用 src/app/*，零自有业务
@@ -329,14 +336,16 @@ picbed/
 │  ├─ build-desktop.mjs              //   electron-builder 打包（extraMetadata.main 注入 Electron 入口）
 │  └─ desktop-dev.mjs                //   桌面 dev 编排：起 Vite + electron，代理 /api
 │
-└─ tests/                            // vitest（141 用例 / 16 文件；架构约定都有活守卫）
+└─ tests/                            // vitest（141 用例 / 17 个用例文件 + 1 个辅助；架构约定都有活守卫）
    ├─ layering.test.ts               //   分层 7 条断言（§2.5.4）
    ├─ lib-single-source.test.ts      //   跨层单点：横切逻辑只许在 src/lib/
    ├─ package-surface.test.ts        //   npm 导出面：files/bin/exports 不得越界
-   └─ （其余 13 个：cli/ui/pipeline/host/mcp/desktop/auth/config/watch/repo-dir/extract/user-token）
+   ├─ architecture-map.test.ts       //   §2.5 字面量 vs 实现：目录树条目 / 文件计数 / 行数偏差即失败
+   ├─ renderer-source.ts             //   辅助（非用例）：读渲染层源做断言，供其它用例复用
+   └─ （其余 12 个用例文件：cli/ui/ui-panels/pipeline/host/mcp/desktop/auth/config/watch/repo-dir/extract/user-token）
 ```
 
-规模：`src/` 61 文件 / 约 5.0k 行；`renderer/` 21 文件；`desktop/` 4 文件（preload 只允许 `.cjs` 一份，`tests/desktop.test.ts` 守着）；`scripts/` 3 文件；`tests/` 16 文件。
+规模：`src/` 60 文件 / 约 5.5k 行（2026-10-02 实测 5,451 行）；`renderer/` 21 文件；`desktop/` 4 文件（preload 只允许 `.cjs` 一份，`tests/desktop.test.ts` 守着）；`scripts/` 3 文件；`tests/` 17 个用例文件 + 1 个辅助。
 
 #### 2.5.4 依赖方向与守卫
 
