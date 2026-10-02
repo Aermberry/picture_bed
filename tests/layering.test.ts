@@ -40,7 +40,8 @@ describe('分层（CLI/WebUI → app → 领域 → host 适配器）', () => {
   it('ui 层不直连 config.ts（配置一律走 app/settings.ts 的 resolvedConfig）', () => {
     const offenders = files
       .filter((f) => f.rel.startsWith('ui/'))
-      .filter((f) => importsOf(f.text).some((s) => s.endsWith('/config.js') && !s.includes('/app/')));
+      // 排除 ui/routes/config.ts 这类「自身文件名叫 config」的情况，只禁真正的 config.ts 直连
+      .filter((f) => importsOf(f.text).some((s) => s.endsWith('config.js') && !s.includes('routes/')));
     expect(offenders.map((f) => f.rel)).toEqual([]);
   });
 
@@ -56,6 +57,21 @@ describe('分层（CLI/WebUI → app → 领域 → host 适配器）', () => {
       .filter((f) => f.rel.startsWith('app/'))
       .filter((f) => /from '(node:http|commander)'/.test(f.text) || importsOf(f.text).some((s) => s.includes('/ui/')));
     expect(offenders.map((f) => f.rel)).toEqual([]);
+  });
+
+  it('ui 服务器只做装配：不含业务路由字面量、且保持精简', () => {
+    const server = textOf('ui/server.ts');
+    // 路由字面量必须住在 routes/，server.ts 只负责 安检→静态→路由表
+    expect(server).not.toMatch(/'\/api\//);
+    expect(server.split('\n').length).toBeLessThan(250);
+  });
+
+  it('业务路由都在 ui/routes/ 下，且每个文件都在可控体量内', () => {
+    const routes = files.filter((f) => f.rel.startsWith('ui/routes/'));
+    expect(routes.length).toBeGreaterThan(5);
+    for (const r of routes) {
+      expect(r.text.split('\n').length).toBeLessThan(250);
+    }
   });
 
   it('适配器层不反向依赖 app 层', () => {
