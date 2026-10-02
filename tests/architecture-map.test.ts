@@ -103,6 +103,18 @@ describe('§2.5 实现地图与磁盘对齐', () => {
     expect(Number(head[2]), '§2.5.3 tests 小结行 辅助数').toBe(helpers);
   });
 
+  it('文档写的用例总数与磁盘一致（静态 it( 口径）', () => {
+    // 用例内部取不到 vitest 的运行总数，故用「静态 it( / test( 计数」作代理。
+    // 当前仓库无 it.each / 条件跳过，静态计数与运行总数严格相等（实测 148 = 148）。
+    // 若将来引入 it.each，本断言会先红——届时把文档改成运行总数并放宽此断言。
+    const cases = fs
+      .readdirSync(path.join(repoRoot, 'tests'))
+      .filter((f) => f.endsWith('.test.ts'))
+      .reduce((n, f) => n + (read(`tests/${f}`).match(/^\s*(?:it|test)\(/gm) ?? []).length, 0);
+    const claimed = docNumber(md, /vitest（(\d+) 用例/, 'tests 小结行用例总数');
+    expect(claimed, '§2.5.3 tests 小结行 用例总数').toBe(cases);
+  });
+
   it('文档点名的行数与实现相差不超过 ±15 行', () => {
     const claims: [string, RegExp, string][] = [
       ['src/cli.ts', /src\/cli\.ts（commander，(\d+) 行）/, '§2.5.1 cli.ts 行数'],
