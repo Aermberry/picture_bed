@@ -3,6 +3,7 @@ import path from 'node:path';
 import {
   CONFIG_NAME,
   configTemplate,
+  loadConfig,
   normalizeGithubRef,
   parseSimpleToml,
   validateHostType,
@@ -10,6 +11,14 @@ import {
 } from '../config.js';
 import type { ResolvedConfig } from '../types.js';
 import { AppError } from './errors.js';
+
+/**
+ * 配置 façade：呈现层（CLI / WebUI）从这里取 `ResolvedConfig`，
+ * 不再直接 import `config.ts`（此前 `ui/server.ts` 直连）。
+ */
+export function resolvedConfig(cwd?: string, configPath?: string): ResolvedConfig {
+  return loadConfig({ cwd: cwd ?? process.cwd(), configPath });
+}
 
 export function readConfigKey(cfg: ResolvedConfig, key: string): unknown {
   const map: Record<string, unknown> = {

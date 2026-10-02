@@ -59,6 +59,23 @@ describe('CLI -> app layer', () => {
     expect(fs.readFileSync(path.join(root, 'docs', 'note.md'), 'utf8')).toContain('./a.png');
   });
 
+  it('upload delegates to the app layer (app/upload.ts) and echoes the public url', async () => {
+    const root = localRepo();
+    const { code, payload } = await runJson(['upload', 'docs/a.png', '--json', '--cwd', root]);
+    expect(code).toBe(EXIT.OK);
+    expect(payload.data.remotePath).toMatch(/^img\//);
+    expect(payload.data.publicUrl).toContain('https://img.example.com/');
+    expect(payload.data.hostType).toBe('local');
+    expect(fs.existsSync(path.join(root, 'bed', payload.data.remotePath))).toBe(true);
+  });
+
+  it('upload surfaces a missing file as E_ASSET_MISSING (exit 4) via the app layer', async () => {
+    const root = localRepo();
+    const { code, payload } = await runJson(['upload', 'docs/nope.png', '--json', '--cwd', root]);
+    expect(code).toBe(EXIT.LOCAL);
+    expect(payload.error.code).toBe('E_ASSET_MISSING');
+  });
+
   it('sync --dry-run reports the plan without writing', async () => {
     const root = localRepo();
     const { code, payload } = await runJson(['sync', 'docs', '--json', '--dry-run', '--cwd', root]);
