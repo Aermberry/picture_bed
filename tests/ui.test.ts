@@ -335,6 +335,26 @@ describe('ui server F16–F18', () => {
     expect(spaApp).not.toMatch(/querySelector\("\.bg"\)\.setAttribute/);
   });
 
+  it('F23 detail modal preview switches text with the copy format tab', async () => {
+    // 回归：切 URL/Markdown/HTML 只换按钮高亮，预览框始终是原始 URL，三种格式形同虚设。
+    // 契约：tab 点击处理器内必须用 fmt() 重绘 .detail-url 预览（Markdown/HTML 各自成格式）。
+    const i = spaApp.indexOf('[data-copy]');
+    expect(i).toBeGreaterThan(0);
+    const handler = spaApp.slice(i, spaApp.indexOf('});', i));
+    expect(handler).toContain('fmt(');
+    expect(handler).toContain('detail-url');
+  });
+
+  it('F25 manage page has delete affordance calling /api/delete with confirm', async () => {
+    // 契约：管理页复用照片墙 selectable-grid，但用「选择」模式开关避免与单击看链接冲突——
+    // 默认点卡片看外链详情；进入 select-mode 后点卡片多选，工具栏出「删除 N」→ /api/delete。
+    expect(spaApp).toContain('createSelectableGrid');
+    expect(spaApp).toContain('btnManageDelete');
+    expect(spaApp).toContain('btnSelectMode');
+    expect(spaApp).toContain('select-mode');
+    expect(spaApp).toContain('/api/delete');
+  });
+
   it('serves renderer ESM submodules under /src/** and blocks escapes', async () => {
     const mod = await fetch(base + '/src/features/theme.js');
     expect(mod.status).toBe(200);

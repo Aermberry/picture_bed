@@ -83,6 +83,7 @@ WebUiFacade
   # POST /api/sync            { root, confirm: true, dryRun? }
   # GET  /api/manifest
   # POST /api/revert          { root, confirm: true, dryRun? }
+  # POST /api/delete          { sha256, confirm: true, dryRun? }   # F25 删已上传图
   # GET  /api/runs            # F21
   # GET  /api/runs/:id
   # POST /api/watch/start     { root, debounceMs?, autoSync? }  # autoSync 仍要 confirm 策略

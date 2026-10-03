@@ -45,6 +45,7 @@
 | F22 | 监听控制台 | P2→**done** | webui | watch 启停与事件日志；无常驻特权 |
 | F23 | 控制台壳层与视觉重设计 | P0→**done** | webui | 72px 侧栏四视图「上传/管理/设置/规范」；晨雾蓝×落日暖令牌；F17–F22 可达且契约不变 |
 | F24 | 桌面应用壳与安装包 | P0→**done** | desktop | Electron 壳加载完整控制台；原生目录对话框；Windows NSIS 安装包；npm 形态不受影响 |
+| F25 | 删除已上传图 | P1→**done** | app/webui | 管理页删一张图：删远端资产（GitHub Contents DELETE / local unlink）+ 回写文档引用回本地路径（复用 revertDoc）+ 清 manifest 该 sha 全部条目；ConfirmGate + dryRun；GitHub blob sha 自取、远端已删视为幂等 |
 
 ---
 
@@ -186,13 +187,19 @@
 
 - 优先级：P0（已实现）· 模块：**webui**
 - 实现（域）：[module-webui · F23](design/module-webui.md#f23-web-控制台壳层与视觉重设计) · 视格：[wireframes/ui-shell.md](design/wireframes/ui-shell.md)（权威：用户《图床工具-UI方案》）
-- AC：界面为 **72px 侧栏 + 顶栏 + 内容区**；侧栏**四视图**均可直达且文案为「上传 / 管理 / 设置 / 规范」；默认进入**上传/文件放置**（DropZone 英雄区 + 根绑定 + 工作集 + plan/sync）；管理页含统计、manifest 网格、回滚、审计、监听；设置页含配置/doctor 与 Toggle；规范页含令牌与 Logo 切换；主题令牌与组件规格（晨雾蓝×落日暖、Toggle 36×20、Logo 三态）与交付规范一致；**token 不得出现在 DOM 可读文本**；API/`confirm`/掩码/策略 A 契约**无回归**。**「规范」视图仅本地调试可见**（见 F24 补充），发包/安装版侧栏不显示该入口。
+- AC：界面为 **72px 侧栏 + 顶栏 + 内容区**；侧栏**四视图**均可直达且文案为「上传 / 管理 / 设置 / 规范」；默认进入**上传/文件放置**（DropZone 英雄区 + 根绑定 + 工作集 + plan/sync）；管理页含统计、manifest 网格、回滚、审计、监听；设置页含配置/doctor 与 Toggle；规范页含令牌与 Logo 切换；主题令牌与组件规格（晨雾蓝×落日暖、Toggle 36×20、Logo 三态）与交付规范一致；**token 不得出现在 DOM 可读文本**；API/`confirm`/掩码/策略 A 契约**无回归**。管理页按内容去重（manifest 引用级记录按 sha256 合并展示，一张图一张卡），且仅本图床上传/引用的图片入库——已托管外链引用（无 sha256/localPath）不进已上传库视图；存储均不动。**「规范」视图仅本地调试可见**（见 F24 补充），发包/安装版侧栏不显示该入口。
 
 ## F24 桌面应用壳与安装包
 
 - 优先级：P0（已实现）· 模块：**desktop**
 - 实现（域）：[module-desktop · F24](design/module-desktop.md#f24-桌面应用壳与安装包)
 - AC：双形态并存——**npm**（`picbed`/`picbed-mcp`/`picbed ui`，供本地开发测试与 Agent）与**桌面安装包**（下载安装即用）互不破坏。桌面端启动原生窗口并加载**完整 Web 控制台**（F16–F23 契约不变）；UI 服务仅绑 `127.0.0.1`；提供**原生目录选择**（策略 A 仍强制先绑 root）；窗口尺寸/位置可记忆；关闭窗口释放端口并停 watch；token 不进渲染进程；`npm pack` **不含** Electron/`desktop/`/`renderer/`；Windows NSIS 用户级安装包（`picbed-setup.exe`）可在无 Node 环境运行。**调试可见性**：侧栏「规范」仅在本地调试显示（源码树 / `desktop:dev` / `PICBED_UI_DEV=1`）；正式发包（`npm i -g`、安装包 `app.isPackaged`）**不得**显示该入口（`PICBED_UI_DEV=0` 强制关闭）。**开发热更新（`desktop:dev` = electron-vite）**：渲染层 **Vite HMR**（改 `renderer/*` 免刷新）；主进程/preload 由 electron-vite 重启；核心 `dist/` 由 `tsc -w` 产出。UI 单源在 `renderer/`（详见 module-desktop）。
+
+## F25 删除已上传图
+
+- 优先级：P1（已实现）· 模块：**app**（编排）+ **webui**（路由/入口）
+- 实现（域）：[module-app · `runDelete`](design/module-app.md) · 视格：[wireframes/ui-shell.md](design/wireframes/ui-shell.md) §1.2
+- AC：管理页每张卡有**「删除」**入口，点击弹 `confirmAsync` 二次确认；确认后 `POST /api/delete {sha256, confirm:true}`。编排 `runDelete` 依次：① 按该 sha 过滤 manifest 条目，从 `publicUrl` 反推远端 `repoPath`（ground truth，不随 `cfg.dir` 漂移）；② `host.deleteFile` 删远端资产——GitHub 自取 blob sha、远端 404 视为幂等成功，local `unlink`；③ `revertDoc` 把文档里指向该外链的 `![](url)` 还原回 `raw` 本地路径；④ 清 manifest 中该 sha 的**全部**条目并 `saveManifest`；⑤ 写 RunRecord。**dryRun** 只列 `remotePath` + 待回写文档清单，不触远端/不写盘。缺 `confirm` 返回 409；sha 缺失/非 hex 返回 400；`hostRequiresToken` 且无 token 抛 `E_TOKEN`。存储引用级主键不变（revert/skip-cache 依赖）。
 
 ---
 

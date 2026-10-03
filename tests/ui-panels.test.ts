@@ -135,6 +135,42 @@ describe('ui F19–F22', () => {
     expect(one.data.data.command).toContain('api.');
   });
 
+  it('F23 /api/manifest dedupes by sha256 so one image shows one card', async () => {
+    // 存储是引用级（上传缓存 1 条 + 每处文档引用 1 条，revert/skip-cache 依赖其主键），不能改存储；
+    // 管理页唯一消费方是 /api/manifest，视图层按 sha256 去重后一张图只出一张卡。
+    const disk = JSON.parse(fs.readFileSync(path.join(cwd, '.picbed', 'manifest.json'), 'utf8')) as {
+      entries: { sha256: string }[];
+    };
+    const shas = new Set(disk.entries.map((e) => e.sha256));
+    expect(disk.entries.length).toBeGreaterThanOrEqual(shas.size);
+    const res = await api('/api/manifest');
+    expect(res.data.ok).toBe(true);
+    expect(res.data.data.entries.length).toBe(shas.size);
+  });
+
+  it('F23 already-remote references are not listed as uploaded images', async () => {
+    // 已托管外链引用（无本地文件、无 sha256、从未上传到图床）仍按引用级留在存储（revert 语义），
+    // 但不得进入「已上传图片库」视图——否则会出现图库里不存在的图 + 指向外部占位的假外链卡。
+    const post = path.join(cwd, 'docs', 'post.md');
+    fs.appendFileSync(post, '\n![remote](https://example.com/already-hosted.png)\n');
+    const cfg = loadConfig({ cwd });
+    const synced = await runSync({
+      root: path.join(cwd, 'docs'),
+      cfg,
+      cwd,
+      getToken: () => undefined,
+      command: 'api.sync',
+    });
+    expect(synced.ok).toBe(true);
+    const disk = JSON.parse(fs.readFileSync(path.join(cwd, '.picbed', 'manifest.json'), 'utf8')) as {
+      entries: { sha256: string }[];
+    };
+    expect(disk.entries.some((e) => !e.sha256 && !e.localPath)).toBe(true); // 存储仍保留该引用
+    const res = await api('/api/manifest');
+    expect(res.data.ok).toBe(true);
+    expect(res.data.data.entries.every((e: { sha256: string }) => e.sha256)).toBe(true);
+  });
+
   it('F19 revert dry-run then revert restores local path', async () => {
     const before = fs.readFileSync(path.join(cwd, 'docs', 'post.md'), 'utf8');
     expect(before).toContain('https://cdn.example.test');
@@ -149,6 +185,54 @@ describe('ui F19–F22', () => {
     const done = await api('/api/revert', { confirm: true, dryRun: false });
     expect(done.data.ok).toBe(true);
     expect(fs.readFileSync(path.join(cwd, 'docs', 'post.md'), 'utf8')).toContain('img/a.png');
+  });
+
+  it('F25 delete removes remote asset, cleans manifest, reverts doc', async () => {
+    // 复 sync 让 post.md 回到外链态、远端文件就位，以便完整验证「删远端+清 manifest+回写文档」
+    const cfg = loadConfig({ cwd });
+    await runSync({
+      root: path.join(cwd, 'docs'),
+      cfg,
+      cwd,
+      getToken: () => undefined,
+      command: 'api.sync',
+    });
+    const disk = JSON.parse(fs.readFileSync(path.join(cwd, '.picbed', 'manifest.json'), 'utf8')) as {
+      entries: { sha256: string; publicUrl: string }[];
+    };
+    const entry = disk.entries.find((e) => e.sha256);
+    if (!entry) throw new Error('no sha in manifest');
+    const sha = entry.sha256;
+
+    // dryRun：只列计划，不触远端/不写盘
+    const dry = await api('/api/delete', { sha256: sha, dryRun: true });
+    expect(dry.data.ok).toBe(true);
+    expect(dry.data.data.planned.length).toBeGreaterThan(0);
+    expect(dry.data.data.remotePath).toBeTruthy();
+
+    // 缺 confirm 必须被拦
+    const denied = await api('/api/delete', { sha256: sha });
+    expect(denied.status).toBe(409);
+
+    // 真删
+    const del = await api('/api/delete', { sha256: sha, confirm: true });
+    expect(del.data.ok).toBe(true);
+    expect(del.data.data.deletedRemote).toBe(true);
+    expect(del.data.data.remotePath).toBeTruthy();
+
+    // 远端文件已删（local host：bed 下该文件不存在）
+    const bedFile = path.join(cwd, 'bed', del.data.data.remotePath);
+    expect(fs.existsSync(bedFile)).toBe(false);
+
+    // manifest 已清该 sha 的全部条目
+    const after = JSON.parse(fs.readFileSync(path.join(cwd, '.picbed', 'manifest.json'), 'utf8')) as {
+      entries: { sha256: string }[];
+    };
+    expect(after.entries.some((e) => e.sha256 === sha)).toBe(false);
+
+    // 文档引用已还原回本地路径
+    expect(fs.readFileSync(path.join(cwd, 'docs', 'post.md'), 'utf8')).toContain('img/a.png');
+    expect(fs.readFileSync(path.join(cwd, 'docs', 'post.md'), 'utf8')).not.toContain('cdn.example.test');
   });
 
   it('F22 watch preview default and stop', async () => {

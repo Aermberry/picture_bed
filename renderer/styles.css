@@ -543,7 +543,7 @@
     .file-meta .row{display:flex; justify-content:space-between; margin-top:4px; font-size:12px; color:var(--c-text-3)}
 
     /* 图库批量选择模式 */
-    .file-grid.select-mode .file-card[data-path]{cursor:pointer; user-select:none}
+    .file-grid.select-mode .file-card{cursor:pointer; user-select:none}
     .file-card .fc-check{
       position:absolute; top:6px; right:6px;
       width:24px; height:24px; border-radius:var(--r-full);

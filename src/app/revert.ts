@@ -3,7 +3,7 @@ import path from 'node:path';
 import { loadManifest } from '../manifest.js';
 import { revertDoc, writeDocAtomic } from '../rewrite.js';
 import { scanDocs } from '../scan.js';
-import type { ResolvedConfig } from '../types.js';
+import type { ManifestEntry, ResolvedConfig } from '../types.js';
 import { newRunId, recordRun } from './run-store.js';
 
 export interface RevertResult {
@@ -19,7 +19,18 @@ export interface RevertResult {
 export function listManifestView(cwd: string) {
   try {
     const manifest = loadManifest(cwd);
-    return { version: manifest.version, entries: manifest.entries, ok: true as const };
+    // 视图层按内容去重：存储保持引用级（doc+raw+localPath 主键，revert/skip-cache 依赖），
+    // 同一 sha256 只出一条（取 updatedAt 最新），管理页一张图一张卡。
+    // 已托管外链引用（无 sha256 且无 localPath，从未经本图床上传）不进「已上传图片库」视图，
+    // 否则会出现图库里不存在的图与指向外部地址的假外链卡；存储中仍保留（revert 语义）。
+    const byKey = new Map<string, ManifestEntry>();
+    for (const e of manifest.entries) {
+      if (!e.sha256 && !e.localPath) continue;
+      const key = e.sha256 || `\u0000${e.doc}\u0000${e.raw}\u0000${e.localPath}`;
+      const prev = byKey.get(key);
+      if (!prev || String(e.updatedAt || '') > String(prev.updatedAt || '')) byKey.set(key, e);
+    }
+    return { version: manifest.version, entries: [...byKey.values()], ok: true as const };
   } catch (err) {
     const e = err as Error & { code?: string };
     return {

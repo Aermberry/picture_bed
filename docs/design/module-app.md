@@ -45,7 +45,8 @@ src/app/
 | `publicPlanItem(it)` | plan item 公开投影（**含 localPath**） | 同上 |
 | `runSync({root,cfg,cwd,getToken,command})` | 调用时**单次 collect+plan**（上传与回写共用同一文本快照，不复用调用方先前 plan）→ 上传（cache 命中跳过）→ 回写 → 保存 manifest → 写 RunRecord | CLI `sync`；API `/api/sync`；watch auto |
 | `runRevert({root,cfg,cwd,dryRun,command})` | manifest 校验 → 逐文档 revert（dry-run 进 `planned`）→ 写 RunRecord | CLI `revert`；API `/api/revert` |
-| `listManifestView(cwd)` | manifest 只读视图（无 token） | API `/api/manifest` |
+| `listManifestView(cwd)` | manifest 只读视图（无 token）：按 sha256 去重（一张图一条）；已托管外链引用（无 sha256/localPath）不入视图，存储不动 | API `/api/manifest` |
+| `runDelete({root,cfg,cwd,sha256,dryRun,getToken,command})` | 删一张已上传图：反推 `repoPath`→`host.deleteFile`（GitHub 自取 blob sha、远端已删幂等）→`revertDoc` 还原文档引用→清 manifest 该 sha→RunRecord | CLI `delete`；API `/api/delete` |
 | `doctorService({cfg,getToken,probeApi})` | host-aware 检查：github 校验 owner/repo/branch + token + API 探测；local 只校验 host | CLI `doctor`；API `/api/doctor` |
 | `publicConfig(cfg, extra?)` | 配置视图（token 掩码） | CLI `config list`；API `/api/config` |
 | `readConfigKey` / `writeConfigKey` | 键枚举 + **url.style 校验** + TOML 改写 | CLI `config get/set`；API `/api/config` |

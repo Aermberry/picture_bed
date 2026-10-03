@@ -7,6 +7,8 @@ export { runSync } from './sync.js';
 export type { SyncItem, SyncResult } from './sync.js';
 export { listManifestView, runRevert } from './revert.js';
 export type { RevertResult } from './revert.js';
+export { runDelete, deriveRepoPath } from './delete.js';
+export type { DeleteResult } from './delete.js';
 export { doctorService, githubProbe, publicConfig } from './doctor.js';
 export type { DoctorCheck, DoctorProbe, DoctorReport } from './doctor.js';
 export {

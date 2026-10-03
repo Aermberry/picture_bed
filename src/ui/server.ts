@@ -19,6 +19,7 @@ import { galleryRoutes } from './routes/gallery.js';
 import { healthRoute } from './routes/health.js';
 import { planRoutes } from './routes/plan.js';
 import { previewRoute } from './routes/preview.js';
+import { deleteRoute } from './routes/delete.js';
 import { revertRoute } from './routes/revert.js';
 import { runsRoutes } from './routes/runs.js';
 import { sessionRoutes } from './routes/session.js';
@@ -55,6 +56,7 @@ const ROUTES: UiRoute[] = [
   planRoutes,
   syncRoute,
   revertRoute,
+  deleteRoute,
   galleryRoutes,
   branchRoutes,
   authRoutes,

@@ -51,6 +51,9 @@ export function openDetail(name, url) {
       kind = b.dataset.copy;
       /** @type {NodeListOf<HTMLElement>} */ ($("modalExtra").querySelectorAll("[data-copy]")).forEach((x) => x.classList.remove("active"));
       b.classList.add("active");
+      // 预览框跟随格式：URL 原文 / Markdown ![]() / HTML <img/>，否则三个 tab 看起来是同一个 URL
+      const preview = $("modalExtra").querySelector(".detail-url");
+      if (preview) preview.textContent = fmt(kind);
     });
   });
   const ok = async () => {

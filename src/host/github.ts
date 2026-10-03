@@ -177,13 +177,29 @@ export class GitHubHostAdapter implements HostAdapter {
     message: string,
     branch: string,
   ): Promise<void> {
+    // 未给 blob sha 时自取（调用方编排层无需知道 GitHub Contents 细节）。
+    let blobSha = sha;
+    if (!blobSha) {
+      const get = await fetch(`${this.urlFor(repoPath)}?ref=${branch}`, {
+        headers: this.headers(),
+      });
+      if (get.status === 404) return; // 远端已不存在，幂等成功
+      if (!get.ok) {
+        throw Object.assign(new Error(`GET contents failed: ${get.status}`), {
+          code: 'E_REMOTE',
+          status: get.status,
+        });
+      }
+      const body = (await get.json()) as { sha?: string };
+      blobSha = body.sha ?? '';
+    }
     const res = await fetch(this.urlFor(repoPath), {
       method: 'DELETE',
       headers: {
         ...this.headers(),
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ message, sha, branch }),
+      body: JSON.stringify({ message, sha: blobSha, branch }),
     });
     if (!res.ok) {
       const text = await res.text();

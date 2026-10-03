@@ -261,6 +261,7 @@ picbed/
 │  │  ├─ plan.ts                     //   runPlan() 预览计划
 │  │  ├─ sync.ts                     //   runSync() 上传→回写→manifest 全流水线（= SyncOrchestrator）
 │  │  ├─ revert.ts                   //   runRevert() 按 manifest 还原本地链接
+│  │  ├─ delete.ts                   //   runDelete() 删除已上传图（远端资产 + 回写文档 + 清 manifest）
 │  │  ├─ upload.ts                   //   uploadSingleAsset() 单文件上传
 │  │  ├─ doctor.ts                   //   doctorService() 配置完整性/凭据/连通自检（按 host.type 分派）
 │  │  ├─ settings.ts                 //   resolvedConfig() —— ui 层取配置的唯一入口（禁直连 config.ts）
@@ -293,11 +294,12 @@ picbed/
 │  │  │  ├─ envelope.ts              //     统一 JSON 信封（CLI / MCP / WebUI 同形状）
 │  │  │  ├─ errors.ts                //     未捕获异常 → 状态码+信封（状态码真源在 app/errors.ts）
 │  │  │  └─ static.ts                //     下发 renderer/**；/src/** 仅白名单后缀、禁目录逃逸
-│  │  ├─ routes/                     //   业务路由（13 个，各 <250 行，layering 守卫）
+│  │  ├─ routes/                     //   业务路由（14 个，各 <250 行，layering 守卫）
 │  │  │  ├─ session.ts               //     根绑定 + 拖拽工作集（服务端唯一可变状态）
 │  │  │  ├─ plan.ts                  //     /api/scan + /api/plan
 │  │  │  ├─ sync.ts                  //     /api/sync：ConfirmGate + dryRun + 工作集作用域
 │  │  │  ├─ revert.ts                //     /api/revert：ConfirmGate；清单损坏单独 400
+│  │  │  ├─ delete.ts                //     /api/delete：删已上传图（远端+manifest+回写文档）；ConfirmGate + dryRun
 │  │  │  ├─ preview.ts               //     图片预览 MIME（仅预览用；上传语义以 manifest/adapter 为准）
 │  │  │  ├─ runs.ts                  //     运行记录：列表 + 单条
 │  │  │  ├─ config.ts                //     配置读写（token 掩码）
@@ -338,7 +340,7 @@ picbed/
 │  ├─ build-desktop.mjs              //   electron-builder 打包（extraMetadata.main 注入 Electron 入口）
 │  └─ desktop-dev.mjs                //   桌面 dev 编排：起 Vite + electron，代理 /api
 │
-└─ tests/                            // vitest（152 用例 / 17 个用例文件 + 1 个辅助；架构约定都有活守卫）
+└─ tests/                            // vitest（157 用例 / 17 个用例文件 + 1 个辅助；架构约定都有活守卫）
    ├─ layering.test.ts               //   分层 7 条断言（§2.5.4）
    ├─ lib-single-source.test.ts      //   跨层单点：横切逻辑只许在 src/lib/
    ├─ package-surface.test.ts        //   npm 导出面：files/bin/exports 不得越界
@@ -347,7 +349,7 @@ picbed/
    └─ （其余 13 个用例文件：cli/ui/ui-panels/pipeline/host/mcp/desktop/auth/config/watch/repo-dir/extract/user-token）
 ```
 
-规模：`src/` 62 文件 / 约 5.4k 行（2026-10-02 实测 5,441 行；旧值 5,451 偏大约 20 行，已订正）；`renderer/` 22 文件；`desktop/` 4 文件（preload 只允许 `.cjs` 一份，`tests/desktop.test.ts` 守着）；`scripts/` 3 文件；`tests/` 17 个用例文件 + 1 个辅助。
+规模：`src/` 64 文件 / 约 5.5k 行（2026-10-02 实测 5,441 行；旧值 5,451 偏大约 20 行，已订正）；`renderer/` 22 文件；`desktop/` 4 文件（preload 只允许 `.cjs` 一份，`tests/desktop.test.ts` 守着）；`scripts/` 3 文件；`tests/` 17 个用例文件 + 1 个辅助。
 
 #### 2.5.4 依赖方向与守卫
 
