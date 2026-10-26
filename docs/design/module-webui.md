@@ -115,6 +115,7 @@ idle（拖放提示）
 ```
 
 - 预览：`GET /api/preview?path=` 仅允许扫描根内图片扩展名；预览不上传。**`previewPath` 仅对图片文件返回**（文档拖入不得进入照片墙计数）。
+- **SVG 预览安全（2026-10-26）**：`svg` 属图片白名单（`src/lib/img.ts` 的 `IMAGE_EXT`/`IMAGE_MIME`），扫描、本地解析、上传、拖拽与其它格式同路；**上传原字节不动**，去重键仍是文件 `sha256`。控制台以 `<img src="/api/preview?path=…">` 渲染预览（`renderer/src/features/photo-wall.js`），该上下文浏览器本身不执行 SVG 内脚本、不拉其外部资源；唯一风险面是用户直接在新标签页打开 `/api/preview` 顶层文档上下文，故 `/api/preview` 响应对**所有**图片统一加 `Content-Security-Policy: sandbox; default-src 'none'` 与 `X-Content-Type-Options: nosniff`，**不修改下发的字节**（不做消毒、不做格式转码）。
 - **扫描结果呈现（2026-09-27 · 照片墙 / 2026-09-28 对齐 Material Tailwind Masonry）**：扫描成功后拖放区进入 `has-photos` 态——隐藏空态英雄区，以 **CSS multi-column 瀑布流照片墙**展示图块（排列对齐 [Material Tailwind Gallery · Masonry Grid](https://www.material-tailwind.com/docs/v3/html/gallery)）：
   - 布局：响应式列数 **2 / 3 / 4**（窄 / 中 / 宽），**JS 最短列优先瀑布流**（CSS multi-column 平衡分栏会在高度不一时留大洞，已弃用）；列间 `gap:6`，图块间距 `6px`，**满宽**。
   - **错落排版（2026-09-28 · 密排）**：错落只来自**竖向微差**——
