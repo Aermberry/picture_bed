@@ -2,13 +2,16 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { isImageExt, mimeOf } from './lib/img.js';
-import { sha256Hex } from './lib/hash.js';
+import { sha256Hex, sha12 } from './lib/hash.js';
+import { inlineLocalPath, isDataUri, parseInlineImage } from './lib/inline.js';
 import { isUnderRoot } from './lib/paths.js';
 import type { Asset, BlockedItem, ImageRef } from './types.js';
 
 export interface ResolveOptions {
   scanRoot: string;
   allowAbsolute?: boolean;
+  /** 是否把 `data:image/*` 内嵌图解码为内存资产（默认 true）。 */
+  inlineImages?: boolean;
 }
 
 export interface ResolveResult {
@@ -34,13 +37,42 @@ export function resolveAssets(
   const byPath = new Map<string, Asset>();
   const root = path.resolve(opts.scanRoot);
 
+  const inlineImages = opts.inlineImages !== false;
+
   for (const ref of refs) {
     const raw = ref.raw.trim();
-    if (!raw || raw.startsWith('#') || isData(raw)) {
+    if (!raw || raw.startsWith('#')) {
       blocked.push({
         ref,
         code: 'E_SKIP_REF',
         reason: 'data/anchor/empty ref skipped',
+      });
+      continue;
+    }
+    if (isDataUri(raw)) {
+      if (!inlineImages) {
+        blocked.push({ ref, code: 'E_SKIP_REF', reason: 'inline images disabled' });
+        continue;
+      }
+      const parsed = parseInlineImage(raw);
+      if (!parsed.ok) {
+        blocked.push({ ref, code: parsed.code, reason: parsed.reason });
+        continue;
+      }
+      // 内存资产：sha256 与本地图片同池去重，不落盘
+      const sha256 = sha256Hex(parsed.image.data);
+      const existing = byPath.get(sha256);
+      if (existing) {
+        existing.refs.push(ref);
+        continue;
+      }
+      byPath.set(sha256, {
+        localPath: inlineLocalPath(sha12(sha256), parsed.image.ext),
+        sha256,
+        bytes: parsed.image.data.length,
+        mime: parsed.image.mime,
+        refs: [ref],
+        data: parsed.image.data,
       });
       continue;
     }
