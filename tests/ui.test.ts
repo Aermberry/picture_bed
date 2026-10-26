@@ -283,7 +283,7 @@ describe('ui server F16–F18', () => {
     expect(text).toContain('https://cdn.example.test');
   });
 
-  it('api/plan exposes blocked code for data: URI refs (inline images cannot upload)', async () => {
+  it('inline data:image/* refs become uploadable assets (not blocked)', async () => {
     await api('/api/session/reset', {});
     fs.writeFileSync(
       path.join(cwd, 'docs', 'inline.md'),
@@ -292,16 +292,40 @@ describe('ui server F16–F18', () => {
     await api('/api/session/bind-root', { root: path.join(cwd, 'docs') });
     const { data } = await api('/api/plan', {});
     expect(data.ok).toBe(true);
+    const plan = data.data.plan as any[];
+    // 内嵌图现在是可上传资产，不再是 blocked
+    const blocked = plan.filter((p) => p.action === 'blocked');
+    expect(blocked).toHaveLength(0);
+    const inline = plan.find((p) => String(p.raw).startsWith('data:image/svg+xml'));
+    expect(inline).toBeTruthy();
+    expect(inline.action).toBe('upload');
+    // 合成占位名由 MIME 反查扩展名得出（仅用于推导远端文件名）
+    expect(String(inline.localPath)).toMatch(/^inline\/[0-9a-f]{12}\.svg$/);
+    // 去重键是解码后字节的 sha256
+    expect(String(inline.sha256)).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  it('non-image data: URI still blocked with code exposed', async () => {
+    await api('/api/session/reset', {});
+    fs.writeFileSync(
+      path.join(cwd, 'docs', 'plain.md'),
+      '# plain\n\n<img src="data:text/plain;base64,aGk=" alt="i" />\n',
+    );
+    await api('/api/session/bind-root', { root: path.join(cwd, 'docs') });
+    const { data } = await api('/api/plan', {});
     const blocked = (data.data.plan as any[]).filter((p) => p.action === 'blocked');
     expect(blocked.length).toBeGreaterThan(0);
-    // 前端靠 code 分类成「内嵌数据图」，仅有 reason 拼接串不够
     expect(blocked[0].code).toBe('E_SKIP_REF');
-    expect(blocked[0].doc).toContain('inline.md');
-    expect(String(blocked[0].raw).startsWith('data:image/svg+xml')).toBe(true);
+    expect(blocked[0].doc).toContain('plain.md');
   });
 
   it('svg uploads byte-identical (sha256 unchanged; no sanitize/transcode)', async () => {
     const { sha256Hex } = await import('../src/lib/hash.js');
+    // 前序用例写入的 inline/plain 文档会带来额外内嵌资产，先清掉保证本用例只测这一个文件
+    for (const f of ['inline.md', 'plain.md']) {
+      const p = path.join(cwd, 'docs', f);
+      if (fs.existsSync(p)) fs.unlinkSync(p);
+    }
     const abs = path.join(cwd, 'docs', 'img', 'evil.svg');
     const before = fs.readFileSync(abs);
     const cfg = loadConfig({ cwd });

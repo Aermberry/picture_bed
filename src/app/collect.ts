@@ -34,7 +34,10 @@ export async function collect(root: string, cfg: ResolvedConfig): Promise<Collec
     allRefs.push(...refs);
   }
 
-  const resolved = resolveAssets(allRefs, { scanRoot: root });
+  const resolved = resolveAssets(allRefs, {
+    scanRoot: root,
+    inlineImages: cfg.scan.inlineImages !== false,
+  });
   blocked.push(...resolved.blocked);
   remoteSkips.push(...resolved.remoteSkips);
   return { docs, byDoc, assets: resolved.assets, blocked, remoteSkips, warnings };

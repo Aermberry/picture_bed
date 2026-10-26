@@ -251,6 +251,7 @@ picbed/
 │  │  ├─ img.ts                      //   图片扩展名 / MIME 的唯一真源（IMAGE_EXT / IMAGE_MIME / mimeOf）
 │  │  ├─ hash.ts                     //   sha256 唯一实现 + 远端文件名 12 位短摘要
 │  │  ├─ mask.ts                     //   token 掩码唯一实现（config / app / ui 共用）
+│  │  ├─ inline.ts                   //   文档内 data:image/* 解码（MIME 反查扩展名、10MB 上限）
 │  │  └─ doc.ts                      //   文档类型（markdown / html）判定的唯一实现（kindOf）
 │  │
 │  │  ── 应用编排（唯一实现；CLI / WebUI / MCP 一律从这里取能力）──
@@ -338,7 +339,7 @@ picbed/
 │  ├─ build-desktop.mjs              //   electron-builder 打包（extraMetadata.main 注入 Electron 入口）
 │  └─ desktop-dev.mjs                //   桌面 dev 编排：起 Vite + electron，代理 /api
 │
-└─ tests/                            // vitest（159 用例 / 18 个用例文件 + 1 个辅助；架构约定都有活守卫）
+└─ tests/                            // vitest（171 用例 / 19 个用例文件 + 1 个辅助；架构约定都有活守卫）
    ├─ layering.test.ts               //   分层 7 条断言（§2.5.4）
    ├─ lib-single-source.test.ts      //   跨层单点：横切逻辑只许在 src/lib/
    ├─ package-surface.test.ts        //   npm 导出面：files/bin/exports 不得越界
@@ -347,7 +348,7 @@ picbed/
    └─ （其余 13 个用例文件：cli/ui/ui-panels/pipeline/host/mcp/desktop/auth/config/watch/repo-dir/extract/user-token）
 ```
 
-规模：`src/` 62 文件 / 约 5.4k 行（2026-10-02 实测 5,441 行；旧值 5,451 偏大约 20 行，已订正）；`renderer/` 23 文件；`desktop/` 4 文件（preload 只允许 `.cjs` 一份，`tests/desktop.test.ts` 守着）；`scripts/` 3 文件；`tests/` 18 个用例文件 + 1 个辅助。
+规模：`src/` 63 文件 / 约 5.4k 行（2026-10-02 实测 5,441 行；旧值 5,451 偏大约 20 行，已订正）；`renderer/` 23 文件；`desktop/` 4 文件（preload 只允许 `.cjs` 一份，`tests/desktop.test.ts` 守着）；`scripts/` 3 文件；`tests/` 19 个用例文件 + 1 个辅助。
 
 #### 2.5.4 依赖方向与守卫
 

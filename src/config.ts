@@ -22,6 +22,7 @@ const DEFAULTS: Omit<ResolvedConfig, 'rootDir' | 'configPath'> = {
   scan: {
     extensions: ['md', 'html', 'htm'],
     ignore: ['**/node_modules/**', '**/.git/**', '**/.picbed/**'],
+    inlineImages: true,
   },
   upload: {
     concurrency: 3,
@@ -204,6 +205,8 @@ export function loadConfig(opts: {
         .split(',')
         .map((s) => s.trim())
         .filter(Boolean),
+      // 默认开启；显式写 inline_images = "false" 才关闭
+      inlineImages: String(fileData.scan?.inline_images ?? 'true') !== 'false',
     },
     upload: {
       concurrency: Number(fileData.upload?.concurrency ?? DEFAULTS.upload.concurrency),
@@ -251,6 +254,8 @@ style = "jsdelivr"   # raw | jsdelivr | custom
 [scan]
 extensions = "md,html,htm"
 ignore = "**/node_modules/**,**/.git/**,**/.picbed/**"
+# 文档内 data:image/* 内嵌图是否解码上传（默认 true；false 则一律跳过）
+inline_images = "true"
 
 [upload]
 concurrency = 3
