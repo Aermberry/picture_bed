@@ -20,6 +20,8 @@ export function publicPlanItem(it: SyncPlanItem) {
   return {
     action: it.action,
     reason: it.reason,
+    // blocked 的分类码（E_SKIP_REF / E_EXT …），供前端把人话化原因分组展示。
+    code: it.code,
     raw: it.ref?.raw,
     doc: it.ref?.docPath,
     sha256: it.asset?.sha256,

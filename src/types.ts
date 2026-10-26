@@ -51,6 +51,8 @@ export interface SyncPlanItem {
   asset?: Asset;
   remote?: RemoteImage;
   reason?: string;
+  /** blocked 项的错误码（如 E_SKIP_REF / E_EXT），供上层分类展示；非 blocked 为空。 */
+  code?: string;
   ref?: ImageRef;
 }
 

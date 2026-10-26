@@ -4,6 +4,7 @@ import { toast } from "../components/toast.js";
 import { confirmAsync } from "../components/modal.js";
 import { createSelectableGrid } from "../components/selectable-grid.js";
 import { isImageName, isDocName } from "../lib/files.js";
+import { collectBlockedForDocs, warnBlockedRefs } from "./blocked-warn.js";
 
 /** @type {any[]} */
 let wallItems = [];
@@ -238,6 +239,8 @@ export async function scanIntoPreview(dropInfo) {
           if (!doc || !docSet[doc]) continue;
           addPath(p.localPath);
         }
+        // 「有图但传不了」不得静默：本次拖入文档内存在 blocked 引用时弹模态说明
+        await warnBlockedRefs(collectBlockedForDocs(plan, dropDocs), dropDocs);
       } else if (!paths.length && !wallItems.length) {
         toast((data.error && data.error.message) || "扫描失败");
       }

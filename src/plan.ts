@@ -64,6 +64,7 @@ export function buildPlan(args: {
     items.push({
       action: 'blocked',
       ref: b.ref,
+      code: b.code,
       reason: `${b.code}: ${b.reason}`,
     });
   }
