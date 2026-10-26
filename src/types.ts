@@ -29,6 +29,8 @@ export interface Asset {
   bytes: number;
   mime: string;
   refs: ImageRef[];
+  /** 内存资产（文档内 data: URI 解码结果）：有值时不读 localPath，直接用这些字节上传。 */
+  data?: Buffer;
 }
 
 export interface RemoteImage {
@@ -103,6 +105,8 @@ export interface UrlConfig {
 export interface ScanConfig {
   extensions: string[];
   ignore: string[];
+  /** 是否把文档内 `data:image/*` 内嵌图解码上传（默认 true）。 */
+  inlineImages?: boolean;
 }
 
 export interface UploadConfig {

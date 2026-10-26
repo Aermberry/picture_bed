@@ -98,7 +98,8 @@ export async function runSync(opts: {
         items.push({ action: 'skip-cache', localPath: asset.localPath, publicUrl: cached });
         continue;
       }
-      const bytes = fs.readFileSync(asset.localPath);
+      // 内嵌图是内存资产（文档内 data: URI 解码而来），无本地文件可读
+      const bytes = asset.data ?? fs.readFileSync(asset.localPath);
       const remote = await uploadAsset(host, { asset, bytes, cfg });
       urlBySha.set(asset.sha256, remote.publicUrl);
       uploaded += 1;
