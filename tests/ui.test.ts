@@ -283,6 +283,23 @@ describe('ui server F16–F18', () => {
     expect(text).toContain('https://cdn.example.test');
   });
 
+  it('api/plan exposes blocked code for data: URI refs (inline images cannot upload)', async () => {
+    await api('/api/session/reset', {});
+    fs.writeFileSync(
+      path.join(cwd, 'docs', 'inline.md'),
+      '# inline\n\n<img src="data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=" alt="i" />\n',
+    );
+    await api('/api/session/bind-root', { root: path.join(cwd, 'docs') });
+    const { data } = await api('/api/plan', {});
+    expect(data.ok).toBe(true);
+    const blocked = (data.data.plan as any[]).filter((p) => p.action === 'blocked');
+    expect(blocked.length).toBeGreaterThan(0);
+    // 前端靠 code 分类成「内嵌数据图」，仅有 reason 拼接串不够
+    expect(blocked[0].code).toBe('E_SKIP_REF');
+    expect(blocked[0].doc).toContain('inline.md');
+    expect(String(blocked[0].raw).startsWith('data:image/svg+xml')).toBe(true);
+  });
+
   it('svg uploads byte-identical (sha256 unchanged; no sanitize/transcode)', async () => {
     const { sha256Hex } = await import('../src/lib/hash.js');
     const abs = path.join(cwd, 'docs', 'img', 'evil.svg');
