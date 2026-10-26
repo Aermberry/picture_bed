@@ -175,6 +175,7 @@ flowchart TD
   - `raw` → `https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{path}`
   - `jsdelivr` → `https://cdn.jsdelivr.net/gh/{owner}/{repo}@{branch}/{path}`
   - `custom` → 用户模板
+  - **`{path}` 必须逐段百分号编码（2026-10-26 修复）**：`dir` 含非 ASCII（如 `資源圖`）时未编码的 URL 会被 CDN/raw **直接返回 400**——上传与改写都成功，但生成的链接点不开。实现为 `lib/paths.ts` 的 `encodeRepoPath()`（按 `/` 分段 `encodeURIComponent`，分隔符保留），GitHub 与 Local 两种 host 的 `composeUrls` 共用；custom 模板的 `{path}` 同样传编码后的值。ASCII 路径编码后不变，故既有链接不受影响。
 - 并发默认 2–3；429/403 指数退避；耗尽 → `RateLimitedError`（退出码 5）。
 - 单文件失败隔离；汇总 partial（退出码 6）。
 
