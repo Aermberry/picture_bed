@@ -5,6 +5,12 @@ import { isUnderRoot } from '../../lib/paths.js';
 import { envelope, sendRaw } from '../http/envelope.js';
 import type { UiRouteContext } from '../context.js';
 
+/** 预览图片的安全响应头：禁脚本/禁外联 + 禁内容嗅探（对全部图片统一生效）。 */
+const PREVIEW_SAFETY_HEADERS: Record<string, string> = {
+  'Content-Security-Policy': "sandbox; default-src 'none'",
+  'X-Content-Type-Options': 'nosniff',
+};
+
 /** GET /api/preview?path=… ：仅下发扫描根内的图片。 */
 export function previewRoute(ctx: UiRouteContext): boolean {
   if (ctx.method !== 'GET' || ctx.pathname !== '/api/preview') return false;
@@ -39,6 +45,10 @@ export function previewRoute(ctx: UiRouteContext): boolean {
     200,
     mimeOf(abs),
     fs.readFileSync(abs),
+    // SVG 可内嵌脚本：控制台的 <img> 上下文本就不执行它，但顶层打开
+    // /api/preview 会成为文档上下文，故统一加沙箱 + 禁外联/禁嗅探。
+    // 字节原样下发（上传/去重仍以 sha256 为准）。
+    PREVIEW_SAFETY_HEADERS,
   );
   return true;
 }

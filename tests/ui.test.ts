@@ -75,6 +75,11 @@ describe('ui server F16–F18', () => {
     );
     fs.mkdirSync(path.join(cwd, 'docs', 'img'), { recursive: true });
     fs.writeFileSync(path.join(cwd, 'docs', 'img', 'a.png'), Buffer.from([1, 2, 3, 4]));
+    // 含脚本的 SVG：预览必须原样下发字节，同时带上沙箱头（不执行脚本）
+    fs.writeFileSync(
+      path.join(cwd, 'docs', 'img', 'evil.svg'),
+      '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script><rect width="1" height="1"/></svg>',
+    );
     fs.writeFileSync(path.join(cwd, 'docs', 'post.md'), '![a](img/a.png)\n');
     const ui = createUiServer({ cwd });
     handle = await ui.listen(0, '127.0.0.1');
@@ -218,6 +223,21 @@ describe('ui server F16–F18', () => {
     expect(dropImg.data.data.previewPath).toBe(path.join(cwd, 'docs', 'img', 'a.png'));
   });
 
+  it('F17 preview serves svg bytes unchanged with sandbox headers', async () => {
+    await api('/api/session/reset', {});
+    await api('/api/session/bind-root', { root: path.join(cwd, 'docs') });
+    const abs = path.join(cwd, 'docs', 'img', 'evil.svg');
+    const onDisk = fs.readFileSync(abs);
+    const res = await fetch(base + '/api/preview?path=' + encodeURIComponent(abs));
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toBe('image/svg+xml');
+    expect(res.headers.get('x-content-type-options')).toBe('nosniff');
+    expect(res.headers.get('content-security-policy')).toBe("sandbox; default-src 'none'");
+    // 字节原样：不做消毒，脚本仍在文件里（安全性靠上下文与响应头）
+    const body = Buffer.from(await res.arrayBuffer());
+    expect(body.equals(onDisk)).toBe(true);
+  });
+
   it('F17 session/images lists workset images only (no root walk)', async () => {
     await api('/api/session/reset', {});
     // sibling image under root must NOT appear unless dropped
@@ -261,6 +281,32 @@ describe('ui server F16–F18', () => {
     expect(result.rewrittenDocs.length).toBe(1);
     const text = fs.readFileSync(path.join(cwd, 'docs', 'post.md'), 'utf8');
     expect(text).toContain('https://cdn.example.test');
+  });
+
+  it('svg uploads byte-identical (sha256 unchanged; no sanitize/transcode)', async () => {
+    const { sha256Hex } = await import('../src/lib/hash.js');
+    const abs = path.join(cwd, 'docs', 'img', 'evil.svg');
+    const before = fs.readFileSync(abs);
+    const cfg = loadConfig({ cwd });
+    const result = await runSync({
+      root: path.join(cwd, 'docs'),
+      cfg,
+      cwd,
+      getToken: () => undefined,
+      includeImages: [abs],
+    });
+    expect(result.ok).toBe(true);
+    expect(result.uploaded).toBe(1);
+    // 落盘到 local host root 的字节必须与源文件完全一致（未消毒、未转码）
+    const bed = path.join(cwd, 'bed', 'img');
+    const uploaded = fs
+      .readdirSync(bed, { recursive: true })
+      .map(String)
+      .find((f) => f.endsWith('.svg'));
+    expect(uploaded).toBeTruthy();
+    const onHost = fs.readFileSync(path.join(bed, uploaded!));
+    expect(onHost.equals(before)).toBe(true);
+    expect(sha256Hex(onHost)).toBe(sha256Hex(before));
   });
 
   it('runSync includeDocs scopes rewrite; includeImages uploads standalone', async () => {

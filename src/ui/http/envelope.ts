@@ -30,8 +30,9 @@ export function sendRaw(
   status: number,
   contentType: string,
   body: string | Buffer,
+  headers?: Record<string, string>,
 ): void {
-  res.writeHead(status, { 'Content-Type': contentType, 'Cache-Control': 'no-store' });
+  res.writeHead(status, { 'Content-Type': contentType, 'Cache-Control': 'no-store', ...headers });
   res.end(body);
 }
 
