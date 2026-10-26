@@ -73,9 +73,9 @@ IngestFacade
 - 去重：`sha256(file)` 相同 → 合并为一个 `Asset`，`refs` 为并集。
 - **内嵌 `data:image/*` 提取上传（2026-10-26）**：文档里以 data URI 内嵌的图片（典型 `<img src="data:image/svg+xml;base64,…">`）**不再一律 blocked**，而是解码为内存资产参与上传，文档内的 data URI 被原位替换为图床 URL。
   - 范围：**所有 `data:image/*`**，base64（`;base64,`）与 URL-encoded（`data:image/svg+xml,<svg…>`）两种编码都支持。
-  - 资产形态：`Asset.localPath` 为**合成占位名**（如 `inline/<sha12>.<ext>`，仅用于推导远端文件名），真实字节放 `Asset.bytes`（内存）；**不落盘到用户扫描目录**。扩展名由 MIME 反查 `IMAGE_MIME` 得出。
+  - 资产形态：`Asset.localPath` 为**合成占位名**（如 `inline/<sha12>.<ext>`，仅用于推导远端文件名），真实字节放 `Asset.data`（内存）；**不落盘到用户扫描目录**。扩展名由 MIME 反查 `IMAGE_MIME` 得出。
   - 去重：仍以解码后字节的 `sha256` 为键——同一张内嵌图在多篇文档出现只上传一次，与本地文件资产同池去重。
-  - 限制（超限即 blocked 并说明原因）：MIME 不在 `IMAGE_MIME` 白名单；解码失败/编码非法；单张解码后 **> 10 MB**。
+  - 限制（超限即 blocked 并说明原因）：MIME 不在 `IMAGE_MIME` 白名单（`E_INLINE_MIME`）；解码失败/编码非法（`E_INLINE_DATA`）；单张解码后 **> 10 MB**（`E_INLINE_TOO_LARGE`）。
   - 配置：`[scan] inline_images`，**默认 `true`**；置 `false` 时退回原行为（`data:` 一律 `E_SKIP_REF` blocked）。
   - 非图片 data URI（如 `data:text/plain,…`）与页内锚点、空引用仍走 `E_SKIP_REF` blocked。
 
