@@ -87,4 +87,28 @@ describe('F13 HostAdapter factory', () => {
     expect(urls.rawUrl).toBe('https://raw.githubusercontent.com/o/r/main/img/a.png');
     expect(urls.publicUrl).toBe('https://cdn.jsdelivr.net/gh/o/r@main/img/a.png');
   });
+
+  it('非 ASCII 仓库路径逐段编码（否则 CDN 直接 400，链接点不开）', () => {
+    const root = tmp();
+    const cfg = loadConfig({
+      cwd: root,
+      overrides: {
+        github: { owner: 'o', repo: 'r', branch: 'main', dir: '資源圖' },
+        url: { style: 'jsdelivr' },
+      },
+    });
+    const host = createHostAdapter(cfg, 'tok');
+    const urls = host.composeUrls('資源圖/2026/10/abc-x.svg');
+    // 中文段被编码，路径分隔符保留
+    expect(urls.publicUrl).toBe(
+      'https://cdn.jsdelivr.net/gh/o/r@main/%E8%B3%87%E6%BA%90%E5%9C%96/2026/10/abc-x.svg',
+    );
+    expect(urls.rawUrl).toBe(
+      'https://raw.githubusercontent.com/o/r/main/%E8%B3%87%E6%BA%90%E5%9C%96/2026/10/abc-x.svg',
+    );
+    // ASCII 路径不受影响（无多余编码）
+    expect(host.composeUrls('img/a.png').publicUrl).toBe(
+      'https://cdn.jsdelivr.net/gh/o/r@main/img/a.png',
+    );
+  });
 });

@@ -175,6 +175,7 @@ flowchart TD
   - `raw` → `https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{path}`
   - `jsdelivr` → `https://cdn.jsdelivr.net/gh/{owner}/{repo}@{branch}/{path}`
   - `custom` → 用户模板
+  - **`{path}` 必须逐段百分号编码（2026-10-26 修复）**：`dir` 含非 ASCII（如 `資源圖`）时未编码的 URL 会被 CDN/raw **直接返回 400**——上传与改写都成功，但生成的链接点不开。实现为 `lib/paths.ts` 的 `encodeRepoPath()`（按 `/` 分段 `encodeURIComponent`，分隔符保留），GitHub 与 Local 两种 host 的 `composeUrls` 共用；custom 模板的 `{path}` 同样传编码后的值。ASCII 路径编码后不变，故既有链接不受影响。
 - 并发默认 2–3；429/403 指数退避；耗尽 → `RateLimitedError`（退出码 5）。
 - 单文件失败隔离；汇总 partial（退出码 6）。
 
@@ -189,6 +190,118 @@ flowchart TD
 - `host.type = "local"`：本地目录图床（`local.root` + `local.public_base`），**无需 token**。
 - 新增后端：实现 `HostAdapter` 并在工厂注册即可；plan/rewrite/manifest 无需改动。
 - AC7（F7）语义保持：同 sha 幂等、URL 风格可配、失败映射退出码 5/6。
+
+## 实现落点（TS/Electron 适配）
+
+> 本模块在 TypeScript/Electron 实际源码中的落地；端口/类图/状态图见上文。签名与去重/缓存逻辑以真实源码为准（源码：`src/host/*`、`src/app/upload.ts`、`src/infra/gh-cli.ts`、`src/manifest.ts`、`src/plan.ts`、`src/app/sync.ts`）。
+
+### 实际文件夹结构
+
+```text
+src/
+├─ host/
+│  ├─ types.ts     # HostAdapter 端口 + HostUrls 值对象
+│  ├─ index.ts     # createHostAdapter / hostRequiresToken（工厂）
+│  ├─ github.ts    # GitHubHostAdapter + composeGithubUrls + probeGithubAccess + uploadAsset
+│  └─ local.ts     # LocalHostAdapter（文件系统后端）
+├─ infra/
+│  └─ gh-cli.ts    # 防腐层：GitHub CLI 封装（token 解析 / 登录态探测 / 交互登录）
+├─ app/
+│  └─ upload.ts    # uploadSingleAsset：单文件上传编排
+└─ manifest.ts     # findCachedUrl（缓存命中判定）
+```
+
+### 公开服务签名（TS）
+
+| 服务 | 签名 | 职责 |
+|------|------|------|
+| `createHostAdapter` | `createHostAdapter(cfg: ResolvedConfig, token?: string): HostAdapter` | 按 `host.type` 工厂创建适配器；缺 token 抛 `E_TOKEN`，未知 type 抛 `E_CONFIG` |
+| `hostRequiresToken` | `hostRequiresToken(cfg: ResolvedConfig): boolean` | `host.type !== 'local'` 即需要 token |
+| `uploadAsset` | `uploadAsset(host: HostAdapter, args: {asset, bytes, cfg, now?}): Promise<RemoteImage>` | 计算远端路径 → `putFile` → `composeUrls` → 返回 `RemoteImage` |
+| `uploadSingleAsset` | `uploadSingleAsset(opts: UploadOneOptions): Promise<UploadOneResult>` | CLI 单文件上传编排：存在性校验 → token 校验 → 读文件算 sha → 上传 |
+| `resolveToken` | `resolveToken(env?, execGhToken?, readStoredToken?): {token, source} \| undefined` | token 优先级：env → 本机凭据 → `gh auth token`（防腐层） |
+| `probeGhToken` | `probeGhToken(): {token?, reason?, message?}` | 区分「未安装 / 未登录 / 其它错误」 |
+| `spawnGhLogin` | `spawnGhLogin(onData): {process, promise}` | 启动 `gh auth login --web`，实时回调 |
+
+> 去重与缓存命中（跨域协作）：`runSync` 用 `Map<sha256, Asset>` 去重（同 sha 仅上传一次），`findCachedUrl(manifest, sha256)` 判定缓存命中——实现位于 `src/app/sync.ts` 与 `src/manifest.ts`，见 [`module-app.md`](module-app.md)。`LocalHostAdapter.putFile/deleteFile` 实际参数比 `HostAdapter` 契约少（`message/branch/sha`），是 TS 结构化类型容忍差异，非严格签名一致。
+
+### 复杂任务时序图（单次上传 + 批量去重/缓存命中）
+
+```mermaid
+sequenceDiagram
+    participant UP as uploadSingleAsset
+    participant TOK as getToken
+    participant FAC as createHostAdapter
+    participant UA as uploadAsset
+    participant AD as HostAdapter
+    participant GH as GitHub API
+    participant FS as fs
+
+    UP ->> FS: existsSync(abs)
+    alt 缺失
+        UP -->> UP: throw E_ASSET_MISSING
+    end
+    UP ->> TOK: 取 token
+    UP ->> FAC: hostRequiresToken(cfg)
+    alt 需要且无 token
+        UP -->> UP: throw E_TOKEN
+    end
+    UP ->> FS: readFileSync(abs)
+    UP ->> UP: sha256 = sha256Hex(bytes)
+    UP ->> FAC: createHostAdapter(cfg, token)
+    FAC -->> UP: HostAdapter
+    UP ->> UA: uploadAsset(host, {asset, bytes, cfg})
+    UA ->> AD: repoPath = remotePath(sha256, localPath, now)
+    UA ->> AD: putFile(repoPath, bytes, commitMessage, branch)
+    AD ->> GH: GET contents?ref=branch 取 sha
+    AD ->> GH: PUT contents {message, content(base64), branch, sha?}
+    alt 非 2xx
+        GH -->> AD: throw E_REMOTE
+    end
+    UA ->> AD: urls = composeUrls(repoPath)
+    AD -->> UA: HostUrls
+    UA -->> UP: RemoteImage
+    UP -->> UP: UploadOneResult{remotePath, publicUrl, rawUrl, cdnUrl, hostType, sha256, bytes}
+```
+
+```mermaid
+sequenceDiagram
+    participant SYNC as runSync
+    participant MF as manifest
+    participant UA as uploadAsset
+    participant AD as HostAdapter
+
+    SYNC ->> MF: loadManifest(cwd)
+    SYNC ->> SYNC: unique = Map~sha256,Asset~；同 sha 仅保留一条（去重）
+    loop 每个 unique Asset
+        SYNC ->> MF: findCachedUrl(manifest, sha256)
+        alt 缓存命中
+            MF -->> SYNC: 返回 publicUrl
+            SYNC ->> SYNC: urlBySha.set(sha, cached)；记 skip-cache；continue
+        else 未命中
+            SYNC ->> UA: uploadAsset(host, {asset, bytes, cfg})
+            UA ->> AD: putFile / composeUrls
+            UA -->> SYNC: RemoteImage.publicUrl
+            SYNC ->> SYNC: urlBySha.set(sha, url)；uploaded++
+            SYNC ->> MF: mergeManifest（写独立 entry）
+        end
+    end
+    SYNC ->> SYNC: 按 urlBySha 改写文档（见 module-rewrite）
+    SYNC ->> MF: saveManifest（原子写）
+```
+
+### 错误映射（code → 退出码/HTTP）
+
+| code | 含义 | 退出码 | HTTP |
+|------|------|--------|------|
+| `E_TOKEN` | 缺 GitHub token | CONFIG(3) | 401 |
+| `E_CONFIG` | 未知 host.type 或 owner/repo 缺失 | CONFIG(3) | 400 |
+| `E_REMOTE` | GitHub API 失败（非 2xx） | REMOTE(5) | 502 |
+| `E_LOCAL` | Local 路径逃逸 host root | LOCAL(4) | 400 |
+| `E_ASSET_MISSING` | 文件不存在 | LOCAL(4) | 400 |
+| `E_MANIFEST_CORRUPT` | manifest 损坏 | LOCAL(4) | 400 |
+
+完整 code → 退出码/HTTP 映射见 [`module-app.md`](module-app.md) §错误映射。
 
 ## 功能点映射
 

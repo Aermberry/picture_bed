@@ -3,7 +3,7 @@ import path from 'node:path';
 import type { LocalHostConfig, UrlConfig } from '../types.js';
 import type { HostAdapter, HostUrls } from './types.js';
 import { sha12 as sha12Of } from '../lib/hash.js';
-import { isUnderRoot } from '../lib/paths.js';
+import { encodeRepoPath, isUnderRoot } from '../lib/paths.js';
 
 export function localRemotePath(
   dir: string,
@@ -59,11 +59,12 @@ export class LocalHostAdapter implements HostAdapter {
 
   composeUrls(repoPath: string): HostUrls {
     const base = (this.cfg.publicBase || 'https://cdn.example.com').replace(/\/+$/, '');
-    const rawUrl = `${base}/${repoPath.replace(/^\/+/, '')}`;
+    const enc = encodeRepoPath(repoPath);
+    const rawUrl = `${base}/${enc}`;
     let publicUrl = rawUrl;
     if (this.url.style === 'custom' && this.url.customTemplate) {
       publicUrl = this.url.customTemplate
-        .replace('{path}', repoPath)
+        .replace('{path}', enc)
         .replace('{owner}', '-')
         .replace('{repo}', '-')
         .replace('{branch}', '-');
