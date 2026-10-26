@@ -12,3 +12,18 @@ export function isUnderRoot(root: string, abs: string): boolean {
   const rel = path.relative(root, abs);
   return !(rel.startsWith('..') || path.isAbsolute(rel));
 }
+
+/**
+ * 远端仓库路径 → URL 路径段的百分号编码（逐段，保留 `/` 分隔）。
+ *
+ * 非 ASCII 目录名（如 `資源圖`）不编码时，jsDelivr / raw.githubusercontent 直接返回 400，
+ * 生成的链接点不开。原散落于 `host/github.ts`（probe / API）与 `ui/routes/gallery.ts` 三处，
+ * 而 `composeGithubUrls` 自己漏了——链接坏掉但上传本身成功。
+ */
+export function encodeRepoPath(repoPath: string): string {
+  return repoPath
+    .replace(/^\/+/, '')
+    .split('/')
+    .map(encodeURIComponent)
+    .join('/');
+}

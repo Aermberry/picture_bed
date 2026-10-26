@@ -1,20 +1,23 @@
 import type { GithubConfig, LocalHostConfig, RemoteImage, UrlConfig } from '../types.js';
 import type { HostAdapter, HostUrls } from './types.js';
 import { sha12 as sha12Of } from '../lib/hash.js';
+import { encodeRepoPath } from '../lib/paths.js';
 
 export function composeGithubUrls(
   cfg: { github: GithubConfig; url: UrlConfig },
   repoPath: string,
 ): HostUrls {
   const { owner, repo, branch } = cfg.github;
-  const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${repoPath}`;
-  const cdnUrl = `https://cdn.jsdelivr.net/gh/${owner}/${repo}@${branch}/${repoPath}`;
+  // 逐段编码：非 ASCII 目录名（如 資源圖）未编码时 CDN/raw 直接 400
+  const enc = encodeRepoPath(repoPath);
+  const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${enc}`;
+  const cdnUrl = `https://cdn.jsdelivr.net/gh/${owner}/${repo}@${branch}/${enc}`;
   let publicUrl = rawUrl;
   if (cfg.url.style === 'jsdelivr') publicUrl = cdnUrl;
   if (cfg.url.style === 'custom') {
     const tpl = cfg.url.customTemplate ?? 'https://cdn.example.com/{path}';
     publicUrl = tpl
-      .replace('{path}', repoPath)
+      .replace('{path}', enc)
       .replace('{owner}', owner)
       .replace('{repo}', repo)
       .replace('{branch}', branch);
