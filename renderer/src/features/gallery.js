@@ -1,5 +1,6 @@
 import { $, esc } from "../lib/dom.js";
 import { api } from "../lib/api.js";
+import { isImageName } from "../lib/files.js";
 import { toast } from "../components/toast.js";
 import { createSelectableGrid } from "../components/selectable-grid.js";
 import { openDetail } from "../components/modal.js";
@@ -86,7 +87,8 @@ export async function loadGallery() {
   grid.innerHTML = items
     .map((it) => {
       const isDir = it.type === "dir";
-      const isImg = /\.(png|jpe?g|gif|webp|svg|bmp|avif)$/i.test(it.name || "");
+      // 复用 files.js 的 isImageName（唯一前端清单，含 ico）；内联正则曾漏掉 ico
+      const isImg = isImageName(it.name || "");
       if (!isDir && !isImg) return "";
       if (!isDir && it.sha) {
         galleryImgMap.set(it.path, { path: it.path, sha: it.sha, name: it.name || it.path });
