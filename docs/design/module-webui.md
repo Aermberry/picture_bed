@@ -25,7 +25,7 @@ webui/
 ├─ domain/
 │  ├─ cqe/           # ServeUiQuery、PlanViewQuery、SyncConfirmCommand、RevertConfirmCommand…
 │  ├─ entity/        # UiSession、PlanView、DoctorView、ManifestView（RunRecord 由 app 共享层提供）
-│  ├─ service/       # UiServer、ConfirmGate、ViewMapper（RunRecorder 在 app 共享层）
+│  ├─ service/       # UiServer、ConfirmGate、ViewMapper（RunRecord 由 app 共享层 recordRun 写入）
 │  └─ facade/        # WebUiFacade
 ├─ packages/
 │  ├─ http/          # 路由、静态资源、localhost 绑定、优雅退出
@@ -41,7 +41,7 @@ webui/
 
 ```
 src/ui/
-├─ server.ts            # 仅装配：安检 → 静态下发 → 路由表（<200 行，零 '/api/' 字面量）
+├─ server.ts            # 仅装配：安检 → 静态下发 → 路由表（<250 行，零 '/api/' 字面量）
 ├─ context.ts           # UiRouteContext / UiRoute（命中返回 true 的路由契约）
 ├─ gh-login.ts          # 登录会话状态（原闭包里的可变 let）
 ├─ http/                # 协议与安检（不常改）
@@ -52,7 +52,7 @@ src/ui/
 │  └─ errors.ts         #   未捕获异常 → HTTP 状态码（由 app/errors.ts 派生）
 └─ routes/              # 业务路由（按资源分组，每个 <250 行）
    ├─ health.ts session.ts preview.ts plan.ts sync.ts revert.ts
-   ├─ gallery.ts auth.ts config.ts system.ts runs.ts watch.ts
+   ├─ gallery.ts branches.ts auth.ts config.ts system.ts runs.ts watch.ts
 ```
 
 不变量：`http/` 不 import `routes/`，`routes/` 只经 `UiRouteContext` 拿依赖；
@@ -62,7 +62,7 @@ src/ui/
 
 ```text
 UiSession   { rootDir, startedAt, watchActive }
-RunRecord   { id, command, startedAt, finishedAt, ok, counts, items[], errorCode? }   # app 共享层实体，CLI/Web 共用
+RunRecord   { id, command, startedAt, finishedAt, ok, counts, items[], errors?[], warnings?[], errorCode? }   # app 共享层实体，CLI/Web 共用
 PlanView    { rootDir, generatedAt, groups: { upload[], skip-cache[], skip-remote[], blocked[] } }
 DoctorView  { ok, checks[], failures[] }
 ManifestView{ version, entries[] }   # 无 token
@@ -76,7 +76,7 @@ WebUiFacade
   # HTTP 映射（信封同 cross-cutting JSON，command 为 api.*）
   # GET  /api/health
   # GET  /api/config          # token 掩码
-  # PUT  /api/config          # 非 secret 键；需 confirm
+  # POST /api/config          # 非 secret 键；需 confirm
   # POST /api/doctor
   # POST /api/scan            { root }
   # POST /api/plan            { root }
@@ -85,7 +85,7 @@ WebUiFacade
   # POST /api/revert          { root, confirm: true, dryRun? }
   # GET  /api/runs            # F21
   # GET  /api/runs/:id
-  # POST /api/watch/start     { root, debounceMs?, autoSync? }  # autoSync 仍要 confirm 策略
+  # POST /api/watch/start     { mode?, debounceMs?, confirm? }  # root 取自已绑定 root；auto 模式须 confirm: true
   # POST /api/watch/stop
   # GET  /api/events          # SSE/长轮询：watch 与 sync 进度（实现可选）
   # GET  /api/gallery         # ?path= 列仓库目录/文件（F17 管理视图）
@@ -133,7 +133,7 @@ idle（拖放提示）
   - 不做灯箱/多选/排序（本期仅呈现）。
 - **扫描来源（2026-09-27 收窄）**：**本次拖入的图片文件** + **本次拖入文档**内图片引用（`/api/plan` 后按 `doc` 过滤到工作集文档）。**不**罗列扫描根下未拖入的其它图片（`GET /api/session/images` 不得再用于扩大预览）。
 - **「未扫描到图片」须区分原因（2026-10-27 补）**：本次拖入文档的 plan 项若全为 `skip-remote`（`action === 'skip-remote'`，引用已是 `http(s)` 图床链接），说明图片**早已上传并改写**，不是故障——提示改说「文档内图片已是远程链接，无需上传」。只有确实既无本地资产也无远程引用时，才维持「未扫描到本地图片」。注意 `skip-remote` 项没有 `localPath`，归属统计要按 `doc` 判断，不能靠 `localPath` 过滤（否则永远统计为 0）。
-- **拖入文档「有图但传不了」必须弹警告（2026-10-26）**：拖入的文档若含**无法上传本地资产**的引用，扫描后**自动弹出模态警告**（`confirmAsync`），不得静默。触发条件：本次拖入文档的 `/api/plan` 结果中存在 `action === 'blocked'` 的项。典型场景 = 文档用 **`data:image/...;base64,…` 内嵌图**（`E_SKIP_REF`）——用户以为有图可传，实际图在文档里、没有对应本地文件，上传无从下手。模态内容：标题说明「N 处引用无法上传」，逐条列出**原因人话化**（`E_SKIP_REF` → 「内嵌数据图（data: URI），不是本地文件」、`E_EXT` → 「扩展名不在图片白名单」、`E_ASSET_MISSING` → 「图片文件不存在」、`E_PATH_ESCAPE`/`E_ABSOLUTE` → 「路径在扫描根之外」、其余回落到 `code: reason`）+ 涉及**文档名**。**只覆盖本次拖入的文档**（不扩大报全仓 blocked）。纯图片拖入（无文档）不触发。`/api/plan` 需暴露 blocked 项的 `code`（现仅有 `reason` 拼接串），供前端分类；`raw` 截断显示（data: URI 可达数百 KB，禁止整串进 DOM）。
+- **拖入文档「有图但传不了」必须弹警告（2026-10-26）**：拖入的文档若含**无法上传本地资产**的引用，扫描后**自动弹出模态警告**（`confirmAsync`），不得静默。触发条件：本次拖入文档的 `/api/plan` 结果中存在 `action === 'blocked'` 的项。典型场景 = 文档用 **`data:image/...;base64,…` 内嵌图**（`E_SKIP_REF`）——用户以为有图可传，实际图在文档里、没有对应本地文件，上传无从下手。模态内容：标题说明「N 处引用无法上传」，逐条列出**原因人话化**（`E_SKIP_REF` → 「内嵌数据图（data: URI），不是本地文件」、`E_EXT` → 「扩展名不在图片白名单」、`E_ASSET_MISSING` → 「图片文件不存在」、`E_PATH_ESCAPE`/`E_ABSOLUTE` → 「路径在扫描根之外」、其余回落到 `code: reason`）+ 涉及**文档名**。**只覆盖本次拖入的文档**（不扩大报全仓 blocked）。纯图片拖入（无文档）不触发。`/api/plan` 已输出 blocked 项的 `code`（`publicPlanItem` 直接投影），供前端分类；`raw` 截断显示（data: URI 可达数百 KB，禁止整串进 DOM）。
 - 「上传」= 原 sync（`confirm: true`），作用于**会话工作集**（累计拖入的文档及其图片引用；仅拖入图片时上传这些图片、不改写无关文档）；「重置」丢弃**全部**扫描结果，不写文档、不传图床。
 
 静态 SPA 视图（hash 或 JS 切换）：
@@ -215,7 +215,7 @@ WebUI SPA **同时**服务浏览器（`picbed ui`）与 Electron 壳（[`module-
 - 输入：`root`、`confirm: true`（缺省 → `ConfirmRequiredError`，HTTP 409 或信封 error，对齐退出码 7）、可选 `dryRun`。
 - 规则：
   - `dryRun` 等价 `plan`/`sync --dry-run`：不 `putFile`、不改文档。
-  - 非 dry-run：经 app 共享层 `runSync`（SyncOrchestrator）；进度经事件通道推送（若启用）。
+  - 非 dry-run：经 app 共享层 `runSync`；进度经事件通道推送（若启用）。
   - **工作集作用域（2026-09-27）**：上传页触发的 sync **仅处理本次拖入**——工作集内文档及其图片引用；仅拖入图片时上传这些图片且不改写无关文档。CLI `sync` 仍按 root 全量扫描（语义不变）。
   - 结果 counts：`uploaded/rewritten/skipped/blocked/failed`；partial → `ok:false` 或 `ok:true`+`data.partial`（与 CLI 退出码 6 对齐，信封 error.code 保持稳定）。
 - 失败：单文件失败隔离；汇总 partial；远端 429/403 退避后失败映射退出码 5 语义。
@@ -306,32 +306,28 @@ sequenceDiagram
 设置页 `github.branch` 行提供分支下拉，交互与 F20.1 目录选择同构但更轻：
 
 - **载体**：输入框下方锚定的**小下拉**（`#branchPicker`，DOM 常驻默认 `hidden`）；触发 = 点击/聚焦 Branch 输入框；收起 = 点外部 / `Esc`。
-- **列分支**：`GET /api/branches`（Branches API `per_page=100`，**只读**，无写操作）；当前 `github.branch` 高亮；owner/repo 不齐 → `E_CONFIG`·400，缺 token → `E_TOKEN`·401，仓库不可达 → `E_NOT_FOUND`·404——错误在下拉内联提示并附引导文案，不弹 toast 报错。
-- **选用**：点选分支即 `POST /api/config { key: 'github.branch', confirm: true }` 立即保存；成功后回填输入框并 toast。Branch 输入框为**只读展示态**（同 `github.dir`），值唯一来源是下拉点选。
-- **回填**：选中或新建成功 → 立即 `POST /api/config { key:'github.dir', value, confirm:true }` 落盘并刷新表单与 toast，**不再要求点「保存设置」**。
-- **输入框只读（2026-10-01 补）**：设置页 `github.dir` 输入框为**只读展示态**（`readonly`）——不接受手工键入，只显示当前选中目录；取值仅来自浮层点选或新建回填。行为要点：① `readonly` 不影响 focus/click，仍是浮层触发入口之一；② 「保存设置」写入的 `github.dir` 恒等于最后一次选择结果，不存在「手输值与实际仓库不一致」的状态；③ 视觉上用 `cursor:pointer` + `background:var(--c-bg-2)` 表达「可点选、不可编辑」，聚焦时仍给主色边框与柔焦点环。呈现规格见 [`wireframes/ui-shell.md`](wireframes/ui-shell.md) §1.3。
-- **幂等**：目标目录已存在（`.gitkeep` 已在）→ 视为成功（`created:false`）。
-- **失败语义**：
+- **列分支**：`GET /api/branches`（Branches API `per_page=100`，**只读**，无写操作）；当前 `github.branch` 高亮；owner/repo 不齐 → `E_CONFIG`·400，缺 token → `E_TOKEN`·401，仓库不可达 → `E_NOT_FOUND`·404，GitHub 非 2xx → `E_REMOTE` 转发其状态码——错误在下拉内联提示并附引导文案，不弹 toast 报错。
+- **选用**：点选分支即 `POST /api/config { key: 'github.branch', value: '<分支名>', confirm: true }` 立即保存（`value` 由前端必带；服务端不作非空校验，缺省按 `''` 处理）；成功后回填输入框、toast「分支已切换为 xxx」并刷新表单，**不再要求点「保存设置」**。Branch 输入框为**只读展示态**（同 `github.dir`），值唯一来源是下拉点选；呈现规格见 [`wireframes/ui-shell.md`](wireframes/ui-shell.md) §1.3。
+- **失败语义**（对齐 [`module-app.md`](module-app.md) §错误映射与 `src/ui/routes/branches.ts` 实际返回）：
   | 情况 | code / HTTP |
   |------|-------------|
   | 缺 owner/repo | `E_CONFIG` · 400（引导先配置仓库信息） |
-  | 缺 token | `E_TOKEN` · 401（引导粘贴 PAT 或 `gh auth`） |
-  | 缺 `confirm` 或路径非法 | `E_BAD_REQUEST` · 400 |
-  | 同名路径是**文件** | `E_CONFLICT` · 409 |
-  | 父目录不可达 | `E_NOT_FOUND` · 404 |
-  | 远端 API/限流 | `E_REMOTE`（带 GitHub 状态） |
-  - 失败一律**内联提示**在浮层内（12px 弱文本），不关闭浮层、不弹堆栈。
+  | 缺 token | `E_TOKEN` · 401（引导粘贴 PAT 或本机 `gh auth login`） |
+  | 仓库不存在/无权访问 | `E_NOT_FOUND` · 404 |
+  | GitHub 返回非 2xx（含限流 403、5xx） | `E_REMOTE` · **原样转发 GitHub 状态码**（如限流即 403），message 带 `GitHub API <status>` |
+  | fetch 抛错（网络不可达/DNS） | `E_REMOTE` · 502 |
+  - 失败一律**内联提示**在下拉内（`branch-picker-empty` 弱文本，附 hint），不关闭下拉、不弹 toast 报错。分支接口**只读**（无写操作、无 `.gitkeep` 幂等、无 `E_CONFLICT`/`E_BAD_REQUEST`）。
 
 ## F21 审计与报告
 
-- RunRecord 由 app 共享层 `RunRecorder` 在各写/批命令成功或结束后追加（存储建议 `./.picbed/runs/`，路径进 `.gitignore` 建议）；CLI 的 `sync`/`revert` 也写同一份记录（Web 命令名为 `api.*`）。
+- RunRecord 由 app 共享层的 `recordRun(cwd, record)`（`src/app/run-store.ts`，函数式）在各写/批命令成功或结束后追加（存储建议 `./.picbed/runs/`，路径进 `.gitignore` 建议）；CLI 的 `sync`/`revert` 也写同一份记录（Web 命令名为 `api.*`）。
 - 报告字段对齐 JSON 信封 `data`；**无 token**。
 - 导出：`GET /api/runs/:id` 或导出按钮得到单一 JSON。
 
 ## F22 监听控制台
 
 - 启停映射 F12：`fs.watch` + debounce；忽略 `node_modules`/`.git`/`.picbed`。
-- 模式：`preview`（**默认，已冻结**：只 plan）| `confirm-each`（每批确认后 sync）| `auto`（**须显式打开**；仍写 RunRecord）。
+- 模式：`preview`（**默认，已冻结**：只记录批次并推送事件，**不**触发 plan / sync）| `confirm-each`（每批确认后 sync）| `auto`（**须显式打开**；仍写 RunRecord）。
 - 停止：`watch/stop` 或 `ui` 服务退出时级联停止。
 - 失败：监听失败 → 错误可见；不引入系统服务/提权。
 
@@ -356,6 +352,87 @@ sequenceDiagram
 | 目录选择：缺凭据 / 路径非法 / 同名是文件 | `E_CONFIG`·400 / `E_BAD_REQUEST`·400 / `E_CONFLICT`·409；浮层内联提示，不关浮层 |
 | 端口占用 | 用法/环境（2） |
 | manifest 损坏 | 显式错误；不静默重建 |
+
+## 实现落点（TS/Electron 适配）
+
+> 本模块在 TypeScript/Electron 实际源码中的落地；领域意图、server 装配（实现落点）、接口意图与 F 章节见上文。类图与签名以真实源码为准（源码：`src/ui/*`）。
+
+### 领域层类图（呈现层实体/契约）
+
+```mermaid
+classDiagram
+    class JsonEnvelope~T~ { +number schemaVersion +boolean ok +string command +T data? +string[] warnings? +JsonError error? }
+    class JsonError { +string code +string message +string path? +string hint? }
+    class UiRouteContext { +req +res +URL url +string method +string pathname +send(status, body) void +readBody() Promise~string~ +string cwd +RootBinder binder +WatchController watch +WorksetItem[] workset +GhLoginStore ghLogin +loadCfg() ResolvedConfig }
+    class UiRoute { <<type alias>> (ctx: UiRouteContext) => Promise~boolean~|boolean }
+    class RootBinder { +string root~null~ +bind(rootInput, cwd) string +requireRoot() string +resolveUnderRoot(rel) {ok,path}|{ok,reason,code} }
+    class WatchController { +WatchState state +start(opts) WatchState +stop() WatchState -pushEvent(message, changed?) void }
+    class WatchMode { <<union type>> preview confirm-each auto }
+    class WatchState { +boolean active +WatchMode mode +string root? +number debounceMs? +string[] lastBatch? }
+    class GhLoginStore { -GhLoginState state~null~ +get() object +set(s) void +get isRunning() boolean +append(chunk) void +scheduleClearIfTerminal(delayMs?) boolean +cancel() void }
+    class UiServerHandle { +string url +number port +string host +close() Promise~void~ }
+    class AppError { +string code +ExitCode exitCode +string hint }
+
+    UiRouteContext --> RootBinder : binder
+    UiRouteContext --> WatchController : watch
+    UiRouteContext --> GhLoginStore : ghLogin
+    UiRoute ..> UiRouteContext : 接收
+    WatchController --> WatchState : 持有
+    GhLoginStore --> GhLoginState : 持有
+    AppError ..> JsonError : 经 sendAppError 转换
+    JsonEnvelope ..> JsonError : error?
+```
+
+### 公开服务签名（TS）
+
+| 服务 | 签名 | 职责 |
+|------|------|------|
+| `createUiServer` | `createUiServer(opts: UiServerOptions): { server, binder, listen }` | 创建 `http.Server`，闭包持有 bindHost/workset/watchCtl/ghLogin/loadCfg |
+| `listen` | `listen(port, host): Promise<UiServerHandle>` | `server.listen`，返回 `{url, port, host, close}`；`close` 先 `watchCtl.stop()` |
+| `RootBinder.root` | `root: string \| null`（未绑定时为 `null`） | 当前扫描根 |
+| `RootBinder.bind` | `bind(rootInput: string, cwd: string): string` | 绑定扫描根（绝对化 + 校验） |
+| `RootBinder.requireRoot` | `requireRoot(): string` | 未绑定抛 `E_NO_ROOT` |
+| `RootBinder.resolveUnderRoot` | `resolveUnderRoot(rel): {ok:true;path}\|{ok:false;reason;code}` | 路径越界判定（`E_PATH_ESCAPE` 等） |
+| `WatchController.start/stop` | `(opts) WatchState` / `() WatchState` | 启停文件监听 |
+| `envelope` | `envelope<T>(ok, command, data?, error?, warnings?): JsonEnvelope<T>` | **WebUI 专用**信封构造器；CLI/MCP 只共用同一 `JsonEnvelope` 形状（CLI 内联构造，MCP 转调 CLI） |
+| `sendAppError` | `sendAppError(send, err, command = 'api.error'): void` | 未捕获异常 → `httpStatusForCode` + 信封（`api.error`） |
+| `checkApiRequest` | `checkApiRequest(req, pathname, hostUrl): GuardRejection \| null` | `/api` 同源 + POST 头 `X-Picbed-UI` + Content-Type + Body 上限（DNS-rebinding 由前置的 `checkHost` 负责） |
+
+路由表（均 `UiRoute` 签名，命中返回 `true`）：`healthRoute`(GET /api/health)、`sessionRoutes`、`authRoutes`(token + gh-login)、`systemRoutes`(doctor/manifest/repo mkdir)、`configRoutes`、`branchRoutes`、`galleryRoutes`、`planRoutes`(scan/plan)、`previewRoute`、`syncRoute`、`revertRoute`、`runsRoutes`、`watchRoutes`。
+
+### 复杂任务时序图（HTTP `/api/sync` 全链路）
+
+```mermaid
+sequenceDiagram
+    participant B as Browser/SPA
+    participant S as http.Server(server.ts)
+    participant G as guard.checkApiRequest
+    participant R as syncRoute
+    participant C as RootBinder/loadCfg
+    participant A as app: runSync/runPlan
+    participant E as envelope+makeSend
+
+    B->>S: POST /api/sync（X-Picbed-UI:1, JSON）
+    S->>S: parseHost(Host) → checkHost(hostUrl, bindHost)  // 阻断 DNS-rebinding，违例 403 E_HOST
+    S->>G: checkApiRequest(req, pathname, hostUrl)
+    G-->>S: null（放行）/ GuardRejection
+    S->>R: route(ctx)（遍历 ROUTES）
+    R->>C: binder.requireRoot() + loadCfg()
+    alt dryRun
+        R->>A: runPlan(root,cfg,cwd,includeDocs)
+        A-->>R: {plan, summary, collected}
+        R->>E: 200 envelope(api.sync, dryRun)
+    else confirm !== true
+        R->>E: 409 envelope(E_CONFIRM)
+    else confirm=true
+        R->>A: runSync({root,cfg,cwd,getToken,command})
+        A-->>R: {ok, uploaded, rewrittenDocs, items, errors}
+        R->>E: 200 / httpStatusForCode(errorCode)
+    end
+    E-->>B: JSON 信封
+```
+
+> `server.ts` 安检与静态在前；`syncRoute` 的 ConfirmGate 在 `:52`（409），dryRun 走 `runPlan`（`:34`），写操作走 `runSync`（`:60`）。code → HTTP 映射见 [`module-app.md`](module-app.md) §错误映射（如 `E_TOKEN`→401、`E_CONFIRM`→409、`E_PARTIAL`→207、`E_REMOTE`→502）。
 
 ## 功能点映射
 

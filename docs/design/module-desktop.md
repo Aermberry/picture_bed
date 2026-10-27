@@ -137,12 +137,12 @@ scripts/desktop-dev.mjs（supervisor）
 
 1. 窗口 URL 优先 `ELECTRON_RENDERER_URL`（Vite）；否则 `uiHandle.url`。
 2. **Vite 会话中禁止 `loadURL(uiHandle.url)`**——那会离开 HMR 页，热更新表现为「改了没反应」。
-3. `fs.watch` 在 Vite 会话下：`dist/` 变更只**重启 API 服务**（窗口不动）；`desktop/` 交给 electron-vite，不自行 relaunch。
+3. `fs.watch` 在 Vite 会话下：`dist/` 变更触发**进程级重启**（`processExitForReload('dist')`，窗口会随之重建）；`desktop/` 交给 electron-vite 重启，不由本进程另行 relaunch。旧「只重启 API 服务、窗口不动」的方案已于 2026-10-27 废弃（原因见下文 §`dist/` 变更为何必须进程级重启）。
 4. 启动日志打印当前 renderer 来源（Vite / 本地 UI 服务），便于排查。
 
 ### Electron 入口契约（`desktop/main.mjs`）
 
-1. **入口文件**：`desktop/main.mjs`（`package.json.main` 与 `ELECTRON_ENTRY` 一致）。不用 rollup 打包后的 `out/main`（Electron 33 ESM/CJS 互操作不稳）。
+1. **入口文件**：`desktop/main.mjs`（dev 由 `desktop-dev.mjs` 传 `ELECTRON_ENTRY`；打包后由 `electron-builder.yml` 的 `extraMetadata.main` 注入。`package.json` 本身**没有** `main` 字段，原因见下文 §npm 包导出面）。不用 rollup 打包后的 `out/main`（Electron 33 ESM/CJS 互操作不稳）。
 2. **`electron` 模块**：`createRequire` 加载；若返回字符串（`ELECTRON_RUN_AS_NODE`）→ 清 env 后 re-exec 真 Electron。
 3. 打包版（`app.isPackaged`）**不**注册任何开发热更新监听、**不**加载 Vite URL。
 
@@ -252,15 +252,15 @@ classDiagram
 
 | 服务 | 签名（语义） | 职责 |
 |------|------|------|
-| `startApp` | `app.whenReady().then(startApp)` | 注册 IPC → 创建窗口 → 启动 UI 服务 |
+| `startApp` | `startApp({ app, BrowserWindow, dialog, ipcMain, shell })` | 注册 IPC → 创建窗口 → 启动 UI 服务（`whenReady().then(async () => { registerIpc(); await createWindow(); … })`） |
 | `registerIpc` | 注册 `dialog:selectDirectory` / `dialog:selectFiles` / `app:info` | 把主进程能力暴露给渲染进程 |
-| `createWindow` | `createWindow(uiHandle: UiServerHandle)` | `new BrowserWindow({preload})` + `loadURL(uiHandle.url)`；失败回退 `data:` 错误页 |
+| `createWindow` | `createWindow()` | `new BrowserWindow({preload})` + `loadURL(uiHandle.url)`；`uiHandle` 为模块级变量；失败回退 `data:` 错误页 |
 | `startUiServer` | `startUiServer(): Promise<UiServerHandle>` | 动态 `import('../dist/ui/index.js')` → `createUiServer({cwd})` → `listen(port,'127.0.0.1')` |
-| `installDevHotReload` | 监听 `dist/` 与 `desktop/` | **`dist/` 与 `desktop/` 变更一律触发进程级重启**（`processExitForReload`），不做进程内模块重载 |
+| `installDevHotReload` | 监听 `dist/` 与 `desktop/` | **`dist/` 变更一律触发进程级重启**（`processExitForReload('dist')`），不做进程内模块重载；`desktop/*` 在 Vite 会话下只打日志、交给 electron-vite 重建，非 Vite 会话才 `processExitForReload('desktop')` |
 | `processExitForReload` | `processExitForReload(reason)` | `PICBED_DESKTOP_SUPERVISED=1` 时 `app.exit(0)` 交监督进程重拉，否则 `app.relaunch()` |
+| `preload.exposeInMainWorld` | `contextBridge.exposeInMainWorld('picbedNative', {...})` | 暴露 `PicbedNative` 桥 |
 
 **`dist/` 变更为何必须进程级重启（2026-10-27 修）**：旧实现给 `dist/ui/index.js` 加 `?t=<时间戳>` 后重新 `import`，意图热更新后端。但 cache-bust 只让**入口本体**重新求值——它 import 的子模块（`app/*`、`lib/*` 等）URL 未变，仍命中 Node ESM 模块缓存。实测：先 `import('./entry.mjs?t=1')` 取值 `v1`，改写其 import 的 `sub.mjs` 为 `v2`，再 `import('./entry.mjs?t=2')` 仍返回 `v1`。后果是「改了后端逻辑、看起来热更新成功、实际跑的是旧代码」——比不热更新更危险，故改为进程重启；进程内模块缓存随进程结束清空，结果确定。旧的 `restartUiServer()` 已删除（`tests/desktop.test.ts` 断言其不得回归）。
-| `preload.exposeInMainWorld` | `contextBridge.exposeInMainWorld('picbedNative', {...})` | 暴露 `PicbedNative` 桥 |
 
 ### 复杂任务时序图（F24 复用 Web 服务）
 
@@ -288,7 +288,7 @@ sequenceDiagram
     Note over M,OS: before-quit → uiHandle.close() → app.quit()
 ```
 
-> `desktop/main.mjs:76-91` 动态 import 编译后的 `dist/ui/index.js`；`createWindow`（`desktop/main.mjs:93-150`）失败时回退 `data:` 错误页（`:129`）。桌面端投放文件携带绝对路径 → `sessionRoutes` 的 `drop` 分支（`src/ui/routes/session.ts:105-182`）自动 `binder.bind(dir)`（`:133`）。业务错误由复用的 `app`/`webui` 经 `AppError` 处理，见 [`module-app.md`](module-app.md)；桥 `picbedNative` 为渐进增强（无 preload 时 SPA 仍可用）。
+> `desktop/main.mjs:76-91` 动态 import 编译后的 `dist/ui/index.js`；`createWindow`（`desktop/main.mjs:93-150`）失败时回退 `data:` 错误页（`:129`）。桌面端投放文件携带绝对路径 → `sessionRoutes` 的 `drop` 分支（`src/ui/routes/session.ts:106` 起；绝对路径子分支 `:130-195`）在**无根或不在根内**时重绑 `ctx.binder.bind(rebindTo, rebindTo)`（`:143`），并清空先前工作集（`:153`）、在响应里回报 `rebind{from,to,cleared}`（`:189`）。业务错误由复用的 `app`/`webui` 经 `AppError` 处理，见 [`module-app.md`](module-app.md)；桥 `picbedNative` 为渐进增强（无 preload 时 SPA 仍可用）。
 
 ## 功能点映射
 

@@ -49,11 +49,11 @@ Web API 使用**同一信封**（`command` 为 `api.*`）；HTTP 状态码由 ap
 
 ## 3. 密钥纪律
 
-- 名称：`PICBED_GITHUB_TOKEN` / `GITHUB_TOKEN`；或复用 `gh auth token`（无 OAuth Client Secret）。  
+- 名称：`PICBED_GITHUB_TOKEN` / `GITHUB_TOKEN`；本机凭据 `~/.picbed/credentials.json`（`picbed login` 写入）；或复用 `gh auth token`（无 OAuth Client Secret）。  
 - 范围：仅图床仓库 Contents RW（scope `repo` 或 `public_repo`）。  
 - 禁止：写入 git 跟踪文件、manifest、backup、runs、日志、JSON data。  
 - 展示：掩码 `ghp_****` 或 `****`；Web **无**「显示原文」。  
-- 优先级：`PICBED_GITHUB_TOKEN` > `GITHUB_TOKEN` > `gh auth token`。  
+- 优先级：`PICBED_GITHUB_TOKEN` > `GITHUB_TOKEN` > 本机凭据 `~/.picbed/credentials.json` > `gh auth token`（`src/infra/gh-cli.ts#resolveToken`）。  
 - Web：token 仅在服务进程内存；任何 API/页面/SSE 不得携带 secret。
 
 ## 4. 路径与 FS 安全
@@ -76,13 +76,13 @@ Web API 使用**同一信封**（`command` 为 `api.*`）；HTTP 状态码由 ap
 | Web API：信封 + confirm + 掩码 + health | F16 F18 F20 |
 | Web 工作台：拖拽解析 / plan 分组 / dry-run 无副作用 | F17 |
 | Web revert / runs / watch 启停 | F19 F21 F22 |
-| 设计文档校验 | 交付前 `scripts/validate-*.ps1` |
+| 设计文档校验 | 交付前 `npm run validate`（`scripts/validate.mjs`） |
 
 规则：**每次改动须有相关测试/验证，全部通过才交付**；无测试框架时必须写明实际验证命令与结果。
 
 ## 6. 命令一览（契约索引）
 
-`init` `doctor` `scan` `plan` `sync` `upload` `revert` `config` `ui`  
+`init` `doctor` `scan` `plan` `sync` `upload` `revert` `watch` `config` `ui` `commands`  
 全局旗标：`--json --quiet --verbose --config --cwd --yes --dry-run`  
 Web API：`/api/health|config|doctor|scan|plan|sync|manifest|revert|runs|watch/*`（见 module-webui）
 

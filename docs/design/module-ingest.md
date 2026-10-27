@@ -29,13 +29,13 @@ ingest/
 ## 领域模型
 
 ```text
-DocFile { path, kind: markdown|html, bytes }
+DocFile { path, kind: markdown|html }
 ImageRef {
   docPath, raw, start, end,
   syntax: md-image|md-link|html-img|html-srcset|html-source|other,
   alt?
 }
-Asset { localPath, sha256, bytes, mime, refs[] }
+Asset { localPath, sha256, bytes, mime, refs[], data? }   # data：文档内嵌图（data: URI）的内存字节，有值时不再读 localPath
 ```
 
 ## 模块接口（意图）
@@ -86,6 +86,124 @@ IngestFacade
 | 单文档解析异常 | 记入 errors，继续其它文档 |
 | 单引用 blocked | 不中断；进入 plan 的 blocked |
 | 缺文件 | blocked：`E_ASSET_MISSING` |
+
+## 实现落点（TS/Electron 适配）
+
+> 本模块在 TypeScript/Electron 实际源码中的落地；领域意图见上文。类图与签名以真实源码为准（源码：`src/scan.ts`、`src/extract.ts`、`src/resolve.ts`、`src/manifest.ts`、`src/plan.ts`、`src/types.ts`、`src/lib/*`）。
+
+### 实际文件夹结构
+
+```text
+src/
+├─ types.ts          # DocFile/ImageRef/Asset/BlockedItem/ManifestEntry/Manifest/SyncPlanItem/PlanAction
+├─ scan.ts           # scanDocs：扫描文档树，产出 DocFile[]
+├─ extract.ts        # extractRefs：抽取 ImageRef[]（先屏蔽代码段）
+├─ resolve.ts        # resolveAssets：按 sha256 去重；blocked / remoteSkips
+├─ manifest.ts       # loadManifest / saveManifest / upsertEntry / findCachedUrl
+├─ plan.ts           # buildPlan：依据 manifest 缓存生成 SyncPlanItem[]
+├─ lib/              # 基础设施（值对象校验 + 外部能力）
+│  ├─ doc.ts         # kindOf 文档类型判定
+│  ├─ hash.ts        # sha256Hex / sha12
+│  ├─ img.ts         # IMAGE_EXT / mimeOf
+│  ├─ inline.ts      # isDataUri / parseInlineImage / inlineLocalPath（内嵌图解码与占位名）
+│  ├─ mask.ts        # token 掩码（doctor / auth 展示用，非本域）
+│  └─ paths.ts       # isUnderRoot 越界判定
+└─ app/collect.ts    # collect() 编排（应用层入口，见 module-app）
+```
+
+### 领域层类图
+
+```mermaid
+classDiagram
+    class DocKind { <<enumeration>> markdown html }
+    class RefSyntax { <<enumeration>> md-image md-link html-img html-srcset html-source other }
+    class PlanAction { <<enumeration>> upload skip-cache skip-remote rewrite-only blocked }
+    class DocFile { +string path +DocKind kind }
+    class ImageRef { +string docPath +string raw +number start +number end +DocKind kind +RefSyntax syntax +string alt? }
+    class Asset { +string localPath +string sha256 +number bytes +string mime +ImageRef[] refs +Buffer data? }
+    class BlockedItem { +ImageRef ref +string reason +string code }
+    class RemoteImage { +string publicUrl +string rawUrl +string cdnUrl? +string repoPath +string sha256 }
+    class ManifestEntry { +string doc +string raw +string localPath +string sha256 +string publicUrl +string updatedAt }
+    class Manifest { +number version +ManifestEntry[] entries }
+    class SyncPlanItem { +PlanAction action +Asset asset? +RemoteImage remote? +string reason? +string code? +ImageRef ref? }
+
+    Asset "1" *-- "many" ImageRef : refs（按 sha256 聚合）
+    BlockedItem --> ImageRef : wraps
+    Manifest "1" o-- "many" ManifestEntry : entries
+    SyncPlanItem --> Asset : asset?
+    SyncPlanItem --> RemoteImage : remote?
+    SyncPlanItem --> ImageRef : ref?
+    ManifestEntry ..> Asset : 由 sha256 派生
+```
+
+### 公开服务签名（TS）
+
+| 服务 | 签名 | 职责 |
+|------|------|------|
+| `scanDocs` | `scanDocs(root: string, scan: ScanConfig): DocFile[]` | 递归遍历 root，过滤扩展名并 `kindOf` 判定，按 path 排序 |
+| `extractRefs` | `extractRefs(doc: DocFile, content: string): ImageRef[]` | 屏蔽代码段后按 md/html 语法抽取并去重，按 start 排序 |
+| `resolveAssets` | `resolveAssets(refs: ImageRef[], opts: ResolveOptions): ResolveResult` | 逐引用校验，sha256 聚合为 `Asset[]`；失败→blocked，远端→remoteSkips |
+| `loadManifest` | `loadManifest(rootDir: string): Manifest` | 读 `.picbed/manifest.json`；不存在返回空；解析失败抛 `E_MANIFEST_CORRUPT` |
+| `saveManifest` | `saveManifest(rootDir: string, manifest: Manifest): void` | 原子写（tmp + rename） |
+| `upsertEntry` | `upsertEntry(manifest: Manifest, entry: ManifestEntry): Manifest` | 按 `doc+raw+localPath` 命中覆盖，否则 push；**原地修改并返回同一 `manifest` 引用**（`mergeManifest` 依赖此语义，勿当纯函数用） |
+| `findCachedUrl` | `findCachedUrl(manifest: Manifest, sha256: string): string \| undefined` | 缓存命中查询 |
+| `buildPlan` | `buildPlan(args: {assets, blocked, remoteSkips, manifest}): SyncPlanItem[]` | 资产分类 upload/skip-cache/skip-remote/blocked |
+
+### 复杂任务时序图（collect 链路）
+
+```mermaid
+sequenceDiagram
+    participant App as app/collect
+    participant SCAN as scanDocs
+    participant DOC as lib/doc.kindOf
+    participant FS as fs
+    participant EXT as extractRefs
+    participant RES as resolveAssets
+    participant HASH as lib/hash
+
+    App ->> SCAN: scanDocs(root, cfg.scan)
+    SCAN ->> FS: readdirSync 递归遍历
+    SCAN ->> DOC: kindOf(path)
+    DOC -->> SCAN: DocKind
+    SCAN -->> App: DocFile[]（按 path 排序）
+    loop 每个 DocFile
+        App ->> FS: readFileSync(doc.path)
+        alt 读取失败
+            App ->> App: warnings.push；continue
+        else 成功
+            App ->> EXT: extractRefs(doc, text)
+            EXT ->> EXT: blankCodeRegions 屏蔽代码段
+            EXT ->> EXT: 按 md/html 语法 matchAll 抽取并去重
+            EXT -->> App: ImageRef[]
+        end
+    end
+    App ->> RES: resolveAssets(allRefs, {scanRoot: root, inlineImages})
+    loop 每个 ImageRef
+        RES ->> RES: 空/anchor/data 前缀先判；absolute/escape/ext/exists 再校验
+        alt 不合法
+            RES ->> RES: blocked.push({ref, code, reason})
+        else data: URI（inlineImages 开启）
+            RES ->> RES: parseInlineImage → 解码字节 + sha256
+            RES ->> RES: Asset{localPath: inline/<sha12>.<ext>, data}（不落盘，与本地图同池去重）
+        else 远端 URL
+            RES ->> RES: remoteSkips.push(ref)
+        else 合法本地图片
+            RES ->> FS: readFileSync(abs)
+            RES ->> HASH: sha256Hex(buf)
+            HASH -->> RES: sha256
+            RES ->> RES: existing = byPath.get(sha256)
+            alt 已存在该 sha
+                RES ->> Asset: existing.refs.push(ref)
+            else 新 sha
+                RES ->> RES: byPath.set(sha256, new Asset)
+            end
+        end
+    end
+    RES -->> App: ResolveResult{assets[], blocked[], remoteSkips[]}
+    App -->> App: CollectResult{docs, byDoc, assets, blocked, remoteSkips, warnings}
+```
+
+> 去重维度是「内容 sha256」，非路径或引用文本；manifest 合并键 = `doc+raw+localPath`，缓存命中键 = `sha256`（三者务必区分）。错误码与上游 AppError 映射见 [`module-app.md`](module-app.md)；`E_MANIFEST_CORRUPT` 真实抛出，其余以 `BlockedItem.code` 存在、由 `buildPlan` 转为 `action:'blocked'`。
 
 ## 功能点映射
 

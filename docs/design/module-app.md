@@ -19,21 +19,25 @@
 - **错误单一来源**：编排失败统一为 `AppError { code, exitCode, path?, hint? }`；CLI 退出码与 Web HTTP 状态码由同一张表派生（见 §错误映射）。
 - **Token 不落盘**：app 只经注入的 `getToken()` 取 token；RunRecord / warnings / errors 不含 secret。
 - **确认门属呈现层**：CLI `--yes`、HTTP `confirm` 由呈现层判定；app 暴露 `runSync` / `runRevert` 等**无确认参数**的写服务。
-- **呈现层只经 façade 取配置与鉴权（2026-10-02 补）**：`app/settings.ts#resolvedConfig` 与 `app/auth.ts`（`currentToken` / `saveUserToken` / `clearSavedToken` / `probeGh` / `startGhLogin`）。CLI / WebUI **不得**直接 import `config.ts` / `user-token.ts` / `infra/gh-cli.ts`——此前 `ui/server.ts` 三处直连，绕过了统一错误码与日志脱敏。
+- **呈现层只经 façade 取配置与鉴权（2026-10-02 补，2026-10-27 补齐 `cli.ts`）**：`app/settings.ts#resolvedConfig` 与 `app/auth.ts`（`currentToken` / `saveUserToken` / `clearSavedToken` / `probeGh` / `startGhLogin`）。CLI / WebUI **不得**直接 import `config.ts` / `user-token.ts` / `infra/gh-cli.ts`——此前 `ui/server.ts` 三处直连，绕过了统一错误码与日志脱敏；`src/cli.ts` 亦曾长期直连 `config.ts`（守卫只过滤 `ui/` 前缀而漏网），现已收敛并由 `tests/layering.test.ts` 同时覆盖 `cli.ts` 与 `ui/`。`picbed init` 所需的 `CONFIG_NAME` / `configTemplate` 由 `app/settings.ts` 转发导出，不构成直连例外。
 - **写操作一律有 app 入口（2026-10-02 补）**：`picbed upload` 的上传编排下沉到 `app/upload.ts#uploadSingleAsset`；CLI 只做参数校验与 `AppError → 退出码`。呈现层不得直接 `createHostAdapter` / `uploadAsset`。防回归见 `tests/layering.test.ts`。
 
 ## 模块文件夹结构（实现落点）
 
 ```
 src/app/
+├─ index.ts      # barrel：统一再导出全部应用服务（CLI/Web 共用唯一入口）
 ├─ errors.ts     # AppError + code → exitCode → HTTP 表
 ├─ collect.ts    # 扫描文档 + 抽取 + 解析去重（ingest 域编排）
 ├─ plan.ts       # runPlan / summarizePlan / publicPlanItem
 ├─ sync.ts       # runSync（上传 + 回写 + manifest + RunRecord）
 ├─ revert.ts     # runRevert / listManifestView
 ├─ doctor.ts     # doctorService（host-aware）/ publicConfig
-├─ config.ts     # readConfigKey / writeConfigKey（含 url.style 校验）
-└─ runs.ts       # RunRecorder：newRunId / recordRun / listRuns / getRun
+├─ settings.ts   # 配置防腐层：resolvedConfig / readConfigKey / writeConfigKey / import / serialize / CONFIG_NAME / configTemplate
+├─ auth.ts       # 鉴权防腐层：currentToken / saveUserToken / clearSavedToken / probeGh / startGhLogin
+├─ run-store.ts  # RunRecord 函数式仓库：newRunId / recordRun / listRuns / getRun / runsDir
+├─ repo-dir.ts   # 远端目录规则：createRepoDir / normalizeRepoDirPath / parentDirPath / DIR_PLACEHOLDER
+└─ upload.ts     # uploadSingleAsset
 ```
 
 ## 服务清单
@@ -41,15 +45,15 @@ src/app/
 | 服务 | 职责 | 调用方 |
 |------|------|--------|
 | `collect(root, cfg)` | scanDocs → extractRefs → resolveAssets → `{docs, byDoc, assets, blocked, remoteSkips, warnings}` | plan / sync |
-| `runPlan(root, cfg, cwd)` | collect + manifest + buildPlan → `{collected, plan, summary}` | CLI scan/plan/sync-dryRun；API `/api/plan`、`/api/scan`、`/api/sync` (dryRun) |
+| `runPlan(root, cfg, cwd, opts?)` | collect + manifest + buildPlan → `{collected, plan, summary}`；`opts.includeDocs` 限定只 plan 这些文档（UI 工作集） | CLI scan/plan/sync-dryRun；API `/api/plan`、`/api/scan`、`/api/sync` (dryRun) |
 | `publicPlanItem(it)` | plan item 公开投影（**含 localPath**） | 同上 |
-| `runSync({root,cfg,cwd,getToken,command})` | 调用时**单次 collect+plan**（上传与回写共用同一文本快照，不复用调用方先前 plan）→ 上传（cache 命中跳过）→ 回写 → 保存 manifest → 写 RunRecord | CLI `sync`；API `/api/sync`；watch auto |
+| `runSync({root,cfg,cwd,getToken,command,includeDocs?,includeImages?})` | 调用时**单次 collect+plan**（上传与回写共用同一文本快照，不复用调用方先前 plan）；`includeDocs` / `includeImages` 把范围限定到 UI 工作集 → 上传（cache 命中跳过）→ 回写 → 保存 manifest → 写 RunRecord | CLI `sync`；API `/api/sync`；watch auto |
 | `runRevert({root,cfg,cwd,dryRun,command})` | manifest 校验 → 逐文档 revert（dry-run 进 `planned`）→ 写 RunRecord | CLI `revert`；API `/api/revert` |
 | `listManifestView(cwd)` | manifest 只读视图（无 token） | API `/api/manifest` |
 | `doctorService({cfg,getToken,probeApi})` | host-aware 检查：github 校验 owner/repo/branch + token + API 探测；local 只校验 host | CLI `doctor`；API `/api/doctor` |
 | `publicConfig(cfg, extra?)` | 配置视图（token 掩码） | CLI `config list`；API `/api/config` |
 | `readConfigKey` / `writeConfigKey` | 键枚举 + **url.style 校验** + TOML 改写 | CLI `config get/set`；API `/api/config` |
-| `runs.ts`（RunRecorder） | `./.picbed/runs/*.json` 追加 / 读取 | CLI 与 Web 共用（审计 F21） |
+| `run-store.ts`（RunRecord 仓库，函数式） | `./.picbed/runs/*.json` 追加 / 读取 | CLI 与 Web 共用（审计 F21） |
 
 ## 复杂任务：sync 编排链（为什么必须画出来）
 
@@ -147,6 +151,17 @@ sequenceDiagram
 | `E_NO_ROOT` / `E_ROOT` / `E_PATH*` / `E_DOC_EXT` / `E_MANIFEST_CORRUPT` | 本地文件与路径类 | 4 | 400 |
 | `E_REMOTE` | 远端 API 失败 | 5 | 502 |
 | `E_PARTIAL` | 部分成功 | 6 | 207 |
+| `E_ORIGIN` / `E_HEADER` / `E_HOST` | 来源 / 请求头校验失败（HTTP 加固） | 2 | 403 |
+| `E_CONTENT_TYPE` | Content-Type 不在白名单 | 2 | 415 |
+| `E_BODY_TOO_LARGE` | 请求体超限 | 2 | 413 |
+| `E_CONFLICT` | 目标已存在 / 冲突 | 2 | 409 |
+| `E_NOT_FOUND` | 资源不存在 | 4 | 404 |
+| `E_BAD_REQUEST` / `E_EXISTS` / `E_PORT` / `EADDRINUSE` | 用法、端口与已存在 | 2 | 400 |
+| `E_DOCTOR` | doctor 检查失败 | 3 | 400 |
+| `E_LOCAL` / `E_ASSET_MISSING` | 本地文件缺失 | 4 | 400 |
+| 未登记的 code | 经 `asAppError` 落入 `E_GENERAL` | 1 | 500 |
+
+HTTP 特判顺序见 `src/app/errors.ts#httpStatusForCode`（`E_TOKEN`/`E_AUTH` → 401、`E_ORIGIN`/`E_HEADER`/`E_HOST` → 403、`E_CONTENT_TYPE` → 415、`E_CONFLICT` → 409、`E_NOT_FOUND` → 404、`E_BODY_TOO_LARGE` → 413，其余按退出码派生）。
 
 规则：退出码以 [`cross-cutting.md`](cross-cutting.md) §1 为唯一权威；HTTP 状态码是语义近似，**以信封 `error.code` 为准**。
 
@@ -158,7 +173,7 @@ sequenceDiagram
 4. **plan item 投影统一含 `localPath`**（CLI 原缺）：JSON `data` 只增字段，action 分类与退出码不变。
 5. **revert dry-run 明确分流**：`planned[]`=将改文档，`rewritten[]`=已写文档；CLI `revert --dry-run` 输出相应改为 `planned`。
 6. **revert manifest 损坏**：显式返回 `errorCode='E_MANIFEST_CORRUPT'`（Web 不再依赖错误字符串匹配）；CLI 退出码 1 → 4（本地文件类）。
-7. **sync 单次 collect+plan（同一文本快照）**：`runSync` 在调用时自行执行一次 collect+plan，上传与回写共用该次快照，**不复用调用方先前的 dry-run / plan 结果**；CLI 与 Web 由此走同一条写路径，不再各自预扫。app 不承诺「写阶段重扫」「防 plan 与写之间外部改动」这类更强语义。
+7. **sync 单次 collect+plan（同一文本快照）**：`runSync` 在调用时自行执行一次 collect+plan，上传与回写共用该次快照，**不复用调用方先前的 dry-run / plan 结果**；CLI 与 Web 的写阶段都经同一条 `runSync` 路径。注意：CLI 在进入 sync 写分支前，为生成 warnings 与确认文案已先执行过一次 `runPlan`（`src/cli.ts:459`），因此 CLI 单次 `sync` 会扫描两次，第一次结果不参与写。app 不承诺「写阶段重扫」「防 plan 与写之间外部改动」这类更强语义。
 8. **partial 判定单一来源**：`partial = !ok && (uploaded + rewritten > 0)`（CLI 退出码 6 / Web 207 同一判定）。
 
 ## 不变式
@@ -176,6 +191,52 @@ sequenceDiagram
 | tests/mcp.test.ts | CLI `--json`（经 app 层）退出码 0 |
 | 契约断言：plan item 含 `localPath`、revert `errorCode` | 新增 / 更新 |
 | 设计文档校验 | `npm run validate:design`（`scripts/validate.mjs --profile=design`）要求本文件存在 |
+
+## 实现落点（TS/Electron 适配）
+
+> 本模块在 TypeScript/Electron 实际源码中的落地；编排细节、服务清单、sync 时序与错误映射见上文。类图与真实目录以真实源码为准（源码：`src/app/*`、`src/types.ts`、`src/app/errors.ts`）。
+
+### 实际文件夹结构
+
+```text
+src/app/
+├─ index.ts      # barrel：统一再导出全部应用服务（CLI/Web 共用唯一入口）
+├─ errors.ts     # AppError + code → exitCode → HTTP 表（错误单一来源）
+├─ collect.ts    # collect()：scan + extract + resolve 收敛
+├─ plan.ts       # runPlan / summarizePlan / publicPlanItem
+├─ sync.ts       # runSync（上传 + 回写 + manifest + RunRecord）
+├─ revert.ts     # runRevert / listManifestView
+├─ doctor.ts     # doctorService（host-aware）/ publicConfig
+├─ settings.ts   # 配置防腐层：resolvedConfig / readConfigKey / writeConfigKey / import / serialize / CONFIG_NAME / configTemplate
+├─ auth.ts       # 鉴权防腐层：currentToken / saveUserToken / clearSavedToken / probeGh / startGhLogin
+├─ run-store.ts  # RunRecord 仓库（函数式，非类）
+├─ repo-dir.ts   # 远端目录规则：createRepoDir / normalizeRepoDirPath / parentDirPath / DIR_PLACEHOLDER
+└─ upload.ts     # uploadSingleAsset
+```
+
+### 领域层类图（应用层结果类型 + 防腐层）
+
+```mermaid
+classDiagram
+    class AppError { +string code +ExitCode exitCode +string path? +string hint? }
+    class ErrorMappers { <<module: src/app/errors.ts>> +exitCodeForCode(code) ExitCode +httpStatusForCode(code) number }
+    class CollectResult { +{path,kind}[] docs +Map~string,string~ byDoc +Asset[] assets +BlockedItem[] blocked +ImageRef[] remoteSkips +string[] warnings }
+    class SyncResult { +boolean ok +number uploaded +string[] rewrittenDocs +object summary +string[] errors +SyncItem[] items +string[] warnings +boolean partial +('E_PARTIAL'|'E_REMOTE') errorCode? +string runId }
+    class RevertResult { +boolean ok +boolean dryRun +string[] rewritten +string[] planned +string[] errors +('E_MANIFEST_CORRUPT'|'E_PARTIAL') errorCode? +string runId }
+    class DoctorReport { +boolean ok +DoctorCheck[] checks +string[] failures }
+    class RunRecord { +string id +string command +string startedAt +string finishedAt +boolean ok +Record~string,number~ counts +unknown[] items? +string[] errors? +string[] warnings? +string errorCode? }
+    class ResolvedConfig { +HostConfig host +GithubConfig github +LocalHostConfig local +UrlConfig url +ScanConfig scan +UploadConfig upload +RewriteConfig rewrite +string configPath? +string rootDir }
+    class RunStore { <<infrastructure>> +newRunId() string +recordRun(cwd, record) void +listRuns(cwd, limit?) RunRecord[] +getRun(cwd, id) RunRecord~null~ }
+    class SettingsFacade { <<anti-corruption>> +resolvedConfig(cwd?, path?) ResolvedConfig +readConfigKey(cfg, key) unknown +writeConfigKey(cfg, key, value, dryRun) object +serializeConfigToml(cfg) string +importConfigToml(base, toml, dryRun) object }
+    class AuthFacade { <<anti-corruption>> +currentToken() string~undefined~ +saveUserToken(t) void +clearSavedToken() void +probeGh() object +startGhLogin(onChunk) object }
+
+    AppError ..> SyncResult : 错误经 code 派生
+    RunStore ..> RunRecord : 持久化 .picbed/runs/*.json
+    SyncResult --> RunRecord : 写审计
+    RevertResult --> RunRecord : 写审计
+```
+
+> 备注：代码中不存在 `PlanItem` 类型（真实为 `SyncPlanItem`）、不存在 `RunRecorder` 类（RunRecord 由 `app/run-store.ts` 函数式仓库持久化）、`resolvedConfig` 是函数（`SettingsFacade`）而非实体。以上据实描述，未照搬模板占位。
 
 ## 功能点映射
 

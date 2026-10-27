@@ -55,31 +55,35 @@ classDiagram
         +deleteFile(repoPath, sha, message, branch) Promise~void~
         +composeUrls(repoPath) HostUrls
         +remotePath(sha256, localPath) string
-        +entryType(repoPath) Promise~boolean~
+        +entryType?(repoPath) Promise~'file'|'dir'|null~
     }
     class HostUrls {
         +publicUrl : string
         +rawUrl : string
-        +cdnUrl : string
+        +cdnUrl? : string
     }
     class Asset {
         +localPath : string
         +sha256 : string
         +bytes : number
         +mime : string
+        +refs : ImageRef[]
+        +data? : Buffer
     }
     class RemoteImage {
         +publicUrl : string
         +rawUrl : string
-        +cdnUrl : string
+        +cdnUrl? : string
         +repoPath : string
         +sha256 : string
     }
     class SyncPlanItem {
         +action : PlanAction
-        +asset : Asset
-        +remote : RemoteImage
-        +reason : string
+        +asset? : Asset
+        +remote? : RemoteImage
+        +reason? : string
+        +code? : string
+        +ref? : ImageRef
     }
     class GitHubHostAdapter {
         +type : github
@@ -91,8 +95,7 @@ classDiagram
         +abs(repoPath) string
     }
     class createHostAdapter {
-        <<factory>>
-        +create(cfg, token) HostAdapter
+        <<function>>
     }
 
     HostAdapter <|.. GitHubHostAdapter : implements
@@ -277,7 +280,7 @@ sequenceDiagram
         SYNC ->> MF: findCachedUrl(manifest, sha256)
         alt 缓存命中
             MF -->> SYNC: 返回 publicUrl
-            SYNC ->> SYNC: urlBySha.set(sha, cached)；记 skip-cache；continue
+            SYNC ->> SYNC: 记 skip-cache（**不入 urlBySha**）；continue
         else 未命中
             SYNC ->> UA: uploadAsset(host, {asset, bytes, cfg})
             UA ->> AD: putFile / composeUrls
@@ -286,7 +289,7 @@ sequenceDiagram
             SYNC ->> MF: mergeManifest（写独立 entry）
         end
     end
-    SYNC ->> SYNC: 按 urlBySha 改写文档（见 module-rewrite）
+    SYNC ->> SYNC: 写文档：upload 取 urlBySha[sha]；skip-cache/skip-remote 取 item.remote.publicUrl（见 module-rewrite）
     SYNC ->> MF: saveManifest（原子写）
 ```
 
