@@ -236,13 +236,14 @@ classDiagram
     class IpcMain { <<external>> +handle(channel, cb) void }
     class Dialog { <<external>> +selectDirectory() Promise~string|null~ +selectFiles(opts) Promise~string[]~ }
     class PicbedNative { <<bridge/preload>> +selectDirectory() Promise +selectFiles(opts) Promise +appInfo() object +getPathForFile(file) string +platform string }
+    class PreloadScript { <<module: desktop/preload.cjs>> }
     class UiServerHandle { +string url +number port +string host +close() Promise~void~ }
 
     ElectronApp --> BrowserWindow : 创建窗口
     ElectronApp --> IpcMain : 注册 IPC
     ElectronApp --> Dialog : 调用对话框
     PicbedNative ..> Dialog : 经 preload 桥接
-    BrowserWindow --> PicbedNative : exposeInMainWorld
+    PreloadScript --> PicbedNative : contextBridge.exposeInMainWorld
     UiServerHandle ..> BrowserWindow : loadURL(uiHandle.url)
 ```
 

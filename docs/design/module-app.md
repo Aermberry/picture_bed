@@ -159,7 +159,7 @@ sequenceDiagram
 | `E_BAD_REQUEST` / `E_EXISTS` / `E_PORT` / `EADDRINUSE` | 用法、端口与已存在 | 2 | 400 |
 | `E_DOCTOR` | doctor 检查失败 | 3 | 400 |
 | `E_LOCAL` / `E_ASSET_MISSING` | 本地文件缺失 | 4 | 400 |
-| 未登记的 code | 经 `asAppError` 落入 `E_GENERAL` | 1 | 500 |
+| 未登记的 code | 保留原 code；退出码回落 `EXIT.GENERAL` | 1 | 500 |
 
 HTTP 特判顺序见 `src/app/errors.ts#httpStatusForCode`（`E_TOKEN`/`E_AUTH` → 401、`E_ORIGIN`/`E_HEADER`/`E_HOST` → 403、`E_CONTENT_TYPE` → 415、`E_CONFLICT` → 409、`E_NOT_FOUND` → 404、`E_BODY_TOO_LARGE` → 413，其余按退出码派生）。
 

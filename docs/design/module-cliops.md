@@ -8,7 +8,7 @@
 cliops 负责 **配置生命周期、健康检查、命令编排入口与机器可读契约**，使 picbed 对人可读、对 Agent 可编程。业务规则在 ingest/transfer/rewrite；本模块保证输入合法、输出稳定、失败可判定。
 
 边界原则：
-- Token **只**从 ENV / `gh`（GitHub CLI）读取；输出一律掩码。  
+- Token 从 ENV / 本机凭据文件 / `gh`（GitHub CLI）读取；输出一律掩码。  
 - 非 TTY **禁止**交互阻塞；写文件类命令无 `--yes` 时退出码 7。  
 - `--json` 时 stdout 仅 JSON，诊断走 stderr。
 - **编排唯一实现在 `src/app/`**（见 [`module-app.md`](module-app.md)）：CLI 只做 argv 解析、确认门（`--yes`）、JSON 信封与退出码映射；collect/plan/sync/revert/doctor/config/runs 均调用 app 共享层，不复制业务编排。
@@ -39,7 +39,7 @@ rewrite:{ backup: boolean }
 # token 不在 ResolvedConfig 的可序列化输出中；仅内存注入 HostAdapter
 ```
 
-优先级：**CLI flags > ENV > ./picbed.toml > ./.picbed/config.toml > 用户级**。
+优先级：**ENV（`PICBED_*`）> `./picbed.toml` > `./.picbed/config.toml`**（从 cwd 向上查找，见 `src/config.ts#findConfigPath`）。CLI 的 `--config` / `--cwd` 只决定配置文件位置；**无用户级配置**，`loadConfig` 的 `overrides` 参数当前无调用方。
 
 ## F1 项目初始化与配置
 
@@ -91,7 +91,7 @@ local 主机：仅检查 `host.type`，**不**要求 token，也**不**做 API �
 
 1. `PICBED_GITHUB_TOKEN`
 2. `GITHUB_TOKEN`
-3. 本机凭据 `~/.picbed/credentials.json`（`picbed login` 写入）
+3. 本机凭据 `~/.picbed/credentials.json`（由 Web 设置页 `POST /api/auth/token` 写入；CLI 无 `login` 命令）
 4. `gh auth token`（`gh` = **GitHub CLI** 官方命令行，不是 `git`；需已 `gh auth login`。`gh` 不存在则跳过）
 
 （实现：`src/infra/gh-cli.ts#resolveToken`，`source` 依次为 `env` / `user` / `gh`。）
@@ -124,8 +124,8 @@ src/
 
 ```mermaid
 classDiagram
-    class JsonEnvelope~T~ { +number schemaVersion +boolean ok +string command +T data +string[] warnings +JsonError error }
-    class JsonError { +string code +string message +string path +string hint }
+    class JsonEnvelope~T~ { +number schemaVersion +boolean ok +string command +T data? +string[] warnings? +JsonError error? }
+    class JsonError { +string code +string message +string path? +string hint? }
     class ExitCode { <<type>> OK 0 GENERAL 1 USAGE 2 CONFIG 3 LOCAL 4 REMOTE 5 PARTIAL 6 CONFIRM 7 }
     class CliRunner { <<presentation>> +run(argv) Promise~ExitCode~ +emit(json, envelope, human) void +fail(json, command, code, error, warnings) ExitCode +loadCfg(cwd, config?) ResolvedConfig }
     class AppServices { <<barrel>> +runPlan / runSync / runRevert +doctorService / publicConfig +readConfigKey / writeConfigKey +resolvedConfig / currentToken +uploadSingleAsset }

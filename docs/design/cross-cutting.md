@@ -49,7 +49,7 @@ Web API 使用**同一信封**（`command` 为 `api.*`）；HTTP 状态码由 ap
 
 ## 3. 密钥纪律
 
-- 名称：`PICBED_GITHUB_TOKEN` / `GITHUB_TOKEN`；本机凭据 `~/.picbed/credentials.json`（`picbed login` 写入）；或复用 `gh auth token`（无 OAuth Client Secret）。  
+- 名称：`PICBED_GITHUB_TOKEN` / `GITHUB_TOKEN`；本机凭据 `~/.picbed/credentials.json`（由 Web 设置页 `POST /api/auth/token` 写入；CLI 无 `login` 命令）；或复用 `gh auth token`（无 OAuth Client Secret）。  
 - 范围：仅图床仓库 Contents RW（scope `repo` 或 `public_repo`）。  
 - 禁止：写入 git 跟踪文件、manifest、backup、runs、日志、JSON data。  
 - 展示：掩码 `ghp_****` 或 `****`；Web **无**「显示原文」。  

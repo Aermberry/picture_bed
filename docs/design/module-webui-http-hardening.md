@@ -134,7 +134,7 @@ classDiagram
     class AppError {
         +string code
         +ExitCode exitCode
-        +string hint
+        +string hint?
     }
     class SendAppError {
         <<module: src/ui/http/errors.ts>>
