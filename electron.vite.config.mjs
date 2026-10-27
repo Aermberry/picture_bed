@@ -48,6 +48,10 @@ export default defineConfig({
       },
     },
     server: {
+      // 显式绑 IPv4：Node ≥18 在部分环境把 'localhost' 解析到 ::1，
+      // Vite 随之只监听 [::1]:5173；而 Electron/Chromium 连 localhost 走 IPv4
+      // → ERR_CONNECTION_REFUSED、窗口空白。写死 127.0.0.1 与 API 目标同族。
+      host: '127.0.0.1',
       port: 5173,
       strictPort: true,
       proxy: {
