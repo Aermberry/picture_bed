@@ -177,7 +177,9 @@ export function syncWallChrome() {
   if (idleHead) idleHead.hidden = n > 0;
   if (n === 0) {
     if (dz) dz.classList.remove("has-photos");
-    $("dropTitle").textContent = "扫描到 0 张图片";
+    // 没有图块时回到空态指引文案；「扫描到 0 张图片」只在真正扫过并得 0 时才有意义，
+    // 而那种情况已由 toast 说明原因（无本地图 / 已是远程链接）。
+    $("dropTitle").textContent = "将文件拖放到此处";
     return;
   }
   if (dz) dz.classList.add("has-photos");
@@ -259,6 +261,9 @@ export async function scanIntoPreview(dropInfo) {
     if (remoteOnly) toast("文档内图片已是远程链接，无需上传");
     else toast("未扫描到本地图片");
   }
+  // 本次拖入到此结束：无论有没有图块，标题都必须离开「正在扫描…」，
+  // 否则用户看到的是「已卡住」而非「扫完了、没有可传的图」。
+  syncWallChrome();
 }
 
 /** 吸顶条背景随滚动渐隐（最低 0.82，禁止全透明） */

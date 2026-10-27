@@ -277,6 +277,34 @@ describe('ui server F16–F18', () => {
     expect(body.equals(onDisk)).toBe(true);
   });
 
+  it('F17 preview serves inline data:image assets from memory (no disk file)', async () => {
+    await api('/api/session/reset', {});
+    // 独立的根，避免与其它用例的文档互相干扰
+    const inlineRoot = path.join(cwd, 'inline-root');
+    fs.mkdirSync(inlineRoot, { recursive: true });
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg"><rect width="3" height="3"/></svg>';
+    const b64 = Buffer.from(svg).toString('base64');
+    fs.writeFileSync(
+      path.join(inlineRoot, 'doc.md'),
+      `# t\n\n<img src="data:image/svg+xml;base64,${b64}" />\n`,
+    );
+    await api('/api/session/bind-root', { root: inlineRoot });
+
+    const plan = await api('/api/plan', {});
+    expect(plan.data.ok).toBe(true);
+    const item = (plan.data.data.plan as { localPath?: string; action: string }[])[0];
+    // 内嵌图的 localPath 是合成占位名，磁盘上并不存在
+    expect(item.localPath).toMatch(/^inline\/[0-9a-f]{12}\.svg$/);
+    expect(fs.existsSync(path.join(inlineRoot, item.localPath!))).toBe(false);
+
+    // 照片墙正是按该 localPath 取预览——必须能拿到字节，否则图块被移除
+    const res = await fetch(base + '/api/preview?path=' + encodeURIComponent(item.localPath!));
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toBe('image/svg+xml');
+    expect(res.headers.get('content-security-policy')).toBe("sandbox; default-src 'none'");
+    expect(Buffer.from(await res.arrayBuffer()).equals(Buffer.from(svg))).toBe(true);
+  });
+
   it('F17 session/images lists workset images only (no root walk)', async () => {
     await api('/api/session/reset', {});
     // sibling image under root must NOT appear unless dropped

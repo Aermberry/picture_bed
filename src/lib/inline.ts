@@ -88,7 +88,18 @@ function decodeBase64Lenient(payload: string): string {
   return payload.replace(/[\s]/g, '').replace(/-/g, '+').replace(/_/g, '/');
 }
 
-/** 内存资产的合成占位名：仅用于推导远端文件名，绝不落盘。 */
+/** 内存资产的合成占位名前缀：仅用于推导远端文件名，绝不落盘。 */
+export const INLINE_PREFIX = 'inline/';
+
+/**
+ * 内存资产的合成占位名。
+ * 注意这不是磁盘路径——预览与上传都要走 `Asset.data`，不能当文件读取。
+ */
 export function inlineLocalPath(sha12: string, ext: string): string {
-  return `inline/${sha12}.${ext}`;
+  return `${INLINE_PREFIX}${sha12}.${ext}`;
+}
+
+/** 合成占位名判定：区分「内存资产」与「真实文件路径」。 */
+export function isInlinePath(localPath: string): boolean {
+  return String(localPath || '').startsWith(INLINE_PREFIX);
 }
