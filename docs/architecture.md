@@ -90,7 +90,7 @@
 
 | 存储 | 内容 | 位置 | 写者 |
 |------|------|------|------|
-| 源文档 | md / html 等 | 用户指定目录（默认原地回写；`--out-dir` 写副本） | 用户 / `LinkRewriter` |
+| 源文档 | md / html 等 | 用户指定目录（原地回写，无写副本模式） | 用户 / `LinkRewriter` |
 | HTML 呈现 | 设计评审页 | `docs/html/index.html`（+ `styles.css` / `app.js`） | 设计维护者 |
 | 源图片 | 本地图片文件 | 相对文档目录解析 | **只读**（picbed 不改图片字节） |
 | 配置 | owner/repo/branch/dir/url 风格 | `./picbed.toml` / ENV | `init` / `config set` |
@@ -105,7 +105,7 @@
 - **图片字节只读**：工具只改文档中的链接文本，不改图片文件。
 - **内容寻址幂等**：`sha256` 相同视为同一资产，不重复上传。
 - **manifest 不可含 secret**：可供 Agent 与审计安全读取。
-- **备份可关**：默认写 backup，`--no-backup` 关闭；revert 依赖 manifest 而非 backup 必须存在。
+- **备份可关**：默认写 backup，由 `picbed.toml [rewrite] backup = false` 关闭；revert 依赖 manifest 而非 backup 必须存在。
 
 ### 2.2 领域服务层（核心能力）
 
@@ -194,7 +194,7 @@ package.json   files=[bin, dist, README.md]
 | 宿主 | 入口 | 关键事实 |
 |------|------|----------|
 | CLI | `bin/picbed.js` → `dist/cli.js` ← `src/cli.ts` | commander；`ui` 子命令在同一文件懒加载 UI 服务器（`cli.ts:295`）；默认 host `127.0.0.1` / port `4780`（`cli.ts:116-117`），非回环绑定会告警（`cli.ts:292`） |
-| Web UI | `src/ui/server.ts` `createUiServer`（204 行，**只装配**） | 一个 Node 进程同时承载静态下发与 `/api/*`；流程为 安检（`http/guard`）→ 静态（`http/static`）→ 路由表（`routes/`） |
+| Web UI | `src/ui/server.ts` `createUiServer`（206 行，**只装配**） | 一个 Node 进程同时承载静态下发与 `/api/*`；流程为 安检（`http/guard`）→ 静态（`http/static`）→ 路由表（`routes/`） |
 | MCP | `src/mcp/server.ts`（213 行） | stdio JSON-RPC，供 Agent 调用，与 CLI 共用 `src/app/*` |
 | 桌面 | `desktop/main.mjs` | **不重新实现 UI**：动态 `import('../dist/ui/index.js')` 取 `createUiServer`（`main.mjs:80-86`）；dev 固定 `4780` 让 Vite 代理 `/api`，prod 用 `listen(0)` 由 OS 分配（`main.mjs:87-90`），窗口加载 `uiHandle.url`（`main.mjs:149`） |
 
@@ -251,6 +251,7 @@ picbed/
 │  │  ├─ img.ts                      //   图片扩展名 / MIME 的唯一真源（IMAGE_EXT / IMAGE_MIME / mimeOf）
 │  │  ├─ hash.ts                     //   sha256 唯一实现 + 远端文件名 12 位短摘要
 │  │  ├─ mask.ts                     //   token 掩码唯一实现（config / app / ui 共用）
+│  │  ├─ inline.ts                   //   文档内 data:image/* 解码（MIME 反查扩展名、10MB 上限）
 │  │  └─ doc.ts                      //   文档类型（markdown / html）判定的唯一实现（kindOf）
 │  │
 │  │  ── 应用编排（唯一实现；CLI / WebUI / MCP 一律从这里取能力）──
@@ -287,13 +288,14 @@ picbed/
 │  │  ├─ gh-login.ts                 //   GhLoginStore：gh auth login 会话单例（同时只允许一个流程）
 │  │  ├─ context.ts                  //   UiRouteContext：安检放行后交给路由的依赖注入（含拖拽工作集条目）
 │  │  ├─ static.ts                   //   1 行 re-export INDEX_HTML（对外薄壳；真身在 http/static.ts）
+│  │  ├─ inline-cache.ts             //   内嵌图内存字节缓存：plan 登记、preview 按合成名反查（无磁盘文件）
 │  │  ├─ http/                       //   HTTP 协议横切
 │  │  │  ├─ guard.ts                 //     同源 / X-Picbed-UI / Host / 请求体安检
 │  │  │  ├─ body.ts                  //     请求体大小上限
 │  │  │  ├─ envelope.ts              //     统一 JSON 信封（CLI / MCP / WebUI 同形状）
 │  │  │  ├─ errors.ts                //     未捕获异常 → 状态码+信封（状态码真源在 app/errors.ts）
 │  │  │  └─ static.ts                //     下发 renderer/**；/src/** 仅白名单后缀、禁目录逃逸
-│  │  ├─ routes/                     //   业务路由（12 个，各 <250 行，layering 守卫）
+│  │  ├─ routes/                     //   业务路由（13 个，各 <250 行，layering 守卫）
 │  │  │  ├─ session.ts               //     根绑定 + 拖拽工作集（服务端唯一可变状态）
 │  │  │  ├─ plan.ts                  //     /api/scan + /api/plan
 │  │  │  ├─ sync.ts                  //     /api/sync：ConfirmGate + dryRun + 工作集作用域
@@ -304,6 +306,7 @@ picbed/
 │  │  │  ├─ auth.ts                  //     PAT 粘贴保存/清除（写凭据文件，不写 toml）
 │  │  │  ├─ watch.ts                 //     监听：状态 / 启动 / 停止
 │  │  │  ├─ gallery.ts               //     图库：远端目录浏览 + 批量删除选中
+│  │  │  ├─ branches.ts              //     分支列表：GET /api/branches（设置页 Branch 下拉）
 │  │  │  ├─ system.ts                //     系统类只读端点：doctor 自检 + manifest 视图 + 远程目录创建
 │  │  │  └─ health.ts                //     /api/health 存活探针
 │  │  └─ spa/
@@ -337,7 +340,7 @@ picbed/
 │  ├─ build-desktop.mjs              //   electron-builder 打包（extraMetadata.main 注入 Electron 入口）
 │  └─ desktop-dev.mjs                //   桌面 dev 编排：起 Vite + electron，代理 /api
 │
-└─ tests/                            // vitest（151 用例 / 17 个用例文件 + 1 个辅助；架构约定都有活守卫）
+└─ tests/                            // vitest（180 用例 / 19 个用例文件 + 1 个辅助；架构约定都有活守卫）
    ├─ layering.test.ts               //   分层 7 条断言（§2.5.4）
    ├─ lib-single-source.test.ts      //   跨层单点：横切逻辑只许在 src/lib/
    ├─ package-surface.test.ts        //   npm 导出面：files/bin/exports 不得越界
@@ -346,7 +349,7 @@ picbed/
    └─ （其余 13 个用例文件：cli/ui/ui-panels/pipeline/host/mcp/desktop/auth/config/watch/repo-dir/extract/user-token）
 ```
 
-规模：`src/` 61 文件 / 约 5.4k 行（2026-10-02 实测 5,441 行；旧值 5,451 偏大约 20 行，已订正）；`renderer/` 21 文件；`desktop/` 4 文件（preload 只允许 `.cjs` 一份，`tests/desktop.test.ts` 守着）；`scripts/` 3 文件；`tests/` 17 个用例文件 + 1 个辅助。
+规模：`src/` 64 文件 / 约 5.4k 行（2026-10-02 实测 5,441 行；旧值 5,451 偏大约 20 行，已订正）；`renderer/` 23 文件；`desktop/` 4 文件（preload 只允许 `.cjs` 一份，`tests/desktop.test.ts` 守着）；`scripts/` 3 文件；`tests/` 19 个用例文件 + 1 个辅助。
 
 #### 2.5.4 依赖方向与守卫
 

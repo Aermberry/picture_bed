@@ -69,8 +69,9 @@ sync、config、doctor、revert、watch/start、watch/stop），不按"是否写
   攻击者的请求不经过此代理，浏览器直连仍受决策 1/5 约束。生产/浏览器模式（页面直接
   加载 `uiHandle.url`）天然同源，无需此改写。
 
-- `renderer/main.js` 的 `api()` 是唯一 fetch 出口：加 `X-Picbed-UI: 1` 头（一处修改，
-  全部 20+ 调用点生效）。Electron 内 Chromium fetch 同源发 Origin 与自定义头无额外限制。
+- `renderer/src/lib/api.js` 的 `api()` 是唯一 fetch 出口：加 `X-Picbed-UI: 1` 头（一处修改，
+  全部 20+ 调用点生效）。`renderer/main.js` 只有 6 行引导（`import { bootstrap }` + 调用），
+  不含 fetch。Electron 内 Chromium fetch 同源发 Origin 与自定义头无额外限制。
 - `tests/ui.test.ts` / `tests/ui-panels.test.ts` 的 POST 调用统一过测试侧 helper 补头；
   新增负例：跨源 Origin 403、缺头 403、错 Content-Type 415、超限体 413、畸形 Host 400、
   静态资源与 GET 路由不受自定义头影响。
@@ -89,6 +90,112 @@ sync、config、doctor、revert、watch/start、watch/stop），不按"是否写
 - `npm test` 全绿、`npm run lint` 干净、`npm run build` 通过；
 - 浏览器实测：页面功能（扫描/计划/同步 dry-run）正常，且从 Console 伪造跨源 POST
   被 403 拒绝。
+
+## 实现落点（TS/Electron 适配）
+
+> 本设计在 TypeScript/Electron 实际源码中的落地；决策与威胁模型见上文。签名与类图以真实源码为准（源码：`src/ui/http/guard.ts`、`src/ui/http/body.ts`、`src/ui/http/envelope.ts`、`src/ui/http/errors.ts`、`src/ui/server.ts`、`src/app/errors.ts`）。
+
+### 实际文件夹结构（涉及的协议/安全层）
+
+```text
+src/ui/
+├─ server.ts            # 请求主流程：安检 → 静态下发 → 路由表（guard 在路由前调用）
+├─ http/
+│  ├─ guard.ts          # parseHost / checkHost / checkApiRequest / rejectionEnvelope（决策 1/2/3/4/5/7）
+│  ├─ body.ts           # readBody + API_BODY_LIMIT（决策 4 第二道）
+│  ├─ envelope.ts        # envelope / makeSend / sendRaw / normalizeHostname
+│  └─ errors.ts          # sendAppError（未捕获异常 → httpStatusForCode + 信封）
+└─ routes/              # 业务路由（命中返回 true，均经 guard 后仍走同源规则）
+```
+
+### 领域层类图（安检契约）
+
+```mermaid
+classDiagram
+    class GuardRejection {
+        <<interface>>
+        +number status
+        +string command
+        +string code
+        +string message
+    }
+    class HttpGuard {
+        <<module: src/ui/http/guard.ts>>
+        +parseHost(hostHeader) {ok,hostUrl} | {ok,rejection}
+        +checkHost(hostUrl, bindHost) GuardRejection | null
+        +checkApiRequest(req, pathname, hostUrl) GuardRejection | null
+        +rejectionEnvelope(r) JsonEnvelope
+    }
+    class BodyReader {
+        <<module: src/ui/http/body.ts>>
+        +API_BODY_LIMIT = 65536
+        +readBody(req, limit?) Promise~string~
+    }
+    class AppError {
+        +string code
+        +ExitCode exitCode
+        +string hint
+    }
+    class SendAppError {
+        <<module: src/ui/http/errors.ts>>
+        +sendAppError(send, err, command?) void
+    }
+    HttpGuard ..> GuardRejection : 返回（status 为硬编码字面量，不经 AppError）
+    note for BodyReader "抛带 code 的普通 Error，不是 AppError 实例"
+    SendAppError ..> AppError : 经 httpStatusForCode 派生状态码（非唯一调用点）
+```
+
+### 公开服务签名（TS）
+
+| 服务 | 签名 | 职责（对应决策） |
+|------|------|------|
+| `parseHost` | `parseHost(hostHeader: string): {ok:true; hostUrl:URL} \| {ok:false; rejection:GuardRejection}` | Host 必须存在且可解析；非法 → 400 `E_USAGE`（决策 5 前置） |
+| `checkHost` | `checkHost(hostUrl: URL, bindHost: string): GuardRejection \| null` | Host 须指名绑定地址，阻断 DNS-rebinding；违例 403 `E_HOST`；通配/LAN 放行（决策 5） |
+| `checkApiRequest` | `checkApiRequest(req: http.IncomingMessage, pathname: string, hostUrl: URL): GuardRejection \| null` | `/api` 同源（决策 1）+ POST 头 `X-Picbed-UI:1`（决策 2）+ Content-Type（决策 3）+ Content-Length 上限（决策 4 第一道） |
+| `rejectionEnvelope` | `rejectionEnvelope(r: GuardRejection): JsonEnvelope` | 把 `GuardRejection` 包成 `api.*` 信封 |
+| `readBody` | `readBody(req: http.IncomingMessage, limit?: number): Promise<string>` | 累计超限 → reject `E_BODY_TOO_LARGE`；超后仍 `resume()` drain，保证 413 可达（决策 4 第二道） |
+| `API_BODY_LIMIT` | `const API_BODY_LIMIT = 64 * 1024` | 决策 4 请求体上限 64 KiB |
+| `sendAppError` | `sendAppError(send: (status, body) => void, err: unknown, command?: string): void` | 未捕获异常 → `httpStatusForCode` + 统一信封；路由层另有直接调用（`http/errors.ts:12`、`routes/config.ts:77`、`revert.ts:39`、`session.ts:147/201`、`sync.ts:71`、`system.ts:53`） |
+| `envelope` | `envelope<T>(ok, command, data?, error?, warnings?): JsonEnvelope<T>` | 统一 JSON 信封构造器（`src/ui/http/envelope.ts`） |
+| `normalizeHostname` | `normalizeHostname(hostname: string): string` | 归一 hostname（IPv6 去括号等），配合 `checkHost` |
+
+> `httpStatusForCode`（`src/app/errors.ts`）对 `E_ORIGIN`/`E_HEADER`/`E_HOST` → 403、`E_CONTENT_TYPE` → 415、`E_BODY_TOO_LARGE` → 413 有显式分支（决策 6），先于 exitCode 派生；`exitCodeForCode` 将以上归入 `EXIT.USAGE`。
+
+### 复杂任务时序图（一次 `/api/sync` POST 的安检链）
+
+```mermaid
+sequenceDiagram
+    participant B as Browser/SPA
+    participant S as http.Server(server.ts)
+    participant G as guard.checkApiRequest
+    participant BODY as readBody
+    participant R as syncRoute（业务）
+    participant E as envelope / rejectionEnvelope
+
+    B->>S: POST /api/sync（Origin, X-Picbed-UI:1, Content-Type:json, JSON 体）
+    S->>G: checkApiRequest(req, '/api/sync', hostUrl)
+    alt Origin 非同源
+        G-->>S: GuardRejection 403 E_ORIGIN
+        S->>E: rejectionEnvelope → 403（不返回任何 CORS 头）
+    else 缺 X-Picbed-UI
+        G-->>S: 403 E_HEADER
+    else Content-Type 非 application/json
+        G-->>S: 415 E_CONTENT_TYPE
+    else Content-Length > 64 KiB
+        G-->>S: 413 E_BODY_TOO_LARGE（req.resume 丢弃余流）
+    else 全部通过
+        S->>BODY: readBody(req)
+        alt 累计超限
+            BODY-->>S: reject E_BODY_TOO_LARGE
+            S->>E: 413
+        else OK
+            BODY-->>S: JSON 文本
+            S->>R: route(ctx) 业务处理（再经 ConfirmGate / runSync）
+        end
+    end
+```
+
+> 安检在路由前统一执行（server.ts 装配）；`X-Picbed-UI:1` 由 `renderer/src/lib/api.js` 的 `api()` 单一 fetch 出口添加（一处生效，覆盖 20+ 调用点）。桌面 dev 代理经受信本地代理把 Origin 改写为 API 目标源以恢复同源形态，服务端契约不变（见上文「SPA 与测试适配」）。
 
 ## 实现期修订记录
 

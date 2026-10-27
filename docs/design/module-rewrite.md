@@ -10,7 +10,7 @@ rewrite 把文档中的本地图片引用**精确替换**为图床 URL，并维�
 边界原则：
 - **不上传**、**不抽取新引用**；输入是已有 `ImageRef` 锚点 + `localPath→publicUrl` 映射。
 - **不改图片文件**。
-- 默认原地回写；`--out-dir` 写副本。
+- 原地回写（当前无写副本模式）。
 
 ## 模块文件夹结构（栈无关）
 
@@ -45,15 +45,13 @@ ManifestEntry {
 2. 仅替换 URL 子串；alt/title/srcset 其它候选保留。  
 3. 代码块内 ref 本不应存在（ingest F4）；rewrite 二次断言不越界。  
 4. 原子写：`*.tmp` + rename；失败不破坏原文件。  
-5. 默认写 `.picbed/backup/<doc>.<ts>.bak`；`--no-backup` 关闭。  
-6. `--out-dir`：保持相对目录结构写入副本，源文档不动。
-
+5. 默认写 `.picbed/backup/<doc>.<ts>.bak`；由 `picbed.toml [rewrite] backup = false` 关闭（无 CLI flag）。  
 ## F9 Manifest 与 revert
 
 - 每次成功替换 upsert 一条 entry（同 doc+raw+sha 更新 publicUrl）。  
 - `revert`：对文档内仍匹配 `publicUrl` 的子串写回 `raw`（本地路径）。  
 - `revert --dry-run`：只报告将还原的条目。  
-- manifest 损坏：报 `ManifestCorruptError`，不静默清空（可 `--force-new-manifest` 显式重建，属写操作需 `--yes`）。
+- manifest 损坏：报 `ManifestCorruptError`，不静默清空；当前不提供自动重建，需人工处理。
 
 revert 要串起 manifest 读取、扫描、反向替换、原子写、run 记录五件事，且**损坏的 manifest 必须立即失败而非静默重建**，这条约束只有在时序里才看得清楚：
 
@@ -115,6 +113,69 @@ sequenceDiagram
 2. **`next === text` 视为无改动**：不写入、不入 `rewritten`，避免 mtime 变动与假计数。
 3. **单 doc 失败不影响其他文档**，最终以 `E_PARTIAL` 表达部分成功（退出码 6 / HTTP 207，映射见 [`module-app.md`](module-app.md) §错误映射）。
 4. **manifest 损坏先写 RunRecord 再返回**：revert 即使失败也留下审计痕迹（F21），这也是 `E_MANIFEST_CORRUPT` 必须是显式错误码而非字符串匹配的原因。
+
+## 实现落点（TS/Electron 适配）
+
+> 本模块在 TypeScript/Electron 实际源码中的落地；领域意图与 revert 时序见上文。签名与类图以真实源码为准（源码：`src/rewrite.ts`、`src/plan.ts`、`src/manifest.ts`、`src/types.ts`）。
+
+### 实际文件夹结构
+
+```text
+src/
+├─ rewrite.ts   # 域核心：rewriteDoc / applyRewrites / revertDoc / mergeManifest / writeDocAtomic
+├─ plan.ts      # buildPlan：依据 manifest 缓存生成 SyncPlanItem[]（与 ingest 共享）
+├─ manifest.ts  # loadManifest / saveManifest / upsertEntry / findCachedUrl（共享）
+└─ types.ts     # SyncPlanItem / ManifestEntry / Manifest / ImageRef / Asset 等
+```
+
+### 领域层类图
+
+```mermaid
+classDiagram
+    class ImageRef { +string docPath +string raw +number start +number end +DocKind kind +RefSyntax syntax +string alt? }
+    class RewriteMapItem { +ImageRef ref +string publicUrl +string localPath +string sha256 }
+    class ManifestEntry { +string doc +string raw +string localPath +string sha256 +string publicUrl +string updatedAt }
+    class Manifest { +number version +ManifestEntry[] entries }
+    class SyncPlanItem { +PlanAction action +Asset asset? +RemoteImage remote? +string reason? +string code? +ImageRef ref? }
+
+    SyncPlanItem --> ImageRef : ref?
+    RewriteMapItem --> ImageRef : ref
+    Manifest "1" o-- "many" ManifestEntry : entries
+    RewriteMapItem ..> ManifestEntry : 改写后产出
+```
+
+### 公开服务签名（TS）
+
+| 服务 | 签名 | 职责 |
+|------|------|------|
+| `rewriteDoc` | `rewriteDoc(content: string, items: RewriteMapItem[], opts: RewriteOptions & { docPath: string }): string` | 按 `ref.start` **倒序**替换引用为 `publicUrl`；用 `raw.length` 定长替换，偏移漂移即抛错（报 `docPath` 与位置） |
+| `applyRewrites` | `applyRewrites(opts: {docPath, content, items, rootDir, backup, outDir?, dryRun?}): {outPath, content, backedUpTo?, entries: ManifestEntry[]}` | 改写文档、生成 backup、产出 `ManifestEntry[]` |
+| `revertDoc` | `revertDoc(text: string, entries: ManifestEntry[]): string` | 按 `publicUrl` **长度降序**替换回 `raw` |
+| `mergeManifest` | `mergeManifest(manifest: Manifest, entries: ManifestEntry[]): Manifest` | 逐条 `upsertEntry`（键 `doc+raw+localPath`） |
+| `writeDocAtomic` | `writeDocAtomic(target: string, content: string): void` | 仅做原子替换（tmp + rename）；**备份由调用方 `applyRewrites` 负责**（`backupPath` + `copyFileSync`） |
+| `buildPlan` | `buildPlan(args): SyncPlanItem[]` | 资产分类（见 [`module-ingest.md`](module-ingest.md)） |
+
+### 复杂任务时序图（applyRewrites）
+
+```mermaid
+sequenceDiagram
+    participant SYNC as runSync（编排层）
+    participant RW as applyRewrites
+    participant DOC as rewriteDoc
+    participant ATOM as writeDocAtomic
+    participant MF as mergeManifest
+
+    SYNC ->> RW: applyRewrites({docPath, content, items, rootDir, backup, dryRun: false})
+    RW ->> RW: backup && 无 outDir → backupPath + copyFileSync（备份在此层）
+    RW ->> DOC: rewriteDoc(content, items, {backup, rootDir, docPath})
+    DOC -->> RW: 新内容
+    RW ->> ATOM: writeDocAtomic(outPath, 新内容)  // 2 参，返回 void
+    RW -->> SYNC: {outPath, content, backedUpTo?, entries}
+    SYNC ->> MF: mergeManifest(manifest, entries)
+    MF ->> MF: 逐条 upsertEntry（doc+raw+localPath）
+```
+
+> revert 全链路时序见上文 §F9。`E_MANIFEST_CORRUPT` 由 `loadManifest` 抛，经编排层 `AppError` 映射为 LOCAL(4)/400；完整错误映射见 [`module-app.md`](module-app.md)。
 
 ## 功能点映射
 
