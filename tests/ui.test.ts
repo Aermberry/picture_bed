@@ -7,6 +7,9 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { RootBinder } from '../src/ui/root.js';
 import { createUiServer, type UiServerHandle } from '../src/ui/server.js';
 import { SPA_CSS } from '../src/ui/spa/styles.js';
+import { INDEX_HTML } from '../src/ui/spa/index.js';
+import { IMAGE_EXT } from '../src/lib/img.js';
+import { isImageName } from '../renderer/src/lib/files.js';
 import { loadConfig } from '../src/config.js';
 import { runSync } from '../src/app/sync.js';
 import { rendererEntryJs, rendererJsAll } from './renderer-source.js';
@@ -206,6 +209,32 @@ describe('ui server F16–F18', () => {
     // 复原：后续用例依赖 root 绑在 docs
     await api('/api/session/reset', {});
     await api('/api/session/bind-root', { root: docsRoot });
+  });
+
+  it('UI 图片格式提示覆盖 IMAGE_EXT 全部扩展名（提示不得落后于白名单）', () => {
+    // 提示文案曾写「JPG / PNG / GIF / WebP」，漏掉 svg/avif/bmp/ico——
+    // SVG 明明早已在白名单里，用户却看不到支持声明。
+    const hint = INDEX_HTML.match(/支持 ([^·]+)·/);
+    expect(hint, '未找到图片格式提示行').toBeTruthy();
+    const shown = hint![1].toLowerCase();
+    const missing = [...IMAGE_EXT].filter((ext) => !shown.includes(ext));
+    expect(missing, `提示缺少扩展名: ${missing.join(', ')}`).toEqual([]);
+  });
+
+  it('图库与拖拽共用同一份前端图片清单（不得内联第二份正则）', () => {
+    // gallery.js 曾内联 /\.(png|jpe?g|gif|webp|svg|bmp|avif)$/，漏掉 ico
+    const gallery = fs.readFileSync(
+      path.join(repoRoot, 'renderer', 'src', 'features', 'gallery.js'),
+      'utf8',
+    );
+    expect(gallery).toContain('isImageName');
+    // 内联写死扩展名清单即视为第二份真源（曾漏掉 ico）。按「出现图片扩展名枚举」判定，
+    // 不依赖具体转义写法——否则换个正则写法就能绕过守卫。
+    expect(gallery).not.toMatch(/\b(jpe?g|webp)\b.*\|.*\b(svg|bmp|avif|ico)\b/i);
+    // 前端清单必须覆盖后端白名单，否则「能上传但界面不认」
+    for (const ext of IMAGE_EXT) {
+      expect(isImageName(`x.${ext}`), `前端不认 .${ext}`).toBe(true);
+    }
   });
 
   it('F17 drop rejects folders (images/docs only)', async () => {
