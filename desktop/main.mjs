@@ -154,31 +154,6 @@ function isViteDevSession() {
   return !app.isPackaged && Boolean(process.env.ELECTRON_RENDERER_URL);
 }
 
-/** Close + re-import UI server. Reload the window only if it is not on the Vite URL. */
-async function restartUiServer() {
-  const prev = uiHandle;
-  uiHandle = null;
-  if (prev) {
-    try {
-      await prev.close();
-    } catch {
-      /* ignore */
-    }
-  }
-  process.env.PICBED_DESKTOP_UI_BUST = `?t=${Date.now()}`;
-  try {
-    uiHandle = await startUiServer();
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error('[desktop] restartUiServer failed:', message);
-    processExitForReload('ui-restart-failed');
-    return;
-  }
-  if (mainWindow && !mainWindow.isDestroyed() && !isViteDevSession()) {
-    await mainWindow.loadURL(uiHandle.url);
-  }
-}
-
 /**
  * Process-level restart. Supervisor respawns us when PICBED_DESKTOP_SUPERVISED=1;
  * otherwise Electron's own relaunch keeps a single instance.
@@ -234,8 +209,13 @@ function isNoiseWatchPath(p) {
 /**
  * Fallback hot reload when NOT on the Vite dev URL (packaged never).
  * When ELECTRON_RENDERER_URL is set, Vite owns renderer HMR — this watcher
- * must not navigate the window (that kills HMR). It only refreshes the API
- * server on dist/ changes so /api picks up core rebuilds.
+ * must not navigate the window (that kills HMR).
+ *
+ * dist/ 变更必须进程级重启，不能只重启 UI 服务：
+ * 给 `dist/ui/index.js` 加 `?t=` 只能让该入口本体重新求值，它 import 的
+ * 子模块（`app/*`、`lib/*` 等）URL 未变，仍走 Node ESM 缓存——实测改写
+ * 子模块后仍返回旧值。故此处统一走 processExitForReload，由 supervisor
+ * 重拉进程，进程内模块缓存自然清空。
  */
 function installDevHotReload() {
   const distDir = path.join(__dirname, '..', 'dist');
@@ -264,11 +244,10 @@ function installDevHotReload() {
       return;
     }
 
-    // dist/ (API core). Never navigate away from the Vite HMR URL.
-    console.log('[desktop:dev] dist/* changed → restart UI server (keep window URL)');
+    console.log('[desktop:dev] dist/* changed → process restart (TS modules cannot be hot-swapped)');
     reloading = true;
     try {
-      await restartUiServer();
+      processExitForReload('dist');
     } finally {
       reloading = false;
     }
