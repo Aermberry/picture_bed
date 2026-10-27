@@ -94,7 +94,7 @@
 
 - 优先级：P0 · 模块：**rewrite**
 - 实现（域）：[module-rewrite · F8](design/module-rewrite.md#f8-文档链接回写)
-- AC：仅替换引用 URL 子串，alt/title/周边文本不变；代码块内不改写；原子写无半截文件；默认生成 backup；`--out-dir` 时源文件不变。
+- AC：仅替换引用 URL 子串，alt/title/周边文本不变；代码块内不改写；原子写无半截文件；默认生成 backup（可由 `picbed.toml [rewrite] backup = false` 关闭）。
 
 ## F9 Manifest 与 revert
 

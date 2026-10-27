@@ -224,7 +224,7 @@ WebUI SPA **同时**服务浏览器（`picbed ui`）与 Electron 壳（[`module-
 
 - 输入：`root`、`confirm`、`dryRun`。
 - 规则：列表读 manifest；dry-run 只报告将还原 entry；confirm 后 revert（写文档走 rewrite 门面）。
-- 失败：`ManifestCorruptError` → 界面错误；不自动 `--force-new-manifest`。
+- 失败：`ManifestCorruptError` → 界面错误；不自动重建 manifest。
 
 ## F20 配置与自检面板
 
@@ -286,7 +286,7 @@ sequenceDiagram
 
 由这张图得出的规则：
 
-1. **会话是单例**：`GhLoginStore` 同时只允许一个登录流程（`tests/desktop.test.ts` 断言 UI 与桌面共用同一份 store），第二个 `/start` 直接复用既有状态。
+1. **会话是单例**：`GhLoginStore` 同时只允许一个登录流程（`src/ui/server.ts` 只实例化一次并经 context 传给所有路由），第二个 `/start` 直接复用既有状态。
 2. **轮询只暴露 `output` 累积文本**：HTTP 拿不到进程句柄，状态机只能有三个终值 `done` / `error` / `running`；上层不得依据输出文本做分支判断。
 3. **token 不过 HTML**：颁证直接落盘 `~/.picbed/credentials.json`（0600），响应体只有掩码——与 F20「不提供显示原文」同源。
 4. **Windows spawn 分叉藏在 `infra/gh-cli.ts`**：`gh.exe`/`gh` 用 `shell=false`，`gh.cmd` 必须 `shell=true`（避开 CVE-2024-27980），ENOENT 则换下一个候选；UI 层不知道这些细节。

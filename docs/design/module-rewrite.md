@@ -10,7 +10,7 @@ rewrite 把文档中的本地图片引用**精确替换**为图床 URL，并维�
 边界原则：
 - **不上传**、**不抽取新引用**；输入是已有 `ImageRef` 锚点 + `localPath→publicUrl` 映射。
 - **不改图片文件**。
-- 默认原地回写；`--out-dir` 写副本。
+- 原地回写（当前无写副本模式）。
 
 ## 模块文件夹结构（栈无关）
 
@@ -45,15 +45,13 @@ ManifestEntry {
 2. 仅替换 URL 子串；alt/title/srcset 其它候选保留。  
 3. 代码块内 ref 本不应存在（ingest F4）；rewrite 二次断言不越界。  
 4. 原子写：`*.tmp` + rename；失败不破坏原文件。  
-5. 默认写 `.picbed/backup/<doc>.<ts>.bak`；`--no-backup` 关闭。  
-6. `--out-dir`：保持相对目录结构写入副本，源文档不动。
-
+5. 默认写 `.picbed/backup/<doc>.<ts>.bak`；由 `picbed.toml [rewrite] backup = false` 关闭（无 CLI flag）。  
 ## F9 Manifest 与 revert
 
 - 每次成功替换 upsert 一条 entry（同 doc+raw+sha 更新 publicUrl）。  
 - `revert`：对文档内仍匹配 `publicUrl` 的子串写回 `raw`（本地路径）。  
 - `revert --dry-run`：只报告将还原的条目。  
-- manifest 损坏：报 `ManifestCorruptError`，不静默清空（可 `--force-new-manifest` 显式重建，属写操作需 `--yes`）。
+- manifest 损坏：报 `ManifestCorruptError`，不静默清空；当前不提供自动重建，需人工处理。
 
 revert 要串起 manifest 读取、扫描、反向替换、原子写、run 记录五件事，且**损坏的 manifest 必须立即失败而非静默重建**，这条约束只有在时序里才看得清楚：
 

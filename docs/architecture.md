@@ -90,7 +90,7 @@
 
 | 存储 | 内容 | 位置 | 写者 |
 |------|------|------|------|
-| 源文档 | md / html 等 | 用户指定目录（默认原地回写；`--out-dir` 写副本） | 用户 / `LinkRewriter` |
+| 源文档 | md / html 等 | 用户指定目录（原地回写，无写副本模式） | 用户 / `LinkRewriter` |
 | HTML 呈现 | 设计评审页 | `docs/html/index.html`（+ `styles.css` / `app.js`） | 设计维护者 |
 | 源图片 | 本地图片文件 | 相对文档目录解析 | **只读**（picbed 不改图片字节） |
 | 配置 | owner/repo/branch/dir/url 风格 | `./picbed.toml` / ENV | `init` / `config set` |
@@ -105,7 +105,7 @@
 - **图片字节只读**：工具只改文档中的链接文本，不改图片文件。
 - **内容寻址幂等**：`sha256` 相同视为同一资产，不重复上传。
 - **manifest 不可含 secret**：可供 Agent 与审计安全读取。
-- **备份可关**：默认写 backup，`--no-backup` 关闭；revert 依赖 manifest 而非 backup 必须存在。
+- **备份可关**：默认写 backup，由 `picbed.toml [rewrite] backup = false` 关闭；revert 依赖 manifest 而非 backup 必须存在。
 
 ### 2.2 领域服务层（核心能力）
 

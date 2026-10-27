@@ -67,7 +67,7 @@ IngestFacade
 - 相对路径：相对**该文档所在目录**解析，再 `path.normalize` + 根约束校验。
 - 拒绝/阻断（`blocked` + reason）：
   - 路径逃逸出扫描根（除非显式允许）
-  - 默认拒绝绝对路径、`file://`（`--allow-absolute` 可开）
+  - 默认且始终拒绝绝对路径、`file://`（无 CLI 开关）
   - 文件不存在、非白名单扩展名
 - 已是 `http(s)://`：不 resolve，标记 `skip-remote` 语义留给 plan（ref 仍输出）。
 - 去重：`sha256(file)` 相同 → 合并为一个 `Asset`，`refs` 为并集。
