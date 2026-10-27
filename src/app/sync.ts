@@ -127,8 +127,12 @@ export async function runSync(opts: {
     const rewriteItems = plan
       .filter((it) => it.ref && it.ref.docPath === docPath)
       .map((it) => {
+        // skip-cache 的 URL 直接来自 plan 的 remote（buildPlan 已按 manifest 填好）；
+        // 它没有进入上面的 unique 循环（那里只收 upload 资产），
+        // 因此 urlBySha 里查不到——只查 urlBySha 会把缓存命中的改写整条丢掉，
+        // 表现为「上传成功/缓存命中但文档一直没变」。
         const url =
-          it.action === 'upload' || it.action === 'skip-cache'
+          it.action === 'upload'
             ? urlBySha.get(it.asset?.sha256 ?? '')
             : it.remote?.publicUrl;
         return { it, url };
