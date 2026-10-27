@@ -326,6 +326,35 @@ describe('ui server F16–F18', () => {
     });
   });
 
+  it('F18 skip-cache still rewrites the doc (cache hit must not skip rewriting)', async () => {
+    // 复现：图片已在 manifest 缓存中（skip-cache），但文档里的引用还是原样。
+    // runSync 只在 upload 资产循环里填 urlBySha；skip-cache 项不在其中，
+    // 若改写时只查 urlBySha 就会把整条改写丢掉——文档一直不变且无报错。
+    const root = path.join(cwd, 'cache-rewrite');
+    fs.mkdirSync(root, { recursive: true });
+    const doc = path.join(root, 'note.md');
+    const img = path.join(root, 'pic.png');
+    fs.writeFileSync(img, Buffer.from([7, 7, 7, 7]));
+    fs.writeFileSync(doc, '![p](pic.png)\n');
+
+    const cfg = loadConfig({ cwd });
+    // 第一次：上传并建立缓存
+    const first = await runSync({ root, cfg, cwd, getToken: () => undefined });
+    expect(first.ok).toBe(true);
+    expect(first.uploaded).toBe(1);
+    expect(fs.readFileSync(doc, 'utf8')).toContain('https://cdn.example.test');
+
+    // 第二次：文档被还原成原始引用，图片命中缓存 → 必须仍然完成改写
+    fs.writeFileSync(doc, '![p](pic.png)\n');
+    const second = await runSync({ root, cfg, cwd, getToken: () => undefined });
+    expect(second.ok).toBe(true);
+    expect(second.uploaded).toBe(0); // 缓存命中，不重复上传
+    expect(second.rewrittenDocs).toContain(path.relative(cwd, doc).split(path.sep).join('/'));
+    expect(fs.readFileSync(doc, 'utf8')).toContain('https://cdn.example.test');
+    // 远端路径保留原文件名，故不能断言「不含 pic.png」——要断言本地相对引用已消失
+    expect(fs.readFileSync(doc, "utf8")).not.toContain("](pic.png)");
+  });
+
   it('F18 sync requires confirm then succeeds with local host', async () => {
     const denied = await api('/api/sync', {});
     expect(denied.status).toBe(409);
