@@ -62,7 +62,7 @@ src/ui/
 
 ```text
 UiSession   { rootDir, startedAt, watchActive }
-RunRecord   { id, command, startedAt, finishedAt, ok, counts, items[], errors?[], warnings?[], errorCode? }   # app 共享层实体，CLI/Web 共用
+RunRecord   { id, command, startedAt, finishedAt, ok, counts, items?[], errors?[], warnings?[], errorCode? }   # app 共享层实体，CLI/Web 共用
 PlanView    { rootDir, generatedAt, groups: { upload[], skip-cache[], skip-remote[], blocked[] } }
 DoctorView  { ok, checks[], failures[] }
 ManifestView{ version, entries[] }   # 无 token
@@ -133,7 +133,7 @@ idle（拖放提示）
   - 不做灯箱/多选/排序（本期仅呈现）。
 - **扫描来源（2026-09-27 收窄）**：**本次拖入的图片文件** + **本次拖入文档**内图片引用（`/api/plan` 后按 `doc` 过滤到工作集文档）。**不**罗列扫描根下未拖入的其它图片（`GET /api/session/images` 不得再用于扩大预览）。
 - **「未扫描到图片」须区分原因（2026-10-27 补）**：本次拖入文档的 plan 项若全为 `skip-remote`（`action === 'skip-remote'`，引用已是 `http(s)` 图床链接），说明图片**早已上传并改写**，不是故障——提示改说「文档内图片已是远程链接，无需上传」。只有确实既无本地资产也无远程引用时，才维持「未扫描到本地图片」。注意 `skip-remote` 项没有 `localPath`，归属统计要按 `doc` 判断，不能靠 `localPath` 过滤（否则永远统计为 0）。
-- **拖入文档「有图但传不了」必须弹警告（2026-10-26）**：拖入的文档若含**无法上传本地资产**的引用，扫描后**自动弹出模态警告**（`confirmAsync`），不得静默。触发条件：本次拖入文档的 `/api/plan` 结果中存在 `action === 'blocked'` 的项。典型场景 = 文档用 **`data:image/...;base64,…` 内嵌图**（`E_SKIP_REF`）——用户以为有图可传，实际图在文档里、没有对应本地文件，上传无从下手。模态内容：标题说明「N 处引用无法上传」，逐条列出**原因人话化**（`E_SKIP_REF` → 「内嵌数据图（data: URI），不是本地文件」、`E_EXT` → 「扩展名不在图片白名单」、`E_ASSET_MISSING` → 「图片文件不存在」、`E_PATH_ESCAPE`/`E_ABSOLUTE` → 「路径在扫描根之外」、其余回落到 `code: reason`）+ 涉及**文档名**。**只覆盖本次拖入的文档**（不扩大报全仓 blocked）。纯图片拖入（无文档）不触发。`/api/plan` 已输出 blocked 项的 `code`（`publicPlanItem` 直接投影），供前端分类；`raw` 截断显示（data: URI 可达数百 KB，禁止整串进 DOM）。
+- **拖入文档「有图但传不了」必须弹警告（2026-10-26）**：拖入的文档若含**无法上传本地资产**的引用，扫描后**自动弹出模态警告**（`confirmAsync`），不得静默。触发条件：本次拖入文档的 `/api/plan` 结果中存在 `action === 'blocked'` 的项。典型场景 = **无法解码为非图片的内嵌数据**（如 `data:text/plain,…`，`E_SKIP_REF`）——用户以为有图可传，实际没有对应图片资源。注意：`data:image/*` 自 2026-10-26 起由 `src/resolve.ts` 解码为内存 Asset 直接上传，不再进 blocked。模态内容：标题说明「N 处引用无法上传」，逐条列出**原因人话化**（`E_SKIP_REF` → 「内嵌数据图（data: URI），不是本地文件」、`E_EXT` → 「扩展名不在图片白名单」、`E_ASSET_MISSING` → 「图片文件不存在」、`E_PATH_ESCAPE`/`E_ABSOLUTE` → 「路径在扫描根之外」、其余回落到 `code: reason`）+ 涉及**文档名**。**只覆盖本次拖入的文档**（不扩大报全仓 blocked）。纯图片拖入（无文档）不触发。`/api/plan` 已输出 blocked 项的 `code`（`publicPlanItem` 直接投影），供前端分类；`raw` 截断显示（data: URI 可达数百 KB，禁止整串进 DOM）。
 - 「上传」= 原 sync（`confirm: true`），作用于**会话工作集**（累计拖入的文档及其图片引用；仅拖入图片时上传这些图片、不改写无关文档）；「重置」丢弃**全部**扫描结果，不写文档、不传图床。
 
 静态 SPA 视图（hash 或 JS 切换）：
@@ -368,10 +368,10 @@ classDiagram
     class RootBinder { +string root~null~ +bind(rootInput, cwd) string +requireRoot() string +resolveUnderRoot(rel) {ok,path}|{ok,reason,code} }
     class WatchController { +WatchState state +start(opts) WatchState +stop() WatchState -pushEvent(message, changed?) void }
     class WatchMode { <<union type>> preview confirm-each auto }
-    class WatchState { +boolean active +WatchMode mode +string root? +number debounceMs? +string[] lastBatch? }
+    class WatchState { +boolean active +WatchMode mode +string root? +number debounceMs? +string[] lastBatch? +{at,message,changed?}[] events }
     class GhLoginStore { -GhLoginState state~null~ +get() object +set(s) void +get isRunning() boolean +append(chunk) void +scheduleClearIfTerminal(delayMs?) boolean +cancel() void }
     class UiServerHandle { +string url +number port +string host +close() Promise~void~ }
-    class AppError { +string code +ExitCode exitCode +string hint }
+    class AppError { +string code +ExitCode exitCode +string hint? }
 
     UiRouteContext --> RootBinder : binder
     UiRouteContext --> WatchController : watch

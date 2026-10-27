@@ -44,11 +44,11 @@ ManifestEntry {
 1. 按 `ImageRef.start/end` **从后往前**切片替换，避免偏移失效。  
 2. 仅替换 URL 子串；alt/title/srcset 其它候选保留。  
 3. 代码块内 ref 本不应存在（ingest F4）；rewrite 二次断言不越界。  
-4. 原子写：`*.tmp` + rename；失败不破坏原文件。  
+4. 原子写：`<target>.picbed-tmp` + rename；失败不破坏原文件。  
 5. 默认写 `.picbed/backup/<doc>.<ts>.bak`；由 `picbed.toml [rewrite] backup = false` 关闭（无 CLI flag）。  
 ## F9 Manifest 与 revert
 
-- 每次成功替换 upsert 一条 entry（同 doc+raw+sha 更新 publicUrl）。  
+- 每次成功替换 upsert 一条 entry（同 doc+raw+localPath 更新 publicUrl）。  
 - `revert`：对文档内仍匹配 `publicUrl` 的子串写回 `raw`（本地路径）。  
 - `revert --dry-run`：只报告将还原的条目。  
 - manifest 损坏：报 `ManifestCorruptError`，不静默清空；当前不提供自动重建，需人工处理。

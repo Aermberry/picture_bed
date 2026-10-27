@@ -52,7 +52,7 @@
 
 - 优先级：P0 · 模块：**cliops**
 - 实现（域）：[module-cliops · F1](design/module-cliops.md#f1-项目初始化与配置)
-- AC：`init` 在空目录生成 `picbed.toml` 合法模板（无 secret）；`--force` 可覆盖；`config list` 对 token 掩码；`config set` 校验键名与枚举（如 `url.style`）；优先级 CLI>ENV>项目文件生效。
+- AC：`init` 在空目录生成 `picbed.toml` 合法模板（无 secret）；`--force` 可覆盖；`config list` 对 token 掩码；`config set` 校验键名与枚举（如 `url.style`）；优先级 ENV>项目文件生效（无用户级配置，CLI 只决定配置文件位置）。
 
 ## F2 环境与鉴权自检
 
@@ -118,7 +118,7 @@
 
 - 优先级：P0（已实现）· 模块：**cliops**
 - 实现（域）：[module-cliops · F15](design/module-cliops.md#f15-github-token-鉴权)
-- AC：**无 OAuth App / 无 login 命令**。token 解析顺序：`PICBED_GITHUB_TOKEN` → `GITHUB_TOKEN` → `gh auth token`；缺失时 `doctor`/`sync` 退出码 3；输出一律掩码。原 OAuth 点击登录已移除（分发成本过高）。
+- AC：**无 OAuth App / 无 login 命令**。token 解析顺序：`PICBED_GITHUB_TOKEN` → `GITHUB_TOKEN` → 本机凭据 `~/.picbed/credentials.json` → `gh auth token`；缺失时 `doctor`/`sync` 退出码 3；输出一律掩码。原 OAuth 点击登录已移除（分发成本过高）。
 
 ## F12 watch 监听
 

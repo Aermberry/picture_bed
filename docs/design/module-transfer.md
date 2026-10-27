@@ -54,7 +54,7 @@ classDiagram
         +putFile(repoPath, bytes, message, branch) Promise~void~
         +deleteFile(repoPath, sha, message, branch) Promise~void~
         +composeUrls(repoPath) HostUrls
-        +remotePath(sha256, localPath) string
+        +remotePath(sha256, localPath, now?) string
         +entryType?(repoPath) Promise~'file'|'dir'|null~
     }
     class HostUrls {
@@ -92,7 +92,7 @@ classDiagram
     class LocalHostAdapter {
         +type : local
         +requiresToken : false
-        +abs(repoPath) string
+        -abs(repoPath) string
     }
     class createHostAdapter {
         <<function>>
@@ -146,7 +146,8 @@ RemoteImage  { publicUrl, rawUrl, cdnUrl?, repoPath, sha256 }
 flowchart TD
     REF[extractRefs 产出 ImageRef] --> RAW{raw 形态判定}
 
-    RAW -->|空 / 页内锚点 / data:| BL[blocked<br/>E_SKIP_REF]
+    RAW -->|空 / 页内锚点 / 非图片 data:| BL[blocked<br/>E_SKIP_REF]
+    RAW -->|图片 data: URI| UP
     RAW -->|http 或 https 开头| SR[skip-remote<br/>已是公网 URL]
     RAW -->|file:// 协议| FU[blocked<br/>E_FILE_URL]
     RAW -->|其余视为本地路径| LOCAL{路径合格判定}
@@ -173,13 +174,13 @@ flowchart TD
 ## F7 GitHub 图床上传
 
 - 远端路径模板：`{dir}/{yyyy}/{mm}/{sha12}-{safeName}`（可配置）。
-- API：`GET contents` 探测 → `PUT contents` `{message, content: base64, branch}`；已存在同内容可 skip 或带 `sha` 更新策略（默认 skip）。
+- API：`GET contents` 取现有 `sha` → `PUT contents` `{message, content: base64, branch, sha?}`；已存在时总是覆盖更新，不做「内容相同即跳过」。（`src/host/github.ts#putFile`）
 - URL（`url.style`）：
   - `raw` → `https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{path}`
   - `jsdelivr` → `https://cdn.jsdelivr.net/gh/{owner}/{repo}@{branch}/{path}`
   - `custom` → 用户模板
   - **`{path}` 必须逐段百分号编码（2026-10-26 修复）**：`dir` 含非 ASCII（如 `資源圖`）时未编码的 URL 会被 CDN/raw **直接返回 400**——上传与改写都成功，但生成的链接点不开。实现为 `lib/paths.ts` 的 `encodeRepoPath()`（按 `/` 分段 `encodeURIComponent`，分隔符保留），GitHub 与 Local 两种 host 的 `composeUrls` 共用；custom 模板的 `{path}` 同样传编码后的值。ASCII 路径编码后不变，故既有链接不受影响。
-- 并发默认 2–3；429/403 指数退避；耗尽 → `RateLimitedError`（退出码 5）。
+- 上传串行执行；无重试/退避，远端 403/429 直接映射 `E_REMOTE`（退出码 5）。`upload.concurrency` 仅为配置项，当前未用于上传循环。
 - 单文件失败隔离；汇总 partial（退出码 6）。
 
 ## F11 单文件上传

@@ -94,7 +94,7 @@
 | HTML 呈现 | 设计评审页 | `docs/html/index.html`（+ `styles.css` / `app.js`） | 设计维护者 |
 | 源图片 | 本地图片文件 | 相对文档目录解析 | **只读**（picbed 不改图片字节） |
 | 配置 | owner/repo/branch/dir/url 风格 | `./picbed.toml` / ENV | `init` / `config set` |
-| Token | GitHub PAT / gh | **仅** `PICBED_GITHUB_TOKEN` / `GITHUB_TOKEN` / `gh auth token` | 用户（禁止入库） |
+| Token | GitHub PAT / gh | `PICBED_GITHUB_TOKEN` / `GITHUB_TOKEN` / 本机凭据 `~/.picbed/credentials.json` / `gh auth token` | 用户（禁止入库） |
 | Manifest | localPath+sha → publicUrl | `./.picbed/manifest.json` | `ManifestStore` |
 | Backup | 回写前文档副本 | `./.picbed/backup/` | `LinkRewriter` |
 | Cache | sha → 已上传 URL | 并入 manifest 或 `./.picbed/cache.json` | `SyncOrchestrator`（app 共享层） |
@@ -178,7 +178,7 @@ package.json   files=[bin, dist, README.md]
 同一份应用编排（`src/app/*`）被四个宿主复用，**任何宿主都不复制业务规则**：
 
 ```text
-[1] picbed <cmd>  bin/picbed.js → src/cli.ts（commander，578 行）──────────┐
+[1] picbed <cmd>  bin/picbed.js → src/cli.ts（commander，581 行）──────────┐
                                                                             │
 [2] picbed ui     同一 cli.ts 的 `ui` 子命令 → import('./ui/index.js')       ├─► src/app/*
                   → createUiServer → listen(127.0.0.1:4780) → 浏览器 /api/* │      │
@@ -193,7 +193,7 @@ package.json   files=[bin, dist, README.md]
 
 | 宿主 | 入口 | 关键事实 |
 |------|------|----------|
-| CLI | `bin/picbed.js` → `dist/cli.js` ← `src/cli.ts` | commander；`ui` 子命令在同一文件懒加载 UI 服务器（`cli.ts:295`）；默认 host `127.0.0.1` / port `4780`（`cli.ts:116-117`），非回环绑定会告警（`cli.ts:292`） |
+| CLI | `bin/picbed.js` → `dist/cli.js` ← `src/cli.ts` | commander；`ui` 子命令在同一文件懒加载 UI 服务器（`cli.ts:298`）；默认 host `127.0.0.1` / port `4780`（`cli.ts:279-284`），非回环绑定会告警（`cli.ts:293-296`） |
 | Web UI | `src/ui/server.ts` `createUiServer`（206 行，**只装配**） | 一个 Node 进程同时承载静态下发与 `/api/*`；流程为 安检（`http/guard`）→ 静态（`http/static`）→ 路由表（`routes/`） |
 | MCP | `src/mcp/server.ts`（213 行） | stdio JSON-RPC，供 Agent 调用，与 CLI 共用 `src/app/*` |
 | 桌面 | `desktop/main.mjs` | **不重新实现 UI**：动态 `import('../dist/ui/index.js')` 取 `createUiServer`（`main.mjs:80-86`）；dev 固定 `4780` 让 Vite 代理 `/api`，prod 用 `listen(0)` 由 OS 分配（`main.mjs:87-90`），窗口加载 `uiHandle.url`（`main.mjs:149`） |
@@ -205,7 +205,7 @@ package.json   files=[bin, dist, README.md]
 | `DocumentScanner` | `src/scan.ts` → `scanDocs()` | |
 | `RefExtractor` | `src/extract.ts` → `extractRefs()` + `blankCodeRegions()` | 代码块防护抽成独立函数 |
 | `AssetResolver` | `src/resolve.ts` → `resolveAssets()` | 越界判定取 `src/lib/paths.ts` |
-| `Deduper` | **`src/resolve.ts:103-112` 内联**（`sha256Hex` → 以 sha 为 key 合并引用） | **无**独立类/文件 |
+| `Deduper` | **`src/resolve.ts:134-148` 内联**（`sha256Hex` → 以 sha 为 key 合并引用） | **无**独立类/文件 |
 | `PlanBuilder` | `src/plan.ts` → `buildPlan()` | 输出五态 action |
 | `LinkRewriter` | `src/rewrite.ts` → `rewriteDoc()` / `applyRewrites()` / `writeDocAtomic()` / `revertDoc()` | 原子写在同文件 |
 | `ManifestStore` | `src/manifest.ts` → `loadManifest` / `saveManifest` / `upsertEntry` / `findCachedUrl()` | |
@@ -242,7 +242,7 @@ picbed/
 │  ├─ rewrite.ts                     // rewriteDoc()/applyRewrites() 偏移切片替换；writeDocAtomic() 原子写；revertDoc() 回滚
 │  ├─ manifest.ts                    // .picbed/manifest.json 读写：load/save/upsertEntry/findCachedUrl
 │  ├─ watch.ts                       // fs.watch 调度；根外事件退化为绝对路径（非越界守卫，见 §2 开头的例外说明）
-│  ├─ config.ts                      // picbed.toml 解析/校验/模板；token 只从 env / gh 取，禁止入库
+│  ├─ config.ts                      // picbed.toml 解析/校验/模板；token 解析在 infra/gh-cli.ts（env → 本机凭据 → gh），禁止入库
 │  ├─ user-token.ts                  // 本机用户级 PAT 存储（~/.picbed/credentials.json；不进 git、不写 toml）
 │  │
 │  │  ── 跨层单点（错了即安全/数据事故的横切逻辑；tests/lib-single-source 守护）──
@@ -282,12 +282,12 @@ picbed/
 │  │  ── WebUI 呈现层（服务端；picbed ui 与 Electron 桌面共用同一份）──
 │  ├─ ui/
 │  │  ├─ index.ts                    //   统一出口：re-export createUiServer / INDEX_HTML（cli 与 desktop 都从这里取）
-│  │  ├─ server.ts                   //   createUiServer()：安检→静态→路由表；只装配无业务（实测 204 行，layering 守卫 <250 行）
+│  │  ├─ server.ts                   //   createUiServer()：安检→静态→路由表；只装配无业务（实测 206 行，layering 守卫 <250 行）
 │  │  ├─ root.ts                     //   RootBinder：拖拽策略 A——先绑根，再把相对线索映射到真实 FS
 │  │  ├─ watch.ts                    //   WatchController：watch 的 UI 状态机（preview | confirm-each | auto）
 │  │  ├─ gh-login.ts                 //   GhLoginStore：gh auth login 会话单例（同时只允许一个流程）
 │  │  ├─ context.ts                  //   UiRouteContext：安检放行后交给路由的依赖注入（含拖拽工作集条目）
-│  │  ├─ static.ts                   //   1 行 re-export INDEX_HTML（对外薄壳；真身在 http/static.ts）
+│  │  ├─ static.ts                   //   1 行 re-export INDEX_HTML（对外薄壳；真身在 spa/index.ts，读 renderer/index.html）
 │  │  ├─ inline-cache.ts             //   内嵌图内存字节缓存：plan 登记、preview 按合成名反查（无磁盘文件）
 │  │  ├─ http/                       //   HTTP 协议横切
 │  │  │  ├─ guard.ts                 //     同源 / X-Picbed-UI / Host / 请求体安检
@@ -349,7 +349,7 @@ picbed/
    └─ （其余 13 个用例文件：cli/ui/ui-panels/pipeline/host/mcp/desktop/auth/config/watch/repo-dir/extract/user-token）
 ```
 
-规模：`src/` 64 文件 / 约 5.4k 行（2026-10-02 实测 5,441 行；旧值 5,451 偏大约 20 行，已订正）；`renderer/` 23 文件；`desktop/` 4 文件（preload 只允许 `.cjs` 一份，`tests/desktop.test.ts` 守着）；`scripts/` 3 文件；`tests/` 19 个用例文件 + 1 个辅助。
+规模：`src/` 64 文件 / 约 5.8k 行（2026-10-28 实测 5,791 行）；`renderer/` 23 文件；`desktop/` 4 文件（preload 只允许 `.cjs` 一份，`tests/desktop.test.ts` 守着）；`scripts/` 3 文件；`tests/` 19 个用例文件 + 1 个辅助。
 
 #### 2.5.4 依赖方向与守卫
 
@@ -440,11 +440,11 @@ flowchart LR
 |------|----------|
 | 呈现层不直连 `host/` / `infra/` / `user-token` | `layering.test.ts:28` |
 | `ui/**` 不直连 `config.ts`，配置一律走 `app/settings.ts` 的 `resolvedConfig` | `:40` |
-| `app/**` 不深连具体适配器实现，只走 `host` 端口 | `:48` |
-| `app/**` 零呈现依赖（不碰 `node:http` / `commander` / `ui`） | `:55` |
-| `host/**` 不反向依赖 `app/**` | `:77` |
-| `ui/server.ts` 只做装配：不含 `'/api/'` 字面量且 <250 行 | `:62` |
-| 业务路由都在 `ui/routes/` 下，各 <250 行 | `:69` |
+| `app/**` 不深连具体适配器实现，只走 `host` 端口 | `:54` |
+| `app/**` 零呈现依赖（不碰 `node:http` / `commander` / `ui`） | `:61` |
+| `host/**` 不反向依赖 `app/**` | `:83` |
+| `ui/server.ts` 只做装配：不含 `'/api/'` 字面量且 <250 行 | `:68` |
+| 业务路由都在 `ui/routes/` 下，各 <250 行 | `:75` |
 
 另两道守卫：跨层单点由 `tests/lib-single-source.test.ts` 守；npm 发布面由 `tests/package-surface.test.ts` + `npm run validate:pack` 守（见 §2.4）。
 
@@ -458,8 +458,8 @@ DocFile ──contains──► ImageRef ──resolves──► Asset ──upl
                          │                     └── sha256 去重        └── publicUrl
                          └── start/end 精确替换锚点
 ManifestEntry: (doc, raw, localPath, sha256, publicUrl, updatedAt)
-SyncPlanItem:  action + asset? + remote? + reason?
-SyncResult:    ok, uploaded, rewrittenDocs[], mapping, warnings[], errors[]
+SyncPlanItem:  action + asset? + remote? + reason? + code? + ref?
+SyncResult:    ok, uploaded, rewrittenDocs[], summary, items[], warnings[], errors[], partial, errorCode?, runId
 ```
 
 不变量：
@@ -485,7 +485,7 @@ URL：
 - jsdelivr：`https://cdn.jsdelivr.net/gh/{owner}/{repo}@{branch}/{path}`
 - custom：用户模板
 
-限流：并发默认 2–3；403/429 指数退避；单文件建议 ≤50MB。
+上传串行；无重试/退避，403/429 直接映射 `E_REMOTE`；单文件建议 ≤50MB。
 
 ---
 
@@ -500,11 +500,13 @@ URL：
 | `sync` | 上传并回写 |
 | `upload` | 单文件上传 |
 | `revert` | 按 manifest 还原本地链接 |
+| `watch` | 监听文档变更并同步（F12） |
 | `config` | get/set/list（token 掩码） |
 | `ui` | 启动本地 Web 控制台（F16；命令名已冻结为 `ui`） |
+| `commands` | 列出命令与选项 |
 
 全局：`--json --quiet --verbose --config --cwd --yes --dry-run`  
-退出码：0 成功 / 2 用法 / 3 配置鉴权 / 4 本地文件 / 5 远端 API / 6 部分成功 / 7 需确认。  
+退出码：0 成功 / 1 通用失败 / 2 用法 / 3 配置鉴权 / 4 本地文件 / 5 远端 API / 6 部分成功 / 7 需确认。  
 Web API 信封与退出码语义对齐 [`design/cross-cutting.md`](design/cross-cutting.md)；详细 AC 见 [`features-index.md`](features-index.md)。
 
 ---
