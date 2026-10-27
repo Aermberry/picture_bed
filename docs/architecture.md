@@ -288,6 +288,7 @@ picbed/
 │  │  ├─ gh-login.ts                 //   GhLoginStore：gh auth login 会话单例（同时只允许一个流程）
 │  │  ├─ context.ts                  //   UiRouteContext：安检放行后交给路由的依赖注入（含拖拽工作集条目）
 │  │  ├─ static.ts                   //   1 行 re-export INDEX_HTML（对外薄壳；真身在 http/static.ts）
+│  │  ├─ inline-cache.ts             //   内嵌图内存字节缓存：plan 登记、preview 按合成名反查（无磁盘文件）
 │  │  ├─ http/                       //   HTTP 协议横切
 │  │  │  ├─ guard.ts                 //     同源 / X-Picbed-UI / Host / 请求体安检
 │  │  │  ├─ body.ts                  //     请求体大小上限
@@ -339,7 +340,7 @@ picbed/
 │  ├─ build-desktop.mjs              //   electron-builder 打包（extraMetadata.main 注入 Electron 入口）
 │  └─ desktop-dev.mjs                //   桌面 dev 编排：起 Vite + electron，代理 /api
 │
-└─ tests/                            // vitest（175 用例 / 19 个用例文件 + 1 个辅助；架构约定都有活守卫）
+└─ tests/                            // vitest（176 用例 / 19 个用例文件 + 1 个辅助；架构约定都有活守卫）
    ├─ layering.test.ts               //   分层 7 条断言（§2.5.4）
    ├─ lib-single-source.test.ts      //   跨层单点：横切逻辑只许在 src/lib/
    ├─ package-surface.test.ts        //   npm 导出面：files/bin/exports 不得越界
@@ -348,7 +349,7 @@ picbed/
    └─ （其余 13 个用例文件：cli/ui/ui-panels/pipeline/host/mcp/desktop/auth/config/watch/repo-dir/extract/user-token）
 ```
 
-规模：`src/` 63 文件 / 约 5.4k 行（2026-10-02 实测 5,441 行；旧值 5,451 偏大约 20 行，已订正）；`renderer/` 23 文件；`desktop/` 4 文件（preload 只允许 `.cjs` 一份，`tests/desktop.test.ts` 守着）；`scripts/` 3 文件；`tests/` 19 个用例文件 + 1 个辅助。
+规模：`src/` 64 文件 / 约 5.4k 行（2026-10-02 实测 5,441 行；旧值 5,451 偏大约 20 行，已订正）；`renderer/` 23 文件；`desktop/` 4 文件（preload 只允许 `.cjs` 一份，`tests/desktop.test.ts` 守着）；`scripts/` 3 文件；`tests/` 19 个用例文件 + 1 个辅助。
 
 #### 2.5.4 依赖方向与守卫
 
