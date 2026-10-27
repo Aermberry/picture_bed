@@ -4,7 +4,7 @@ import { toast } from "../components/toast.js";
 import { confirmAsync } from "../components/modal.js";
 import { createSelectableGrid } from "../components/selectable-grid.js";
 import { isImageName, isDocName } from "../lib/files.js";
-import { collectBlockedForDocs, warnBlockedRefs } from "./blocked-warn.js";
+import { collectBlockedForDocs, countRemoteOnlyForDocs, warnBlockedRefs } from "./blocked-warn.js";
 
 /** @type {any[]} */
 let wallItems = [];
@@ -224,11 +224,14 @@ export async function scanIntoPreview(dropInfo) {
 
   // 1) image refs inside THIS drop's docs only (never expand to the whole scan root)
   const dropDocs = (dropInfo && dropInfo.dropDocs) || [];
+  /** @type {number} 本次文档里已是远程链接的引用数（用于区分「无需上传」与「真的没图」） */
+  let remoteOnly = 0;
   if (dropDocs.length) {
     try {
       const { data } = await api("/api/plan", {});
       if (data.ok) {
         const plan = (data.data && data.data.plan) || [];
+        remoteOnly = countRemoteOnlyForDocs(plan, dropDocs);
         /** @type {Record<string, number>} */
         const docSet = {};
         for (const d of dropDocs) docSet[String(d).replace(/\\/g, "/")] = 1;
@@ -251,7 +254,11 @@ export async function scanIntoPreview(dropInfo) {
 
   // Accumulate: keep tiles from earlier drops; only append this drop's hits.
   mergeWallItems(paths);
-  if (!paths.length && !wallItems.length) toast("未扫描到本地图片");
+  if (!paths.length && !wallItems.length) {
+    // 已上传并改写过的文档只剩远程链接——「无需上传」不是故障，别让用户以为哪里坏了。
+    if (remoteOnly) toast("文档内图片已是远程链接，无需上传");
+    else toast("未扫描到本地图片");
+  }
 }
 
 /** 吸顶条背景随滚动渐隐（最低 0.82，禁止全透明） */

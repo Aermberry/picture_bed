@@ -15,6 +15,27 @@ const CODE_TEXT = {
 };
 
 /**
+ * 统计「本次拖入文档」里已是远程链接的引用数。
+ * 用于区分「文档图片早已上传（无需再传）」与「文档里根本没有图」——
+ * 这两种情况照片墙都不会出现图块，但用户看到同一句提示会误判成故障。
+ * 注意 skip-remote 项**没有 localPath**，归属只能按 doc 判断。
+ * @param {any[]} plan
+ * @param {string[]} dropDocs
+ * @returns {number}
+ */
+export function countRemoteOnlyForDocs(plan, dropDocs) {
+  const docs = {};
+  for (const d of dropDocs || []) docs[String(d).replace(/\\/g, "/")] = 1;
+  let n = 0;
+  for (const p of plan || []) {
+    if (!p || p.action !== "skip-remote") continue;
+    const doc = String(p.doc || "").replace(/\\/g, "/");
+    if (doc && docs[doc]) n += 1;
+  }
+  return n;
+}
+
+/**
  * 把 data: URI / 长串截断成可读片段。
  * @param {any} raw
  * @returns {string}

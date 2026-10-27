@@ -3,6 +3,7 @@ import path from 'node:path';
 import { httpStatusForCode } from '../../app/index.js';
 import { ensureDocExt } from '../root.js';
 import { isImageExt } from '../../lib/img.js';
+import { isUnderRoot } from '../../lib/paths.js';
 import { envelope } from '../http/envelope.js';
 import type { UiRouteContext, WorksetItem } from '../context.js';
 
@@ -125,12 +126,21 @@ export async function sessionRoutes(ctx: UiRouteContext): Promise<boolean> {
       return true;
     }
 
-    // 桌面端投放携带绝对路径 → 自动推断 root（无需手工 bind）。
+    // 桌面端投放携带绝对路径 → 自动推断/重绑 root（无需手工 bind）。
     if (absPath && type === 'file') {
-      if (!ctx.binder.root) {
+      // 已绑定 root 之外的投放必须重绑：plan/sync 都只扫 binder.root，
+      // 沿用旧根会让本次投放静默空转（plan 为空、上传什么都不做）。
+      // 重绑换根，先前工作集已不属于新根，一并清空，避免混入跨根条目。
+      const prevRoot = ctx.binder.root;
+      let rebindTo: string | null = null;
+      if (!prevRoot) {
+        rebindTo = path.dirname(absPath);
+      } else if (!isUnderRoot(prevRoot, absPath)) {
+        rebindTo = path.dirname(absPath);
+      }
+      if (rebindTo) {
         try {
-          const dir = path.dirname(absPath);
-          ctx.binder.bind(dir, dir);
+          ctx.binder.bind(rebindTo, rebindTo);
         } catch (err) {
           const e = err as Error & { code?: string };
           const item = pushBlocked(ctx, body.name ?? rel, rel, 'file');
@@ -140,6 +150,7 @@ export async function sessionRoutes(ctx: UiRouteContext): Promise<boolean> {
           }));
           return true;
         }
+        if (prevRoot) workset.length = 0;
       }
       if (!fs.existsSync(absPath)) {
         const item = pushBlocked(ctx, body.name ?? rel, rel, 'file');
@@ -174,6 +185,8 @@ export async function sessionRoutes(ctx: UiRouteContext): Promise<boolean> {
         action: isImg ? 'image' : 'in-root',
         boundRoot: rootNow,
         image: isImg,
+        // 换根即清空工作集：前端须同步丢弃旧墙，避免展示不属于新根的图块。
+        ...(rebindTo && prevRoot ? { rebind: { from: prevRoot, to: rootNow, cleared: true } } : {}),
         // 只有图片可预览——投放文档不得计入照片墙数量。
         ...(isImg ? { previewPath: absPath } : {}),
         item: workset.at(-1),
