@@ -223,6 +223,73 @@ npm 包的公共面 = 两个 `bin`（`picbed` / `picbed-mcp`）+ `package.json`�
 | 2026-09-27 | SPA 出模板串 → `src/ui/spa/` TS 模块（见 [`module-webui-spa-split.md`](module-webui-spa-split.md)） | **已被 `renderer/` 单源取代** |
 | 2026-09-27 | 迁移 electron-vite；入口 `desktop/main.mjs`；`createRequire` + `RUN_AS_NODE` re-exec | **当前权威** |
 
+## 实现落点（TS/Electron 适配）
+
+> 本模块在 TypeScript/Electron 实际源码中的落地；领域意图、目录结构、接口意图与 F24 见上文。签名与类图以真实源码为准（源码：`desktop/main.mjs`、`desktop/preload.cjs`、`electron.vite.config.mjs`、编译产物 `dist/ui/index.js`）。
+
+### 领域层类图（壳结构 + 桥）
+
+```mermaid
+classDiagram
+    class ElectronApp { <<external>> +whenReady() Promise +quit() void +on(event, cb) void }
+    class BrowserWindow { <<external>> +loadURL(url) void +webContents }
+    class IpcMain { <<external>> +handle(channel, cb) void }
+    class Dialog { <<external>> +selectDirectory() Promise~string|null~ +selectFiles(opts) Promise~string[]~ }
+    class PicbedNative { <<bridge/preload>> +selectDirectory() Promise +selectFiles(opts) Promise +appInfo() object +getPathForFile(file) string +platform string }
+    class UiServerHandle { +string url +number port +string host +close() Promise~void~ }
+
+    ElectronApp --> BrowserWindow : 创建窗口
+    ElectronApp --> IpcMain : 注册 IPC
+    ElectronApp --> Dialog : 调用对话框
+    PicbedNative ..> Dialog : 经 preload 桥接
+    BrowserWindow --> PicbedNative : exposeInMainWorld
+    UiServerHandle ..> BrowserWindow : loadURL(uiHandle.url)
+```
+
+> `desktop/main.mjs` 中的 Electron 类型（`BrowserWindow`/`Dialog`/`IpcMain`）经 `createRequire` 动态加载，源码中为 `any`，上图以 `<<external>>` 标注；`globals.d.ts` 仅声明 `getPathForFile` 子集（浏览器降级用）。
+
+### 关键函数签名（语义）
+
+| 服务 | 签名（语义） | 职责 |
+|------|------|------|
+| `startApp` | `app.whenReady().then(startApp)` | 注册 IPC → 创建窗口 → 启动 UI 服务 |
+| `registerIpc` | 注册 `dialog:selectDirectory` / `dialog:selectFiles` / `app:info` | 把主进程能力暴露给渲染进程 |
+| `createWindow` | `createWindow(uiHandle: UiServerHandle)` | `new BrowserWindow({preload})` + `loadURL(uiHandle.url)`；失败回退 `data:` 错误页 |
+| `startUiServer` | `startUiServer(): Promise<UiServerHandle>` | 动态 `import('../dist/ui/index.js')` → `createUiServer({cwd})` → `listen(port,'127.0.0.1')` |
+| `installDevHotReload` | 监听 `dist/` 与 `desktop/` | **`dist/` 与 `desktop/` 变更一律触发进程级重启**（`processExitForReload`），不做进程内模块重载 |
+| `processExitForReload` | `processExitForReload(reason)` | `PICBED_DESKTOP_SUPERVISED=1` 时 `app.exit(0)` 交监督进程重拉，否则 `app.relaunch()` |
+
+**`dist/` 变更为何必须进程级重启（2026-10-27 修）**：旧实现给 `dist/ui/index.js` 加 `?t=<时间戳>` 后重新 `import`，意图热更新后端。但 cache-bust 只让**入口本体**重新求值——它 import 的子模块（`app/*`、`lib/*` 等）URL 未变，仍命中 Node ESM 模块缓存。实测：先 `import('./entry.mjs?t=1')` 取值 `v1`，改写其 import 的 `sub.mjs` 为 `v2`，再 `import('./entry.mjs?t=2')` 仍返回 `v1`。后果是「改了后端逻辑、看起来热更新成功、实际跑的是旧代码」——比不热更新更危险，故改为进程重启；进程内模块缓存随进程结束清空，结果确定。旧的 `restartUiServer()` 已删除（`tests/desktop.test.ts` 断言其不得回归）。
+| `preload.exposeInMainWorld` | `contextBridge.exposeInMainWorld('picbedNative', {...})` | 暴露 `PicbedNative` 桥 |
+
+### 复杂任务时序图（F24 复用 Web 服务）
+
+```mermaid
+sequenceDiagram
+    participant OS as Electron app
+    participant M as main.mjs startApp
+    participant I as startUiServer()
+    participant U as dist/ui createUiServer
+    participant W as BrowserWindow
+    participant P as preload.cjs
+    participant SPA as renderer main.js
+
+    OS->>M: app.whenReady()
+    M->>M: registerIpc()（dialog:*, app:info）
+    M->>I: createWindow()
+    I->>U: import dist/ui/index.js → createUiServer({cwd})
+    U-->>I: {server, listen}
+    I->>U: listen(port, '127.0.0.1')
+    U-->>I: uiHandle {url, close}
+    I->>W: new BrowserWindow({preload})
+    W->>P: expose picbedNative（selectDirectory/selectFiles/appInfo）
+    I->>W: loadURL(uiHandle.url)
+    W->>SPA: 加载 WebUI（与 picbed ui 同源）
+    Note over M,OS: before-quit → uiHandle.close() → app.quit()
+```
+
+> `desktop/main.mjs:76-91` 动态 import 编译后的 `dist/ui/index.js`；`createWindow`（`desktop/main.mjs:93-150`）失败时回退 `data:` 错误页（`:129`）。桌面端投放文件携带绝对路径 → `sessionRoutes` 的 `drop` 分支（`src/ui/routes/session.ts:105-182`）自动 `binder.bind(dir)`（`:133`）。业务错误由复用的 `app`/`webui` 经 `AppError` 处理，见 [`module-app.md`](module-app.md)；桥 `picbedNative` 为渐进增强（无 preload 时 SPA 仍可用）。
+
 ## 功能点映射
 
 | F | 本模块章节 |

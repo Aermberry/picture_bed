@@ -337,10 +337,19 @@ describe('F24 desktop shell', () => {
   it('vite session keeps window on HMR URL (fs.watch must not navigate away)', () => {
     const main = fs.readFileSync(path.join(repoRoot, 'desktop', 'main.mjs'), 'utf8');
     expect(main).toContain('isViteDevSession');
-    expect(main).toMatch(/if \(mainWindow && !mainWindow\.isDestroyed\(\) && !isViteDevSession\(\)\)/);
-    expect(main).toContain('keep window URL');
     // desktop/* left to electron-vite when Vite owns the renderer
     expect(main).toContain('vite session → electron-vite restarts');
+  });
+
+  it('dist/* rebuild triggers a process restart, not an in-process module reload', () => {
+    const main = fs.readFileSync(path.join(repoRoot, 'desktop', 'main.mjs'), 'utf8');
+    // 给 dist/ui/index.js 加 ?t= 只能让入口本体重新求值；它 import 的子模块
+    // （app/*、lib/*）URL 未变，仍走 Node ESM 缓存 —— 实测改写子模块后仍返回旧值。
+    // 因此 dist/ 变更必须进程级重启，否则改后端逻辑「看起来热更新了、实际没生效」。
+    expect(main).toContain('dist/* changed → process restart');
+    expect(main).toMatch(/processExitForReload\('dist'\)/);
+    // 旧的进程内热重载不得回归
+    expect(main).not.toContain('restartUiServer');
   });
 
   it('served scripts are syntactically valid (renderer is native ESM; inline scripts stay tiny)', async () => {
