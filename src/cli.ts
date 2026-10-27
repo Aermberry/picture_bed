@@ -3,12 +3,16 @@ import path from 'node:path';
 import { Command } from 'commander';
 import {
   asAppError,
+  CONFIG_NAME,
+  configTemplate,
+  currentToken,
   doctorService,
   exitCodeForCode,
   githubProbe,
   publicConfig,
   publicPlanItem,
   readConfigKey,
+  resolvedConfig,
   runPlan,
   runRevert,
   runSync,
@@ -17,7 +21,6 @@ import {
   uploadSingleAsset,
   type UploadOneResult,
 } from './app/index.js';
-import { CONFIG_NAME, configTemplate, getToken, loadConfig } from './config.js';
 import { EXIT, type ExitCode, type JsonEnvelope, type ResolvedConfig } from './types.js';
 
 function emit<T>(
@@ -59,7 +62,7 @@ function fail(
 }
 
 function loadCfg(cwd: string, config?: string): ResolvedConfig {
-  return loadConfig({ cwd, configPath: config });
+  return resolvedConfig(cwd, config);
 }
 
 
@@ -257,7 +260,7 @@ export async function run(argv: string[]): Promise<ExitCode> {
     }
 
     if (command === 'doctor') {
-      const view = await doctorService({ cfg, getToken, probeApi: githubProbe });
+      const view = await doctorService({ cfg, getToken: currentToken, probeApi: githubProbe });
       emit(json, {
         schemaVersion: 1,
         ok: view.ok,
@@ -495,7 +498,7 @@ export async function run(argv: string[]): Promise<ExitCode> {
 
       let result;
       try {
-        result = await runSync({ root, cfg, cwd, getToken, command });
+        result = await runSync({ root, cfg, cwd, getToken: currentToken, command });
       } catch (err) {
         const e = asAppError(err);
         return fail(json, command, e.exitCode, { code: e.code, message: e.message, path: e.path, hint: e.hint }, collected.warnings);

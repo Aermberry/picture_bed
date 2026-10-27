@@ -10,6 +10,8 @@ export type { RevertResult } from './revert.js';
 export { doctorService, githubProbe, publicConfig } from './doctor.js';
 export type { DoctorCheck, DoctorProbe, DoctorReport } from './doctor.js';
 export {
+  CONFIG_NAME,
+  configTemplate,
   readConfigKey,
   writeConfigKey,
   serializeConfigToml,

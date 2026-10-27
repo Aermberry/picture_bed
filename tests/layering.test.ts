@@ -37,12 +37,18 @@ describe('分层（CLI/WebUI → app → 领域 → host 适配器）', () => {
     expect(offenders).toEqual([]);
   });
 
-  it('ui 层不直连 config.ts（配置一律走 app/settings.ts 的 resolvedConfig）', () => {
-    const offenders = files
-      .filter((f) => f.rel.startsWith('ui/'))
-      // 排除 ui/routes/config.ts 这类「自身文件名叫 config」的情况，只禁真正的 config.ts 直连
-      .filter((f) => importsOf(f.text).some((s) => s.endsWith('config.js') && !s.includes('routes/')));
-    expect(offenders.map((f) => f.rel)).toEqual([]);
+  it('呈现层（ui/ 与 cli.ts）不直连 config.ts / user-token.ts', () => {
+    // 呈现层取配置必须走 app/settings.ts 的 resolvedConfig，取 token 走 app/auth.ts 的 currentToken。
+    // 历史缺口：此前只过滤 ui/ 前缀，src/cli.ts 在 src/ 根不受约束，于是长期直连 config.ts。
+    const presentation = ['cli.ts', ...files.filter((f) => f.rel.startsWith('ui/')).map((f) => f.rel)];
+    const offenders = presentation.filter((rel) =>
+      importsOf(textOf(rel)).some(
+        (s) =>
+          // 排除 ui/routes/config.ts 这类「自身文件名叫 config」的情况，只禁真正的 config.ts 直连
+          (s.endsWith('config.js') && !s.includes('routes/')) || s.endsWith('user-token.js'),
+      ),
+    );
+    expect(offenders).toEqual([]);
   });
 
   it('app 层不深连具体适配器实现，只走 host 端口', () => {

@@ -20,6 +20,12 @@ export function resolvedConfig(cwd?: string, configPath?: string): ResolvedConfi
   return loadConfig({ cwd: cwd ?? process.cwd(), configPath });
 }
 
+/**
+ * 配置文件常量与模板经 façade 转发，避免呈现层为取一个文件名而直连 `config.ts`
+ * （`picbed init` 需要写模板，但不得绕过本层）。
+ */
+export { CONFIG_NAME, configTemplate };
+
 export function readConfigKey(cfg: ResolvedConfig, key: string): unknown {
   const map: Record<string, unknown> = {
     'github.owner': cfg.github.owner,
