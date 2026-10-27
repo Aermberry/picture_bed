@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   collectBlockedForDocs,
+  countRemoteOnlyForDocs,
   truncateRaw,
 } from '../renderer/src/features/blocked-warn.js';
 
@@ -34,5 +35,30 @@ describe('拖入文档的 blocked 引用警告（renderer）', () => {
   it('无 blocked 项时返回空（纯图片拖入不触发警告）', () => {
     const plan = [{ action: 'upload', doc: 'C:/root/a.md', localPath: 'C:/root/i.png' }];
     expect(collectBlockedForDocs(plan, ['C:/root/a.md'])).toHaveLength(0);
+  });
+});
+
+describe('「未扫描到图片」的原因区分（renderer）', () => {
+  it('统计本次文档的 skip-remote 项（已上传并改写，无需再传）', () => {
+    const plan = [
+      { action: 'skip-remote', doc: 'C:/root/a.md', raw: 'https://cdn.example/a.png' },
+      { action: 'skip-remote', doc: 'C:/root/a.md', raw: 'https://cdn.example/b.png' },
+      { action: 'skip-remote', doc: 'C:/root/other.md', raw: 'https://cdn.example/c.png' },
+      { action: 'upload', doc: 'C:/root/a.md', localPath: 'C:/root/i.png' },
+    ];
+    // 只数本次拖入的 a.md，且 skip-remote 没有 localPath 也必须数到
+    expect(countRemoteOnlyForDocs(plan, ['C:/root/a.md'])).toBe(2);
+    expect(countRemoteOnlyForDocs(plan, ['C:/root/other.md'])).toBe(1);
+  });
+
+  it('文档里没有图片引用时计数为 0（提示维持「未扫描到本地图片」）', () => {
+    const plan = [{ action: 'upload', doc: 'C:/root/a.md', localPath: 'C:/root/i.png' }];
+    expect(countRemoteOnlyForDocs(plan, ['C:/root/a.md'])).toBe(0);
+    expect(countRemoteOnlyForDocs([], ['C:/root/a.md'])).toBe(0);
+  });
+
+  it('Windows 反斜杠路径与正斜杠等价', () => {
+    const plan = [{ action: 'skip-remote', doc: 'C:\\root\\a.md', raw: 'https://x/y.png' }];
+    expect(countRemoteOnlyForDocs(plan, ['C:/root/a.md'])).toBe(1);
   });
 });

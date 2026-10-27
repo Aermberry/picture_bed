@@ -60,6 +60,8 @@ export async function submitDrop(items) {
   let err = "";
   const previewPaths = [];
   const dropDocs = [];
+  /** @type {boolean} 是否发生了扫描根重绑（换根会清空工作集，旧墙须一并丢弃） */
+  let rebound = false;
   for (const it of items) {
     const { data } = await api("/api/session/drop", {
       name: it.name,
@@ -69,6 +71,11 @@ export async function submitDrop(items) {
     });
     if (data.ok) {
       dropped += 1;
+      if (data.data && data.data.rebind) {
+        rebound = true;
+        previewPaths.length = 0;
+        dropDocs.length = 0;
+      }
       const pp = data.data && data.data.previewPath;
       // previewPath is image-only; a dropped document must not enter the wall
       if (pp && isImageName(pp)) previewPaths.push(pp);
@@ -79,7 +86,7 @@ export async function submitDrop(items) {
       err = (data.error && data.error.message) || "drop failed";
     }
   }
-  return { dropped, err, previewPaths, dropDocs };
+  return { dropped, err, previewPaths, dropDocs, rebound };
 }
 
 /** 拖放：先出本地 blob 预览，再等服务器往返。 */
@@ -122,6 +129,8 @@ export function initDropZone() {
       else if (!blobPreviews.length) setPreviewIdle();
       return;
     }
+    // 换根后旧墙已无归属：清空再重建，否则会残留其它目录的图块。
+    if (r && r.rebound) setPreviewIdle();
     logoState("scanning");
     await scanIntoPreview({ previewPaths: r.previewPaths, blobPreviews, dropDocs: r.dropDocs });
     logoState(null);

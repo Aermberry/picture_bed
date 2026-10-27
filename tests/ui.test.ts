@@ -169,6 +169,45 @@ describe('ui server F16–F18', () => {
     expect(plan.data.data.summary.upload + plan.data.data.summary['skip-cache']).toBeGreaterThan(0);
   });
 
+  it('F17 dropping a file outside the bound root rebinds root (else plan silently empty)', async () => {
+    await api('/api/session/reset', {});
+    const docsRoot = path.join(cwd, 'docs');
+    await api('/api/session/bind-root', { root: docsRoot });
+    await api('/api/session/drop', { name: 'post.md', relativePath: 'post.md', type: 'file' });
+
+    // 另一个目录里的文档：root 已绑在 docs，旧行为会「接受但不扫描」它
+    const otherRoot = path.join(cwd, 'other');
+    fs.mkdirSync(path.join(otherRoot, 'img'), { recursive: true });
+    fs.writeFileSync(path.join(otherRoot, 'img', 'b.png'), Buffer.from([9, 9, 9]));
+    fs.writeFileSync(path.join(otherRoot, 'note.md'), '![b](img/b.png)\n');
+
+    const drop = await api('/api/session/drop', {
+      name: 'note.md',
+      relativePath: 'note.md',
+      type: 'file',
+      absPath: path.join(otherRoot, 'note.md'),
+    });
+    expect(drop.data.ok).toBe(true);
+    // 换根必须显式告知前端，否则旧墙会残留不属于新根的图块
+    expect(drop.data.data.rebind).toBeTruthy();
+    expect(drop.data.data.boundRoot).toBe(otherRoot);
+    expect(drop.data.data.item.relativePath).not.toMatch(/\.\./);
+
+    const session = await api('/api/session');
+    expect(session.data.data.root).toBe(otherRoot);
+    expect(session.data.data.workset).toHaveLength(1);
+
+    const plan = await api('/api/plan', {});
+    expect(plan.data.data.summary.upload + plan.data.data.summary['skip-cache']).toBeGreaterThan(0);
+    expect(plan.data.data.plan.map((p: { doc?: string }) => p.doc)).toContain(
+      path.join(otherRoot, 'note.md'),
+    );
+
+    // 复原：后续用例依赖 root 绑在 docs
+    await api('/api/session/reset', {});
+    await api('/api/session/bind-root', { root: docsRoot });
+  });
+
   it('F17 drop rejects folders (images/docs only)', async () => {
     const drop = await api('/api/session/drop', {
       name: 'img',
