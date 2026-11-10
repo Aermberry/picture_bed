@@ -502,7 +502,7 @@ describe('ui server F16–F18', () => {
 
   it('F23 shell: four nav views, dropzone; theme tokens live in styles.css', async () => {
     const html = await (await fetch(base + '/')).text();
-    for (const label of ['上传', '管理', '设置', '规范']) {
+    for (const label of ['上传', '统计', '设置', '规范']) {
       expect(html).toContain('>' + label + '</button>');
     }
     expect(html).toContain('dropzone');
@@ -512,6 +512,43 @@ describe('ui server F16–F18', () => {
     expect(SPA_CSS).toContain('#4E93C0');
     expect(SPA_CSS).toContain('#FFC978');
     expect(SPA_CSS).toContain('#EDF4FA');
+  });
+
+  it('F25 stats view replaces manage view in shell', async () => {
+    const html = await (await fetch(base + '/')).text();
+    expect(html).toContain('id="view-stats"');
+    expect(html).toContain('statsHeatmap');
+    expect(html).toContain('statsHours');
+    expect(html).toContain('kpiToday');
+    expect(html).toContain('>统计</button>');
+    expect(html).not.toContain('id="view-manage"');
+    expect(html).not.toContain('>管理</button>');
+    // renderer 源码契约：走 /api/stats，manage 特性已移除
+    expect(spaApp).toContain("api(\"/api/stats\")");
+    expect(spaApp).not.toContain('refreshManage');
+    expect(spaApp).not.toContain('initManage');
+    // 统计视图热力图/时段样式与主题令牌联动（顺序色阶复用 --c-primary）
+    expect(SPA_CSS).toContain('heat-lv4');
+    expect(SPA_CSS).toContain('hour-bar');
+    // hero 总计卡（2026-11-11 重设计：占比条/图例移除——单系列无需图例）
+    expect(SPA_CSS).toContain('.stats-total{font-size:48px');
+    expect(SPA_CSS).not.toContain('bar-seg');
+    expect(html).toContain('statsTotalSub');
+    expect(html).toContain('statsHeatLegend');
+  });
+
+  it('F25 GET /api/stats returns the full fixed shape without token', async () => {
+    const { status, data } = await api('/api/stats');
+    expect(status).toBe(200);
+    expect(data.ok).toBe(true);
+    expect(data.schemaVersion).toBe(1);
+    expect(data.command).toBe('api.stats');
+    expect(data.data.days).toHaveLength(365);
+    expect(data.data.hours).toHaveLength(24);
+    expect(typeof data.data.today.date).toBe('string');
+    expect(data.data.busiestDay.count).toBeGreaterThanOrEqual(0);
+    expect(data.data.warnings).toEqual([]);
+    expect(JSON.stringify(data)).not.toMatch(/ghp_/);
   });
 
   it('F23 theme system: themes/logo/icon CSS in styles.css, whitelist in app.js', async () => {

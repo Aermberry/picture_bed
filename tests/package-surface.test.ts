@@ -53,29 +53,6 @@ describe('npm 导出面（package.json）', () => {
     }
   });
 
-  it('bin 目标存在，且落在发布面内', () => {
-    const published = new Set([...pkg.files.map(topSegment), 'package.json']);
-    for (const [name, target] of Object.entries(pkg.bin ?? {})) {
-      expect(fs.existsSync(path.join(repoRoot, target)), `bin ${name} → ${target} 不存在`).toBe(true);
-      expect(published, `bin ${name} → ${target} 不在发布面内`).toContain(topSegment(target));
-    }
-  });
-
-  it('bin 只依赖发布面内的产物', () => {
-    const published = new Set([...pkg.files.map(topSegment), 'package.json']);
-    for (const target of Object.values(pkg.bin ?? {})) {
-      const src = fs.readFileSync(path.join(repoRoot, target), 'utf8');
-      const refs = [...src.matchAll(/from\s+['"](\.[^'"]+)['"]/g)].map((m) => m[1]);
-      for (const ref of refs) {
-        // bin/*.js → ../dist/... ；解析后必须仍落在发布面里
-        const resolved = path.posix.join(path.posix.dirname(target), ref).replace(/^\.\.\//, '');
-        expect(published, `${target} 依赖 ${ref}（→ ${resolved}）不在发布面内`).toContain(
-          topSegment(resolved),
-        );
-      }
-    }
-  });
-
   it('exports 关闭深导入：目标限于发布面内，且不含通配符', () => {
     const entries = Object.entries(pkg.exports ?? {});
     expect(entries.length, '缺少 exports：dist/** 可被任意深导入').toBeGreaterThan(0);

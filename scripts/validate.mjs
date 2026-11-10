@@ -56,7 +56,7 @@ if (profiles.includes('design')) {
 
   if (exists('docs/html/index.html')) {
     const html = read('docs/html/index.html');
-    for (const id of ['guide', 'features', 'architecture', 'modules', 'cli', 'docs']) {
+    for (const id of ['guide', 'features', 'architecture', 'modules', 'docs']) {
       if (!html.includes(`id="${id}"`)) fail.push(`design: docs/html/index.html missing section #${id}`);
     }
   }
@@ -112,8 +112,8 @@ if (profiles.includes('pack')) {
   // 真实 tarball 审计：只有它能暴露 manifest 字面看不出的问题——
   // 例如 npm 会把 "main" 指向的文件硬塞进包（desktop/main.mjs 就是这样混进来的），
   // 即便 files 没有列出那个目录。需要 dist 已构建（CI 在 validate 前有 npm run build）。
-  if (!exists('dist/cli.js')) {
-    fail.push('pack: 缺少 dist/cli.js —— 先跑 npm run build 再做包面审计');
+  if (!exists('dist/ui/index.js')) {
+    fail.push('pack: 缺少 dist/ui/index.js —— Electron 运行时入口，先跑 npm run build 再做包面审计');
   } else {
     let raw = '';
     try {
@@ -157,10 +157,7 @@ if (profiles.includes('pack')) {
         for (const need of [
           'package.json',
           'README.md',
-          'bin/picbed.js',
-          'bin/picbed-mcp.js',
-          'dist/cli.js',
-          'dist/mcp/server.js',
+          'dist/ui/index.js',
         ]) {
           if (!entries.includes(need)) fail.push(`pack: tarball 缺少 ${need}`);
         }

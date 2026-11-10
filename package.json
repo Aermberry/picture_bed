@@ -1,7 +1,7 @@
 {
   "name": "picbed",
   "version": "0.4.1",
-  "description": "Local CLI + Web console: extract images from markdown/html, upload to PicX-style GitHub image host, rewrite links",
+  "description": "Electron desktop app: extract images from markdown/html, upload to PicX-style GitHub image host, rewrite links",
   "author": "Aermberry",
   "type": "module",
   "repository": {
@@ -12,15 +12,7 @@
     "url": "https://github.com/Aermberry/picture_bed/issues"
   },
   "homepage": "https://github.com/Aermberry/picture_bed#readme",
-  "publishConfig": {
-    "access": "public"
-  },
-  "bin": {
-    "picbed": "bin/picbed.js",
-    "picbed-mcp": "bin/picbed-mcp.js"
-  },
   "files": [
-    "bin",
     "dist",
     "README.md"
   ],
@@ -32,12 +24,11 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "tsc -p tsconfig.json --noEmit",
-    "picbed": "node ./bin/picbed.js",
     "openspec": "openspec",
     "validate": "node scripts/validate.mjs",
     "validate:design": "node scripts/validate.mjs --profile=design",
     "validate:bootstrap": "node scripts/validate.mjs --profile=bootstrap",
-    "validate:ci": "node scripts/validate.mjs --profile=design,scripts,pack",
+    "validate:ci": "node scripts/validate.mjs --profile=design,scripts",
     "validate:pack": "node scripts/validate.mjs --profile=pack",
     "desktop:dev": "tsc -p tsconfig.json && node scripts/desktop-dev.mjs",
     "desktop:bundle": "tsc -p tsconfig.json && electron-vite build",
@@ -47,17 +38,16 @@
     "node": ">=20"
   },
   "keywords": [
-    "cli",
     "image-host",
     "picx",
     "github",
     "markdown",
-    "agent"
+    "electron",
+    "desktop"
   ],
   "license": "MIT",
   "dependencies": {
-    "@fission-ai/openspec": "^1.13.2",
-    "commander": "^12.1.0"
+    "@fission-ai/openspec": "^1.13.2"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

@@ -499,13 +499,48 @@
     }
     .linkish:hover{text-decoration:underline}
 
-    .stat-row{display:flex; gap:var(--sp-4); margin-bottom:var(--sp-5)}
+    .stat-row{display:flex; gap:var(--sp-4); margin-top:var(--sp-5); margin-bottom:var(--sp-5)}
     .stat-card{
       flex:1; background:var(--c-surface); border-radius:var(--r-md);
       padding:var(--sp-4) var(--sp-5); box-shadow:var(--shadow-1);
     }
     .stat-card .num{font-size:22px; font-weight:700; margin-top:4px}
     .stat-card .lbl{color:var(--c-text-2); font-size:13px}
+    /* F25 使用统计 */
+    .stats-summary{display:flex; gap:var(--sp-8); align-items:baseline; flex-wrap:wrap}
+    .stats-total{font-size:48px; font-weight:700; line-height:1.05}
+    .stats-herosub{align-self:center; padding-bottom:var(--sp-1)}
+    .kpi-up{color:var(--c-success)}
+    .kpi-down{color:var(--c-danger)}
+    #statsHeatmapCard h3, #statsHoursCard h3{margin-top:0}
+    .card-head{display:flex; align-items:baseline; justify-content:space-between; gap:var(--sp-4); flex-wrap:wrap}
+    .card-head h3{margin:0}
+    .heat-legend{display:inline-flex; align-items:center; gap:3px; font-size:11px; color:var(--c-text-3)}
+    .heat-swatch{display:inline-block; width:10px; height:10px; border-radius:3px}
+    .stats-heatwrap{overflow-x:auto; padding-bottom:var(--sp-2)}
+    .heat-cell{stroke:none; transition:fill-opacity .1s}
+    .heat-cell:hover{stroke:var(--c-text-2); stroke-width:1}
+    .heat-lv0{fill:var(--c-bg-2)}
+    .heat-lv1{fill:var(--c-primary); fill-opacity:.25}
+    .heat-lv2{fill:var(--c-primary); fill-opacity:.45}
+    .heat-lv3{fill:var(--c-primary); fill-opacity:.7}
+    .heat-lv4{fill:var(--c-primary)}
+    /* 图例是 HTML span（fill 只作用于 SVG rect），同一映射走 background */
+    .heat-swatch.heat-lv0{background:var(--c-bg-2)}
+    .heat-swatch.heat-lv1{background:color-mix(in srgb, var(--c-primary) 25%, transparent)}
+    .heat-swatch.heat-lv2{background:color-mix(in srgb, var(--c-primary) 45%, transparent)}
+    .heat-swatch.heat-lv3{background:color-mix(in srgb, var(--c-primary) 70%, transparent)}
+    .heat-swatch.heat-lv4{background:var(--c-primary)}
+    .heat-month{font-size:10px; fill:var(--c-text-2)}
+    .stats-hourwrap{padding-top:var(--sp-1)}
+    .hour-bar{fill:var(--c-primary)}
+    .hour-bar:hover, .hour-hit:hover ~ .hour-bar{fill:var(--c-primary-hover)}
+    .hour-hit{pointer-events:all}
+    .hour-hit:hover{cursor:default}
+    .hour-bar-empty{fill:var(--c-bg-2)}
+    .hour-grid{stroke:var(--c-border); stroke-width:1}
+    .hour-tick{font-size:10px; fill:var(--c-text-3); font-variant-numeric:tabular-nums}
+    .hour-peak{font-size:12px; font-weight:600; fill:var(--c-text-2)}
     .toolbar{display:flex; gap:var(--sp-3); margin-bottom:var(--sp-4); align-items:center}
     .search{
       flex:1; max-width:320px; padding:8px 12px;

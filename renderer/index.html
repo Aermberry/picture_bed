@@ -48,6 +48,12 @@
     <path class="ico-soft" d="M4.8 18.2 9.4 12.2l4 6z" stroke-width="1.6" stroke-linejoin="round"/>
     <path class="ico-muted" d="M12.4 18.2l3.2-3.8 3.6 3.8z" stroke-width="1.6" stroke-linejoin="round"/>
   </symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24">
+    <rect class="ico-s" x="3" y="3.5" width="18" height="17" rx="2" stroke-width="2"/>
+    <path class="ico-stroke" d="M7.2 16.5v-4.2" stroke-width="2" stroke-linecap="round"/>
+    <path class="ico-stroke" d="M12 16.5V7.5" stroke-width="2" stroke-linecap="round"/>
+    <path class="ico-soft" d="M16.8 16.5v-6" stroke-width="2" stroke-linecap="round"/>
+  </symbol>
 </svg>
 
 <div class="app">
@@ -68,7 +74,7 @@
       </svg>
     </div>
     <button class="nav-item active" data-view="upload"><svg class="ico"><use href="#i-upload"/></svg>上传</button>
-    <button class="nav-item" data-view="manage"><svg class="ico"><use href="#i-folder"/></svg>管理</button>
+    <button class="nav-item" data-view="stats"><svg class="ico"><use href="#i-chart"/></svg>统计</button>
     <button class="nav-item" data-view="gallery"><svg class="ico"><use href="#i-image"/></svg>图库</button>
     <button class="nav-item" data-view="settings"><svg class="ico"><use href="#i-gear"/></svg>设置</button>
     <button class="nav-item" id="navDoc" data-view="doc" hidden><svg class="ico"><use href="#i-book"/></svg>规范</button>
@@ -116,20 +122,38 @@
       </div>
     </section>
 
-    <!-- 管理 -->
-    <section class="content" id="view-manage" style="display:none">
-      <div class="stat-row">
-        <div class="stat-card"><div class="lbl">文件总数</div><div class="num" id="statTotal">0</div></div>
-        <div class="stat-card"><div class="lbl">本月上传</div><div class="num" id="statMonth">0</div></div>
-        <div class="stat-card"><div class="lbl">已映射</div><div class="num" id="statMapped">0</div></div>
-        <div class="stat-card"><div class="lbl">外链调用</div><div class="num" id="statLinks">0</div></div>
-      </div>
+    <!-- 统计（F25 使用统计） -->
+    <section class="content" id="view-stats" style="display:none">
       <div class="toolbar">
-        <input class="search" id="fileSearch" placeholder="搜索文件名…" />
-        <button class="btn btn-ghost" id="fileSort" type="button">按时间 ↓</button>
-        <button class="btn btn-primary" id="batchCopy" type="button" style="margin-left:auto">批量复制外链</button>
+        <span class="hint" id="statsHint" style="margin-right:auto">本地 manifest 与远端仓库聚合 · 仅统计图像</span>
+        <button class="btn btn-ghost" id="statsRefresh" type="button">刷新</button>
       </div>
-      <div class="file-grid" id="fileGrid"></div>
+      <div class="card" id="statsSummaryCard">
+        <div class="stats-summary">
+          <div class="stats-hero">
+            <div class="lbl">总计</div>
+            <div class="num stats-total" id="statsTotal">0</div>
+          </div>
+          <div class="stats-herosub hint" id="statsTotalSub"></div>
+        </div>
+      </div>
+      <div class="stat-row">
+        <div class="stat-card"><div class="lbl">今天</div><div class="num" id="kpiToday">0</div></div>
+        <div class="stat-card"><div class="lbl">过去 7 天</div><div class="num" id="kpi7">0</div><div class="hint" id="kpi7Delta"></div></div>
+        <div class="stat-card"><div class="lbl">连续天数</div><div class="num" id="kpiStreak">0</div><div class="hint" id="kpiStreakLongest"></div></div>
+        <div class="stat-card"><div class="lbl">最忙的一天</div><div class="num" id="kpiBusiest">—</div><div class="hint" id="kpiBusiestCount"></div></div>
+      </div>
+      <div class="card" id="statsHeatmapCard">
+        <div class="card-head">
+          <h3>每日 · 过去一年</h3>
+          <div class="heat-legend" id="statsHeatLegend" aria-hidden="true"></div>
+        </div>
+        <div class="stats-heatwrap" id="statsHeatmap"></div>
+      </div>
+      <div class="card" id="statsHoursCard">
+        <h3>时段</h3>
+        <div class="stats-hourwrap" id="statsHours"></div>
+      </div>
     </section>
 
     <!-- 图库：浏览仓库文件夹与图片 -->

@@ -33,13 +33,14 @@ describe('F24 desktop shell', () => {
     expect(viteConfig).toContain('desktop/preload.cjs');
   });
 
-  it('npm pack stays CLI-only (no desktop runtime in files whitelist)', () => {
+  it('npm pack stays app-only (no desktop runtime in files whitelist)', () => {
     const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8')) as {
       files: string[];
       devDependencies: Record<string, string>;
     };
-    expect(pkg.files).toEqual(expect.arrayContaining(['bin', 'dist', 'README.md']));
-    expect(pkg.files.join(' ')).not.toMatch(/desktop|electron|release/);
+    // bin 已随 CLI 移除（2026-11-10）；files 不得重新引入 bin / desktop / release
+    expect(pkg.files).toEqual(expect.arrayContaining(['dist', 'README.md']));
+    expect(pkg.files.join(' ')).not.toMatch(/desktop|electron|release|bin/);
     expect(pkg.devDependencies.electron).toBeTruthy();
     expect(pkg.devDependencies['electron-builder']).toBeTruthy();
   });
