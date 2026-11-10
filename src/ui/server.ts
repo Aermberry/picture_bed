@@ -22,6 +22,7 @@ import { previewRoute } from './routes/preview.js';
 import { revertRoute } from './routes/revert.js';
 import { runsRoutes } from './routes/runs.js';
 import { sessionRoutes } from './routes/session.js';
+import { statsRoutes } from './routes/stats.js';
 import { syncRoute } from './routes/sync.js';
 import { systemRoutes } from './routes/system.js';
 import { watchRoutes } from './routes/watch.js';
@@ -56,6 +57,7 @@ const ROUTES: UiRoute[] = [
   syncRoute,
   revertRoute,
   galleryRoutes,
+  statsRoutes,
   branchRoutes,
   authRoutes,
   configRoutes,
