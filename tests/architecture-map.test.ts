@@ -71,8 +71,8 @@ describe('§2.5 实现地图与磁盘对齐', () => {
   const md = read('docs/architecture.md');
   const tree = treeFileCounts(md);
 
-  it('逐文件列名的目录树条目数与磁盘一致（src / bin / desktop / scripts）', () => {
-    for (const dir of ['src', 'bin', 'desktop', 'scripts']) {
+  it('逐文件列名的目录树条目数与磁盘一致（src / desktop / scripts）', () => {
+    for (const dir of ['src', 'desktop', 'scripts']) {
       const real = countFiles(dir);
       expect(tree.get(dir), `§2.5.3 树的 ${dir}/ 条目数`).toBe(real);
     }
@@ -117,9 +117,7 @@ describe('§2.5 实现地图与磁盘对齐', () => {
 
   it('文档点名的行数与实现相差不超过 ±15 行', () => {
     const claims: [string, RegExp, string][] = [
-      ['src/cli.ts', /src\/cli\.ts（commander，(\d+) 行）/, '§2.5.1 cli.ts 行数'],
       ['src/ui/server.ts', /`createUiServer`（(\d+) 行/, '§2.5.1 server.ts 行数'],
-      ['src/mcp/server.ts', /`src\/mcp\/server\.ts`（(\d+) 行）/, '§2.5.1 mcp/server.ts 行数'],
     ];
     for (const [file, re, label] of claims) {
       const claimed = docNumber(md, re, label);
@@ -128,9 +126,12 @@ describe('§2.5 实现地图与磁盘对齐', () => {
     }
   });
 
-  it('四个宿主共用入口的契约仍在（ui/index.ts 是 createUiServer 的唯一出口）', () => {
+  it('Electron 唯一宿主的契约仍在（ui/index.ts 是 createUiServer 的唯一出口）', () => {
     expect(read('src/ui/index.ts')).toMatch(/export\s*\{[^}]*createUiServer/);
-    expect(read('src/cli.ts')).toMatch(/import\('\.\/ui\/index\.js'\)/);
     expect(read('desktop/main.mjs')).toMatch(/dist\/ui\/index\.js/);
+    // CLI 与 MCP 宿主已删除（2026-11-10）：dist/cli.js、dist/mcp/server.js、bin/* 不应再出现。
+    expect(fs.existsSync(path.join(repoRoot, 'src', 'cli.ts'))).toBe(false);
+    expect(fs.existsSync(path.join(repoRoot, 'src', 'mcp'))).toBe(false);
+    expect(fs.existsSync(path.join(repoRoot, 'bin'))).toBe(false);
   });
 });

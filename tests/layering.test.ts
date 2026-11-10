@@ -28,7 +28,7 @@ describe('分层（CLI/WebUI → app → 领域 → host 适配器）', () => {
   it('呈现层不直连适配器 / 凭据存储 / gh CLI', () => {
     const forbidden = ['./host/', './infra/', './user-token.js', './host/index.js'];
     const offenders: string[] = [];
-    for (const rel of ['cli.ts', ...files.filter((f) => f.rel.startsWith('ui/')).map((f) => f.rel)]) {
+    for (const rel of files.filter((f) => f.rel.startsWith('ui/')).map((f) => f.rel)) {
       const specs = importsOf(textOf(rel));
       // ui/ 下的相对路径以 ../ 开头
       const banned = forbidden.flatMap((f) => [f, f.replace('./', '../')]);
@@ -37,10 +37,10 @@ describe('分层（CLI/WebUI → app → 领域 → host 适配器）', () => {
     expect(offenders).toEqual([]);
   });
 
-  it('呈现层（ui/ 与 cli.ts）不直连 config.ts / user-token.ts', () => {
+  it('呈现层（ui/）不直连 config.ts / user-token.ts', () => {
     // 呈现层取配置必须走 app/settings.ts 的 resolvedConfig，取 token 走 app/auth.ts 的 currentToken。
-    // 历史缺口：此前只过滤 ui/ 前缀，src/cli.ts 在 src/ 根不受约束，于是长期直连 config.ts。
-    const presentation = ['cli.ts', ...files.filter((f) => f.rel.startsWith('ui/')).map((f) => f.rel)];
+    // 历史缺口：此前只过滤 ui/ 前缀，src/cli.ts（已删除）在 src/ 根不受约束，于是长期直连 config.ts。
+    const presentation = files.filter((f) => f.rel.startsWith('ui/')).map((f) => f.rel);
     const offenders = presentation.filter((rel) =>
       importsOf(textOf(rel)).some(
         (s) =>

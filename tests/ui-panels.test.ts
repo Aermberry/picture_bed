@@ -177,7 +177,9 @@ describe('ui F19–F22', () => {
     expect(html).not.toContain('watch（F22）');
     expect(html).not.toContain('上传偏好');
     expect(html).not.toContain('自检 doctor');
-    expect(html).toContain('外链调用');
-    expect(html).toContain('fileGrid');
+    // F25：管理视图被统计视图替换（2026-11-09）
+    expect(html).not.toContain('外链调用');
+    expect(html).not.toContain('fileGrid');
+    expect(html).toContain('view-stats');
   });
 });
