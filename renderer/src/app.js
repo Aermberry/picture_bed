@@ -4,7 +4,7 @@ import { initTheme } from "./features/theme.js";
 import { initLogo } from "./features/logo.js";
 import { refreshHealth } from "./features/health.js";
 import { initGallery, loadGallery } from "./features/gallery.js";
-import { initManage, refreshManage } from "./features/manage.js";
+import { initStats, renderStats } from "./features/stats.js";
 import { initSettings, loadConfigForm } from "./features/settings.js";
 import { initDirPicker } from "./features/dir-picker.js";
 import { initBranchPicker } from "./features/branch-picker.js";
@@ -28,12 +28,12 @@ export function switchView(v) {
     v = "upload";
   }
   qsAll(".nav-item").forEach((b) => b.classList.toggle("active", b.dataset.view === v));
-  ["upload", "manage", "gallery", "settings", "doc"].forEach((k) => {
+  ["upload", "stats", "gallery", "settings", "doc"].forEach((k) => {
     $("view-" + k).style.display = k === v ? "" : "none";
   });
   $("pageTitle").textContent = titles[v][0];
   $("pageCrumb").textContent = titles[v][1];
-  if (v === "manage") refreshManage();
+  if (v === "stats") renderStats();
   if (v === "gallery") loadGallery();
   if (v === "settings") loadConfigForm();
 }
@@ -51,7 +51,7 @@ export function bootstrap() {
   initLogo();
   bindNav();
   initGallery();
-  initManage();
+  initStats();
   initSettings();
   initDirPicker();
   initBranchPicker();
