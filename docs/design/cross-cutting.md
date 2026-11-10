@@ -12,12 +12,12 @@
 | ImageRef | 文档内一条可替换的 URL 引用（含偏移） |
 | RemoteImage | 上传后的公开 URL 与远端路径 |
 | Manifest | local/raw/sha/url 映射（无 secret） |
-| Agent 模式 | `--json` + 非 TTY + 退出码契约 |
-| Web 控制台 | 本机 HTTP UI（F16–F22）；写操作需 `confirm` |
+| Agent 模式 | ~~`--json` + 非 TTY + 退出码契约~~（2026-11-10 随 CLI 移除；信封语义由 Web API 承载） |
+| Web 控制台 | 本机 HTTP UI（F16–F25，Electron 内嵌）；写操作需 `confirm` |
 | 工作集 | UI 会话内选中的文档/根（经拖拽或路径解析到真实 FS） |
-| app 共享层 | CLI 与 Web 共用的应用编排实现（`src/app/`）：collect/plan/sync/revert/doctor/config/runs；见 [`design/module-app.md`](module-app.md) |
+| app 共享层 | 应用编排唯一实现（`src/app/`）：collect/plan/sync/revert/doctor/config/runs；见 [`design/module-app.md`](module-app.md) |
 
-## 1. 退出码（全局）
+## 1. 退出码（全局；2026-11-10 起为内部语义，经 HTTP 状态码映射暴露）
 
 | Code | 含义 | 典型 |
 |------|------|------|
@@ -28,7 +28,7 @@
 | 4 | 本地文件 | 缺失、越界 |
 | 5 | 远端 API | 4xx/5xx、限流 |
 | 6 | 部分成功 | 部分文档失败 |
-| 7 | 需要确认 | 无 `--yes` 且将写文件；Web 写操作缺 `confirm` |
+| 7 | 需要确认 | Web 写操作缺 `confirm`（`--yes` 随 CLI 移除） |
 
 ## 2. JSON 信封
 
@@ -49,7 +49,7 @@ Web API 使用**同一信封**（`command` 为 `api.*`）；HTTP 状态码由 ap
 
 ## 3. 密钥纪律
 
-- 名称：`PICBED_GITHUB_TOKEN` / `GITHUB_TOKEN`；本机凭据 `~/.picbed/credentials.json`（由 Web 设置页 `POST /api/auth/token` 写入；CLI 无 `login` 命令）；或复用 `gh auth token`（无 OAuth Client Secret）。  
+- 名称：`PICBED_GITHUB_TOKEN` / `GITHUB_TOKEN`；本机凭据 `~/.picbed/credentials.json`（由设置页 `POST /api/auth/token` 写入）；或复用 `gh auth token`（无 OAuth Client Secret）。  
 - 范围：仅图床仓库 Contents RW（scope `repo` 或 `public_repo`）。  
 - 禁止：写入 git 跟踪文件、manifest、backup、runs、日志、JSON data。  
 - 展示：掩码 `ghp_****` 或 `****`；Web **无**「显示原文」。  
@@ -68,10 +68,10 @@ Web API 使用**同一信封**（`command` 为 `api.*`）；HTTP 状态码由 ap
 
 | 层 | 对齐 F |
 |----|--------|
-| 应用层（app）：collect/plan/sync/revert/doctor/config（CLI 与 Web 共用实现，含 RunRecord / 错误码映射） | F1 F2 F6–F9 F18 F20 F21 |
+| 应用层（app）：collect/plan/sync/revert/doctor/config（含 RunRecord / 错误码映射） | F1 F2 F6–F9 F18 F20 F21 |
 | 单测：extract/resolve/rewrite | F4 F5 F8 |
 | 契约测：HostAdapter mock | F7 |
-| CLI 集成：退出码 + JSON | F10 |
+| ~~CLI 集成：退出码 + JSON~~ | F10（removed 2026-11-10） |
 | e2e：fixture 目录 sync | F6–F9 |
 | Web API：信封 + confirm + 掩码 + health | F16 F18 F20 |
 | Web 工作台：拖拽解析 / plan 分组 / dry-run 无副作用 | F17 |
@@ -80,10 +80,10 @@ Web API 使用**同一信封**（`command` 为 `api.*`）；HTTP 状态码由 ap
 
 规则：**每次改动须有相关测试/验证，全部通过才交付**；无测试框架时必须写明实际验证命令与结果。
 
-## 6. 命令一览（契约索引）
+## 6. 命令一览（契约索引；CLI 面 2026-11-10 已移除）
 
-`init` `doctor` `scan` `plan` `sync` `upload` `revert` `watch` `config` `ui` `commands`  
-全局旗标：`--json --quiet --verbose --config --cwd --yes --dry-run`  
-Web API：`/api/health|config|doctor|scan|plan|sync|manifest|revert|runs|watch/*`（见 module-webui）
+~~`init` `doctor` `scan` `plan` `sync` `upload` `revert` `watch` `config` `ui` `commands`~~  
+~~全局旗标：`--json --quiet --verbose --config --cwd --yes --dry-run`~~  
+Web API：`/api/health|config|doctor|scan|plan|sync|manifest|revert|runs|watch/*|stats|gallery|branches`（见 module-webui）
 
 *与 module / features 冲突时：定义看总表，实现细节看 module，全局形态看本文。*

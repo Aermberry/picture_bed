@@ -1,26 +1,26 @@
 # app 应用编排层详细设计（共享）
 
 > 性质：**跨限界上下文的共享应用层**，不是新的限界上下文，**不新增 F、不改任何 AC**。
-> 服务对象：CLI 呈现（cliops 命令路径 F1–F15）与 Web/桌面呈现（webui/desktop F16–F24）。
+> 服务对象：Web/桌面呈现（webui/desktop F16–F25）。（2026-11-10：CLI 呈现已随 CLI/MCP 宿主移除，历史「CLI 呈现（cliops 命令路径 F1–F15）」仅作追溯。）
 > 架构见 [`../architecture.md`](../architecture.md)；定义见 [`../features-index.md`](../features-index.md)；全局契约见 [`cross-cutting.md`](cross-cutting.md)。
-> 缘起：2026-09-27 架构评审发现 `src/cli.ts` 与 `src/ui/{ops,doctor,revert}.ts` 双份实现 scan/plan/sync/revert/config 编排，并已发生漂移（doctor 对 `local` host 误要求 token；plan item 字段不一致；`url.style` 校验只在 Web 侧；RunRecord 只由 Web 写）。
+> 缘起：2026-09-27 架构评审发现 `src/cli.ts`（已删除）与 `src/ui/{ops,doctor,revert}.ts` 双份实现 scan/plan/sync/revert/config 编排，并已发生漂移（doctor 对 `local` host 误要求 token；plan item 字段不一致；`url.style` 校验只在 Web 侧；RunRecord 只由 Web 写）。
 
 ## 目的
 
-把「一次 scan / plan / sync / revert / doctor / config 的完整编排」收敛为**唯一实现**，两个呈现层只做协议适配：
+把「一次 scan / plan / sync / revert / doctor / config 的完整编排」收敛为**唯一实现**，呈现层只做协议适配：
 
-- CLI：argv → 应用服务 → JSON 信封 / 退出码 / 人类可读输出
 - Web：HTTP 请求 → 应用服务 → JSON 信封 / HTTP 状态码
+- （历史，已移除）CLI：argv → 应用服务 → JSON 信封 / 退出码 / 人类可读输出
 
 ## 边界原则
 
-- **零呈现依赖**：不 import `node:http`、不 import `commander`、不读写 `process.argv`、不渲染 HTML。
+- **零呈现依赖**：不 import `node:http`、不读写 `process.argv`、不渲染 HTML。（`commander` 已随 CLI 移除。）
 - **不重写域规则**：抽取/上传/回写/去重仍以 ingest/transfer/rewrite 为唯一权威；app 只编排调用。
-- **错误单一来源**：编排失败统一为 `AppError { code, exitCode, path?, hint? }`；CLI 退出码与 Web HTTP 状态码由同一张表派生（见 §错误映射）。
+- **错误单一来源**：编排失败统一为 `AppError { code, exitCode, path?, hint? }`；Web HTTP 状态码由此表派生（见 §错误映射）。
 - **Token 不落盘**：app 只经注入的 `getToken()` 取 token；RunRecord / warnings / errors 不含 secret。
-- **确认门属呈现层**：CLI `--yes`、HTTP `confirm` 由呈现层判定；app 暴露 `runSync` / `runRevert` 等**无确认参数**的写服务。
-- **呈现层只经 façade 取配置与鉴权（2026-10-02 补，2026-10-27 补齐 `cli.ts`）**：`app/settings.ts#resolvedConfig` 与 `app/auth.ts`（`currentToken` / `saveUserToken` / `clearSavedToken` / `probeGh` / `startGhLogin`）。CLI / WebUI **不得**直接 import `config.ts` / `user-token.ts` / `infra/gh-cli.ts`——此前 `ui/server.ts` 三处直连，绕过了统一错误码与日志脱敏；`src/cli.ts` 亦曾长期直连 `config.ts`（守卫只过滤 `ui/` 前缀而漏网），现已收敛并由 `tests/layering.test.ts` 同时覆盖 `cli.ts` 与 `ui/`。`picbed init` 所需的 `CONFIG_NAME` / `configTemplate` 由 `app/settings.ts` 转发导出，不构成直连例外。
-- **写操作一律有 app 入口（2026-10-02 补）**：`picbed upload` 的上传编排下沉到 `app/upload.ts#uploadSingleAsset`；CLI 只做参数校验与 `AppError → 退出码`。呈现层不得直接 `createHostAdapter` / `uploadAsset`。防回归见 `tests/layering.test.ts`。
+- **确认门属呈现层**：HTTP `confirm` 由呈现层判定；app 暴露 `runSync` / `runRevert` 等**无确认参数**的写服务。
+- **呈现层只经 façade 取配置与鉴权（2026-10-02 补）**：`app/settings.ts#resolvedConfig` 与 `app/auth.ts`（`currentToken` / `saveUserToken` / `clearSavedToken` / `probeGh` / `startGhLogin`）。WebUI **不得**直接 import `config.ts` / `user-token.ts` / `infra/gh-cli.ts`——此前 `ui/server.ts` 三处直连，绕过了统一错误码与日志脱敏，现已收敛并由 `tests/layering.test.ts` 覆盖 `ui/`。已删除的 `src/cli.ts` 亦曾长期直连 `config.ts`（守卫只过滤 `ui/` 前缀而漏网，历史教训保留）。
+- **写操作一律有 app 入口（2026-10-02 补）**：上传编排下沉到 `app/upload.ts#uploadSingleAsset`。呈现层不得直接 `createHostAdapter` / `uploadAsset`。防回归见 `tests/layering.test.ts`。
 
 ## 模块文件夹结构（实现落点）
 
@@ -178,7 +178,7 @@ HTTP 特判顺序见 `src/app/errors.ts#httpStatusForCode`（`E_TOKEN`/`E_AUTH` 
 
 ## 不变式
 
-1. app 层不 import `node:http`、`commander`，不读写 `process.argv`。
+1. app 层不 import `node:http`，不读写 `process.argv`。
 2. 每次 run 最多一次 manifest 保存；图片字节只读。
 3. RunRecord / warnings / errors 不含 token 明文。
 4. 呈现层不得重写 action 分类、退出码或确认门语义。
@@ -188,7 +188,7 @@ HTTP 特判顺序见 `src/app/errors.ts#httpStatusForCode`（`E_TOKEN`/`E_AUTH` 
 | 测试 | 对齐 |
 |------|------|
 | tests/ui.test.ts F18、tests/ui-panels.test.ts F19–F22 | 应用服务 + HTTP 信封 |
-| tests/mcp.test.ts | CLI `--json`（经 app 层）退出码 0 |
+| ~~tests/mcp.test.ts~~ | 已随 MCP 宿主移除（2026-11-10） |
 | 契约断言：plan item 含 `localPath`、revert `errorCode` | 新增 / 更新 |
 | 设计文档校验 | `npm run validate:design`（`scripts/validate.mjs --profile=design`）要求本文件存在 |
 
@@ -241,7 +241,7 @@ classDiagram
 ## 功能点映射
 
 本层不新增 F、不改 AC；按「实现归属（应用）」被下列功能点共用：
-F1/F2/F10/F12（CLI 路径）、F16–F22（Web 路径）、F24（桌面壳复用 Web 服务）。
+F16–F25（Web 路径）、F24（桌面壳复用 Web 服务）。F1/F2/F10/F12（CLI 路径）已随 CLI 移除（2026-11-10），服务实现保留。
 各 F 的 AC 与模块归属仍以 [`../features-index.md`](../features-index.md) 为准（cliops / webui）。
 
 *app 只负责「把域能力编成一次可复现的运行」；域规则看 ingest/transfer/rewrite，全局形态看 cross-cutting。*
