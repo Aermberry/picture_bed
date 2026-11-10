@@ -7,16 +7,14 @@
 
 ## 目的
 
-desktop 是**桌面应用壳**限界上下文：在保留 npm CLI 本地开发/测试/Agent 通道的同时，为终端用户提供**下载安装即用**的原生窗口应用，并提供接近 Flutter Hot Reload 的本地调试体验。
+desktop 是**桌面应用壳**限界上下文：为终端用户提供**下载安装即用**的原生窗口应用，并提供接近 Flutter Hot Reload 的本地调试体验。（2026-11-10：npm CLI / MCP / `picbed ui` 通道已移除，desktop 为唯一宿主。）
 
 边界原则：
 
 - **不重写** scan/plan/sync/revert/config/doctor/watch 业务规则；桌面端复用同一 `dist/` 核心与 WebUI 服务（`createUiServer`）。
-- **双形态并存**：
-  - **npm 形态**（不变）：`picbed` / `picbed-mcp` / `picbed ui`（浏览器打开）。
-  - **桌面形态**：Electron 壳加载同一 Web 控制台，配系统对话框与安装包。
+- **单形态**（2026-11-10 收敛，原「双形态并存」的 npm 侧已移除）：Electron 壳加载 Web 控制台，配系统对话框与安装包；开发调试走 `npm run desktop:dev`。
 - **安全模型继承 WebUI**：服务仍只绑 `127.0.0.1`；token 不进渲染进程、不进页面；写操作仍走 `confirm` 门。
-- **Electron 依赖不进 npm 包**：`electron` / `electron-builder` / `electron-vite` / `vite` 仅 devDependencies；`npm pack` 的 `files` 不含 `desktop/`、`renderer/`、`out/`、`release/`。
+- **Electron 依赖不进发布面**：`electron` / `electron-builder` / `electron-vite` / `vite` 仅 devDependencies。
 - 首发平台：**Windows（NSIS `.exe` 安装包）**；macOS/Linux 后续按同一构建矩阵扩展。
 
 ## 目录结构（与实现一致）
@@ -30,7 +28,7 @@ renderer/                 # UI 单源（Vite root）
     app.js                # 装配：导航 / 视图切换 / 各 feature init
     lib/                  # dom、api（唯一 fetch 出口 + X-Picbed-UI）、files、titles
     components/           # toast、modal（confirm / 外链详情）、selectable-grid
-    features/             # theme、logo、health、drop、photo-wall、gallery、manage、
+    features/             # theme、logo、health、drop、photo-wall、gallery、stats、
                           # settings、dir-picker、gh-login（各 <330 行）
 desktop/                  # Electron 壳
   main.mjs                # 主进程：createUiServer + 窗口 + IPC + 生命周期
@@ -38,7 +36,7 @@ desktop/                  # Electron 壳
   icon.png
 electron.vite.config.mjs  # main / preload / renderer 三段
 out/                      # electron-vite build 产物（gitignore）
-src/                      # CLI + app 核心 → dist/
+src/                      # app 核心 + ui 服务器 → dist/
 scripts/
   desktop-dev.mjs         # 开发 supervisor（tsc -w + electron-vite dev）
   build-desktop.mjs       # NSIS 打包（electron-builder API）
@@ -54,12 +52,11 @@ electron-builder.yml
 |------|------------|-----|--------|
 | `npm run desktop:dev` | Vite dev server（`ELECTRON_RENDERER_URL`） | 主进程 `createUiServer`；Vite `proxy /api` → `127.0.0.1:4780` | **Vite HMR** |
 | 桌面安装包 | `renderer/`（打包进 asar，由 `createUiServer` 静态下发） | 同上，同源 | 无 |
-| `picbed ui` 浏览器 | `renderer/` 静态下发 | 同上，同源 | 无（刷新即可） |
 
 契约：
 
 1. `/api/*` 路径、信封、confirm 门、token 掩码 **零变更**。
-2. `window.picbedNative` preload 桥不变；无桥时浏览器形态不报错。
+2. `window.picbedNative` preload 桥不变；无桥时 SPA 不报错（渐进增强）。
 3. 打包版不得加载 Vite dev URL（`app.isPackaged` 时强制 `uiHandle.url`）。
 4. UI 单源是 `renderer/`；`src/ui/spa` 只读文件转发，不是设计源。
 
@@ -142,7 +139,7 @@ scripts/desktop-dev.mjs（supervisor）
 
 ### Electron 入口契约（`desktop/main.mjs`）
 
-1. **入口文件**：`desktop/main.mjs`（dev 由 `desktop-dev.mjs` 传 `ELECTRON_ENTRY`；打包后由 `electron-builder.yml` 的 `extraMetadata.main` 注入。`package.json` 本身**没有** `main` 字段，原因见下文 §npm 包导出面）。不用 rollup 打包后的 `out/main`（Electron 33 ESM/CJS 互操作不稳）。
+1. **入口文件**：`desktop/main.mjs`（dev 由 `desktop-dev.mjs` 传 `ELECTRON_ENTRY`；打包后由 `electron-builder.yml` 的 `extraMetadata.main` 注入。`package.json` 本身**没有** `main` 字段）。不用 rollup 打包后的 `out/main`（Electron 33 ESM/CJS 互操作不稳）。
 2. **`electron` 模块**：`createRequire` 加载；若返回字符串（`ELECTRON_RUN_AS_NODE`）→ 清 env 后 re-exec 真 Electron。
 3. 打包版（`app.isPackaged`）**不**注册任何开发热更新监听、**不**加载 Vite URL。
 
@@ -150,8 +147,9 @@ scripts/desktop-dev.mjs（supervisor）
 
 | 通道 | 产物 | 命令 | 消费者 |
 |------|------|------|--------|
-| npm / Release tarball | `picbed.tgz` | `npm pack` | 开发者、CLI/Agent、`picbed ui` |
 | 桌面安装包 | `picbed-setup-<ver>.exe` + 稳定名 `picbed-setup.exe` | `npm run desktop:dist` | 终端用户 |
+
+> npm / Release tarball 通道已随 CLI/MCP 移除（2026-11-10）；`npm pack` 仅作为包面审计（`validate:pack`）保留。
 
 `desktop:dist` = `tsc` + `electron-vite build` + electron-builder；`desktop:bundle` = 只做前两步（不出安装包，命名据此澄清）。`desktop:dev` = `tsc` 一次 + supervisor（`tsc -w` + `electron-vite dev`），supervisor 内**不再**重复全量编译。
 
@@ -165,29 +163,27 @@ electron-builder 要点：
 - NSIS：`oneClick: true`，`perMachine: false`（用户级，免管理员）
 - 无签名证书阶段：允许未签名；SmartScreen 提示属预期
 
-### npm 包导出面（与桌面注入分离）
+### 发布面（npm 发布已移除，守卫保留）
 
-npm 包的公共面 = 两个 `bin`（`picbed` / `picbed-mcp`）+ `package.json`：
+npm 发布已随 CLI/MCP 移除（2026-11-10）；`package.json` 的 `files` / `exports` 仅作为包面审计约束保留：
 
 - **无 `main` / `module` / `types`**：Electron 入口只经 `extraMetadata.main` 注入**打包后的桌面应用**，
-  dev 由 `desktop-dev.mjs` 显式传 `--entry`。npm 包声明 `"main": "desktop/main.mjs"`
-  会让 npm 把该文件硬塞进 tarball（实测 208 → 209 文件），且 `require('picbed')` 会去跑 Electron 主进程。
+  dev 由 `desktop-dev.mjs` 显式传 `--entry`。声明 `"main"` 会让 npm 把该文件硬塞进 tarball。
 - **`exports`: 仅 `{ "./package.json": "./package.json" }`**：没有库入口，`picbed/dist/**` 深导入一律
   `ERR_PACKAGE_PATH_NOT_EXPORTED`。
-- `files`: `bin`、`dist`、`README.md`。
-- 守卫：`tests/package-surface.test.ts`（manifest 级：files / bin / 入口 / exports 不得越界、禁通配）+ `scripts/validate.mjs --profile=pack`（真实 `npm pack --dry-run --json` 审计 tarball，需先 `npm run build`；CI 的 `validate:ci` 已含）。
+- `files`: `dist`、`README.md`（`bin` 已随 CLI 移除）。
+- 守卫：`tests/package-surface.test.ts`（manifest 级：files / 入口 / exports 不得越界、禁通配）+ `scripts/validate.mjs --profile=pack`（真实 `npm pack --dry-run --json` 审计 tarball，需先 `npm run build`）。
 
 ## F24 桌面应用壳与安装包
 
 - 输入：桌面应用启动（开始菜单 / 快捷方式 / `.exe`）。
 - 规则：
-  1. 启动后进入**完整 Web 控制台**（F16–F23 四视图），无需打开系统浏览器。
+  1. 启动后进入**完整 Web 控制台**（F16–F25 视图），无需打开系统浏览器。
   2. UI 服务绑定 `127.0.0.1`；关闭窗口时释放端口并退出 watch。
   3. **原生目录选择**：提供「浏览…」调用系统对话框（策略 A 不变）。
   4. **窗口状态记忆**：尺寸/位置写 `app.getPath('userData')`。
   5. **Token 纪律不变**：渲染进程无法读取 token 明文。
-  6. **npm 包不含 Electron/desktop/renderer**。
-  7. 安装包可在无 Node.js 的 Windows 上运行。
+  6. 安装包可在无 Node.js 的 Windows 上运行。
 - 失败：
   - UI 服务起不来 → 窗口错误态（端口/依赖），不白屏。
   - 对话框取消 → 返回 `null`/空数组，不改变当前 root。
@@ -195,13 +191,13 @@ npm 包的公共面 = 两个 `bin`（`picbed` / `picbed-mcp`）+ `package.json`�
 
 ## 与 webui 的协作
 
-| 能力 | webui（F16–F23） | desktop（F24） |
+| 能力 | webui（F16–F25） | desktop（F24） |
 |------|------------------|----------------|
 | HTTP API / confirm / 掩码 | 实现 | 复用，不改契约 |
 | UI 渲染层 | `renderer/` 单源 | 同一 `renderer/`（Vite HMR / 静态下发） |
 | 路径获取 | 拖拽 + 手输（策略 A） | 增加原生目录对话框（可选桥） |
-| 进程宿主 | `picbed ui`（Node） | Electron main |
-| 分发 | npm / tarball | Windows 安装包 |
+| 进程宿主 | Electron main（内嵌同一 Node 进程） | Electron main |
+| 分发 | 随桌面包 | Windows 安装包 |
 
 ## 失败语义
 
@@ -210,7 +206,7 @@ npm 包的公共面 = 两个 `bin`（`picbed` / `picbed-mcp`）+ `package.json`�
 | 端口占用（dev 默认 4780） | 报错并退出/窗口错误态；可改 `PICBED_UI_PORT` |
 | `dist/` 或 `renderer/` 未就绪 | `desktop:dev` / `desktop:dist` 报错退出，不静默空窗 |
 | 对话框取消 | 无路径变更 |
-| 无 `picbed.toml` | 与 CLI/`picbed ui` 一致：引导 `init` 或设置页 |
+| 无 `picbed.toml` | 引导配置模板或设置页 |
 | SmartScreen 拦截未签名安装包 | 文档说明 |
 | `ELECTRON_RUN_AS_NODE` 泄漏 | 主进程 re-exec 真 Electron，不崩 |
 

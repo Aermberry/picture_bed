@@ -1,6 +1,6 @@
 # webui 模块详细设计
 
-> 归属功能点：F16 本地 Web 控制台服务、F17 目录/拖拽与计划工作台、F18 一键同步、F19 回滚面板、F20 配置与自检面板、F21 审计与报告、F22 监听控制台、F23 控制台壳层与视觉重设计。
+> 归属功能点：F16 本地 Web 控制台服务、F17 目录/拖拽与计划工作台、F18 一键同步、F19 回滚面板、F20 配置与自检面板、F21 审计与报告、F22 监听控制台、F23 控制台壳层与视觉重设计、F25 使用统计视图。
 > 架构见 [`../architecture.md`](../architecture.md)；定义见 [`../features-index.md`](../features-index.md)；全局契约见 [`cross-cutting.md`](cross-cutting.md)。
 > 壳层布局与主题令牌见 [`wireframes/ui-shell.md`](wireframes/ui-shell.md)（F23 视格权威）。
 > **UI 渲染层单源 `renderer/`（electron-vite）**：目录与热更新见 [`module-desktop.md`](module-desktop.md#渲染层electron-vite当前权威)。历史「SPA 出模板串」见 [`module-webui-spa-split.md`](module-webui-spa-split.md)（已被 `renderer/` 取代）。
@@ -52,7 +52,7 @@ src/ui/
 │  └─ errors.ts         #   未捕获异常 → HTTP 状态码（由 app/errors.ts 派生）
 └─ routes/              # 业务路由（按资源分组，每个 <250 行）
    ├─ health.ts session.ts preview.ts plan.ts sync.ts revert.ts
-   ├─ gallery.ts branches.ts auth.ts config.ts system.ts runs.ts watch.ts
+   ├─ gallery.ts stats.ts branches.ts auth.ts config.ts system.ts runs.ts watch.ts
 ```
 
 不变量：`http/` 不 import `routes/`，`routes/` 只经 `UiRouteContext` 拿依赖；
@@ -88,7 +88,8 @@ WebUiFacade
   # POST /api/watch/start     { mode?, debounceMs?, confirm? }  # root 取自已绑定 root；auto 模式须 confirm: true
   # POST /api/watch/stop
   # GET  /api/events          # SSE/长轮询：watch 与 sync 进度（实现可选）
-  # GET  /api/gallery         # ?path= 列仓库目录/文件（F17 管理视图）
+  # GET  /api/gallery         # ?path= 列仓库目录/文件（图库视图 + 目录选择浮层共用）
+  # GET  /api/stats           # 使用统计聚合（F25 统计视图；manifest 主源 + runs 回退 + 远端补充）
   # GET  /api/branches        # 列仓库分支（F20 设置页 Branch 下拉）
   # POST /api/repo/mkdir      # { path, confirm: true } 新建远程目录（.gitkeep 占位）· F20
   # POST /api/auth/token      # { token?, clear? , confirm: true } 粘贴 PAT → 本机凭据（~/.picbed/credentials.json，不写 picbed.toml）
@@ -136,16 +137,17 @@ idle（拖放提示）
 - **拖入文档「有图但传不了」必须弹警告（2026-10-26）**：拖入的文档若含**无法上传本地资产**的引用，扫描后**自动弹出模态警告**（`confirmAsync`），不得静默。触发条件：本次拖入文档的 `/api/plan` 结果中存在 `action === 'blocked'` 的项。典型场景 = **无法解码为非图片的内嵌数据**（如 `data:text/plain,…`，`E_SKIP_REF`）——用户以为有图可传，实际没有对应图片资源。注意：`data:image/*` 自 2026-10-26 起由 `src/resolve.ts` 解码为内存 Asset 直接上传，不再进 blocked。模态内容：标题说明「N 处引用无法上传」，逐条列出**原因人话化**（`E_SKIP_REF` → 「内嵌数据图（data: URI），不是本地文件」、`E_EXT` → 「扩展名不在图片白名单」、`E_ASSET_MISSING` → 「图片文件不存在」、`E_PATH_ESCAPE`/`E_ABSOLUTE` → 「路径在扫描根之外」、其余回落到 `code: reason`）+ 涉及**文档名**。**只覆盖本次拖入的文档**（不扩大报全仓 blocked）。纯图片拖入（无文档）不触发。`/api/plan` 已输出 blocked 项的 `code`（`publicPlanItem` 直接投影），供前端分类；`raw` 截断显示（data: URI 可达数百 KB，禁止整串进 DOM）。
 - 「上传」= 原 sync（`confirm: true`），作用于**会话工作集**（累计拖入的文档及其图片引用；仅拖入图片时上传这些图片、不改写无关文档）；「重置」丢弃**全部**扫描结果，不写文档、不传图床。
 
-静态 SPA 视图（hash 或 JS 切换）：
+静态 SPA 视图（JS display 切换，无 hash 路由）：
 
 ```
-#/upload    # 默认：文件放置 DropZone + root + 工作集 + plan/sync
-#/manage    # 统计 + manifest 网格 + 回滚 + 审计 + 监听
-#/settings  # 配置 + doctor + 偏好 Toggle
-#/doc       # 设计规范（令牌/Logo/图标）
+upload     # 默认：文件放置 DropZone + 照片墙（scan/plan/sync 经 /api/plan、/api/sync）
+stats      # 使用统计（F25，2026-11-09 替换原管理视图）
+gallery    # 图库：浏览仓库文件夹与图片（2026-09-30 加入）
+settings   # 配置 + doctor + 偏好 Toggle
+doc        # 设计规范（令牌/Logo/图标；仅本地调试可见）
 ```
 
-- 侧栏固定四文案：**上传 / 管理 / 设置 / 规范**（用户 UI 方案；缺一不可达）。
+- 侧栏固定文案：**上传 / 统计 / 图库 / 设置 / 规范**（「规范」仅本地调试显示，安装版隐藏；缺一不可达；F25 起第二视图为「统计」）。
 - 主题「晨雾蓝 × 落日暖」令牌、组件、Logo 动效以 [`wireframes/ui-shell.md`](wireframes/ui-shell.md) + 用户《设计交付规范》为准。
 - 壳层组件只消费既有 `/api/*`；禁止为布局新造与信封冲突的私有字段。
 
@@ -331,12 +333,42 @@ sequenceDiagram
 - 停止：`watch/stop` 或 `ui` 服务退出时级联停止。
 - 失败：监听失败 → 错误可见；不引入系统服务/提权。
 
+## F25 使用统计视图
+
+- **范围**：呈现层新增第二视图「统计」，**替换**原「管理」视图（manifest 网格 / 搜索 / 排序 / 批量复制外链 / 旧四统计卡移除）；API 契约、confirm 门、token 纪律不变。CLI 侧 `/api/manifest`、`/api/runs` 保留。
+- **端点**：`GET /api/stats` → 信封 `command: 'api.stats'`，data 为 `StatsView`（无 token 出现；远端失败不 500）：
+
+```json
+{
+  "generatedAt": "ISO",
+  "totals": { "count": 0 },
+  "today": { "date": "YYYY-MM-DD", "count": 0 },
+  "last7": { "count": 0, "prev": 0, "delta": 0, "deltaPct": null },
+  "streak": { "current": 0, "longest": 0 },
+  "busiestDay": { "date": null, "count": 0 },
+  "days":  [ { "date": "YYYY-MM-DD", "count": 0 } ],
+  "hours": [ { "hour": 0, "count": 0 } ],
+  "sources": { "manifest": 0, "runs": 0, "remote": null, "remoteAvailable": false },
+  "warnings": []
+}
+```
+
+`days` 恒为 365 条（旧→今）、`hours` 恒为 24 条（固定长度，前端免判长度渲染空网格）；`last7.deltaPct` 在 `prev===0` 时为 `null`（无对比基线）。
+
+- **数据源映射（聚合在 app 层 `src/app/stats.ts` `buildStatsView({cwd, cfg, getToken})`，token 注入不导入）**：
+  1. **manifest 主源**：`loadManifest(cwd)` 每条目 = 一次上传事件，时间戳取 `updatedAt`；仅扩展名 ∈ `IMAGE_EXT`（`src/lib/img.ts`）的条目计入（**只统计图像**）。manifest 损坏 → 0 事件 + warning（`listManifestView` 宽容模式，不抛错）。
+  2. **runs 回退**：仅当 manifest 无图像事件时读 `listRuns(cwd, 200)`，按 `counts.uploaded` 计入 `startedAt` 时刻事件（run 记录无每图时间，精度低于 manifest）。
+  3. **远端补充**（owner/repo/token 齐备时尝试；仿 `routes/gallery.ts` fetch 头）：`GET /git/trees/{branch}?recursive=1` 过滤 `github.dir` 下图片扩展名 → `sources.remote` 总数；`GET /commits?path={dir}&per_page=100` 按 `commit.author.date` 在本地无事件时填充时间线（>100 截断加 warning；commit 数 ≠ 图片数，前端 hint 说明）。任何远端失败 → warning + `remoteAvailable:false`，本地统计照常返回。
+- **聚合规则**：日期桶用**本地时区** `YYYY-MM-DD`（有意区别于旧 manage.js 的 UTC 月计数——用户感知统计）；`last7` = [-6..0] 求和、prev = [-13..-7]；`streak.current` 从今天回溯连续 count>0（今天为 0 则从昨天起算）；`streak.longest` 为窗口内最长；`busiestDay` 并列取最早。
+- **UI 块**（`renderer/src/features/stats.js` + `stats-charts.js`，零依赖 SVG/DOM；2026-11-11 重设计）：toolbar（来源 hint + 刷新）；总计 hero 卡（48px 大数字 + 副行「过去一年累计上传 N 张图像」/「暂无上传记录」——原单段占比条 + 图例已删，单系列无需图例、满宽条零信息量）；4 KPI 卡（今天 / 过去7天+环比 ▲绿▼红 / 连续天数（副行最长 N）/ 最忙的一天）；年历热力图卡（53 周列 × 7 行 SVG，**宽度自适应**——cell 在 9–15px 间随容器伸缩、窄容器横向滚动，`heat-lv0..4` 5 档顺序色阶 lv0=`--c-bg-2`，lv1–4=`--c-primary` @ .25/.45/.7/1 随三套主题令牌联动；固定阈值 0 / 1 / 2–3 / 4–7 / 8+；卡头带「少 → 多」5 色块比例尺图例；月标签防挤压——与上一标签视距 <22px 丢弃；左侧行标签 + `<title>` tooltip）；时段卡（24 柱 SVG，y 轴刻度在**左**（0 省略）、柱顶 4px 圆角、基线直角，柱窄于 24px 时叠加整槽透明热区保命中区 ≥24px，峰桶标注「HH:00–HH+1:00 最忙」，x 刻度 0/6/12/18，hover 提亮 + tooltip，单系列无图例）。
+- **降级态**：未连远端 → hint「未连接远端（需配置 GitHub 与 token）」；全零 → 「暂无上传记录」；`/api/stats` 聚合异常兜底为 200 + `emptyStatsView` + warning（**无 500 路径**）。
+
 ## F23 Web 控制台壳层与视觉重设计
 
 - **范围**：仅呈现层（布局、导航、主题、文案层级）；**不改** API、JSON 信封、`confirm` 门、token 纪律、拖拽策略 A。
 - **壳层**：72px 侧栏 + 56px 顶栏 + 可滚动 Content；桌面 >720px，≤720px 窄屏降级（侧栏 56px、表单单列）——详见 [`wireframes/ui-shell.md`](wireframes/ui-shell.md) §6。
-- **导航**：四视图「上传 / 管理 / 设置 / 规范」。默认上传/文件放置。
-- **信息重排**：F17/F18 上传视图；F19/F21/F22 管理视图；F20 设置视图；规范页只读设计系统。
+- **导航**：五视图「上传 / 统计 / 图库 / 设置 / 规范（仅调试）」。默认上传/文件放置。（2026-11-09 F25：第二视图「管理」改为「统计」；2026-09-30 图库视图加入。）
+- **信息重排**：F17/F18 上传视图；F25 统计视图；F20 设置视图；规范页只读设计系统。
 - **主题**：晨雾蓝 × 落日暖（`#4E86AD` / `#E39A6B` / `#F3F7FA`…）；禁止各面板私自改色；Toggle 36×20 且 `flex-shrink:0`。
 - **Logo**：44×44 squircle，idle/scanning/uploading 三态；规范页可切 V1–V3。
 - **失败**：壳层加载 API 失败时主区可见错误条，不白屏；静态资源缺失仍走 F16 失败语义。
@@ -398,7 +430,7 @@ classDiagram
 | `sendAppError` | `sendAppError(send, err, command = 'api.error'): void` | 未捕获异常 → `httpStatusForCode` + 信封（`api.error`） |
 | `checkApiRequest` | `checkApiRequest(req, pathname, hostUrl): GuardRejection \| null` | `/api` 同源 + POST 头 `X-Picbed-UI` + Content-Type + Body 上限（DNS-rebinding 由前置的 `checkHost` 负责） |
 
-路由表（均 `UiRoute` 签名，命中返回 `true`）：`healthRoute`(GET /api/health)、`sessionRoutes`、`authRoutes`(token + gh-login)、`systemRoutes`(doctor/manifest/repo mkdir)、`configRoutes`、`branchRoutes`、`galleryRoutes`、`planRoutes`(scan/plan)、`previewRoute`、`syncRoute`、`revertRoute`、`runsRoutes`、`watchRoutes`。
+路由表（均 `UiRoute` 签名，命中返回 `true`）：`healthRoute`(GET /api/health)、`sessionRoutes`、`authRoutes`(token + gh-login)、`systemRoutes`(doctor/manifest/repo mkdir)、`configRoutes`、`branchRoutes`、`galleryRoutes`、`statsRoutes`(GET /api/stats)、`planRoutes`(scan/plan)、`previewRoute`、`syncRoute`、`revertRoute`、`runsRoutes`、`watchRoutes`。
 
 ### 复杂任务时序图（HTTP `/api/sync` 全链路）
 
@@ -446,5 +478,6 @@ sequenceDiagram
 | [F21](../features-index.md#f21-审计与报告) | §F21 |
 | [F22](../features-index.md#f22-监听控制台) | §F22 |
 | [F23](../features-index.md#f23-web-控制台壳层与视觉重设计) | §F23 · [`wireframes/ui-shell.md`](wireframes/ui-shell.md) |
+| [F25](../features-index.md#f25-使用统计视图) | §F25 |
 
 *规则与数据以本模块为准；验收契约以 features-index AC 为准；视觉与布局以 wireframes/ui-shell.md 为准；业务不变量以 ingest/transfer/rewrite/cliops 为准。*

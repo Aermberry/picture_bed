@@ -3,7 +3,7 @@
 > **新人阅读入口**：先读 [`design-reading-guide.md`](design-reading-guide.md)——文中 **F/P/模块/AC** 等标识的含义与用途，再回本表查具体功能点。
 >
 > 本文件为功能点**索引与归属枢纽**：每节给出优先级、**所属模块**、实现归属（域/CLI）、AC 摘要。
-> **产品定位**：本地 CLI **picbed**——扫描文档内嵌图片 → GitHub 图床上传 → 链接回写；Agent 可驱动。
+> **产品定位**：**picbed** 桌面应用——扫描文档内嵌图片 → GitHub 图床上传 → 链接回写。（2026-11-10：CLI / MCP / npm 发布移除，Electron 桌面为唯一宿主；F10/F14 随之移除，历史 AC 保留标注。）
 > 详细实现设计按 DDD 模块拆分：
 > - **ingest** 模块（F3/F4 扫描抽取、F5 解析去重）→ [`design/module-ingest.md`](design/module-ingest.md)
 > - **transfer** 模块（F6/F7 上传与 URL）→ [`design/module-transfer.md`](design/module-transfer.md)
@@ -11,7 +11,7 @@
 > - **cliops** 模块（F1/F2/F10/F11 配置、doctor、Agent 契约）→ [`design/module-cliops.md`](design/module-cliops.md)
 > - **webui** 模块（F16–F23 本地 Web 控制台，含拖拽工作台与壳层视觉）→ [`design/module-webui.md`](design/module-webui.md)
 > - **desktop** 模块（F24 桌面应用壳与安装包）→ [`design/module-desktop.md`](design/module-desktop.md)
-> - **app** 共享应用编排层（CLI 与 Web 共用 collect/plan/sync/revert/doctor/config/runs，非限界上下文）→ [`design/module-app.md`](design/module-app.md)
+> - **app** 共享应用编排层（collect/plan/sync/revert/doctor/config/runs，非限界上下文）→ [`design/module-app.md`](design/module-app.md)
 > - 横切约定 / 退出码 / JSON → [`design/cross-cutting.md`](design/cross-cutting.md)
 >
 > 模块文档内有「功能点映射」节链回本文件，形成相向链接。
@@ -30,12 +30,12 @@
 | F7 | GitHub 图床上传 | P0 | transfer | Contents API 写入成功；URL 风格正确；同 sha 幂等 |
 | F8 | 文档链接回写 | P0 | rewrite | 仅替换 URL 子串；原子写；默认 backup |
 | F9 | Manifest 与 revert | P1 | rewrite | 映射可审计；revert 还原本地路径；无 token |
-| F10 | Agent 机器接口 | P0 | cliops | `--json` schema 稳定；退出码契约；无 TTY 不阻塞 |
+| F10 | Agent 机器接口 | ~~P0~~ **removed 2026-11-10** | cliops | ~~`--json` schema 稳定；退出码契约；无 TTY 不阻塞~~（随 CLI 宿主移除） |
 | F11 | 单文件上传 | P1 | transfer | upload 子命令输出 URL；与 sync 共用适配器 |
 | F15 | GitHub Token 鉴权 | P0→**done** | cliops | PAT/GITHUB_TOKEN/gh auth；无 OAuth App |
 | F12 | watch 监听 | P3→**done** | cliops | 目录变更触发增量 plan/sync；可退出；不引入常驻特权 |
 | F13 | 多图床适配器 | P3→**done** | transfer | HostAdapter 可替换为非 GitHub 后端且 AC7 语义保持 |
-| F14 | VS Code / MCP 包装 | P3→**done** | cliops | 包装层不复制业务规则，只调用 CLI 契约 |
+| F14 | VS Code / MCP 包装 | ~~P3→done~~ **removed 2026-11-10** | cliops | ~~包装层不复制业务规则，只调用 CLI 契约~~（随 CLI/MCP 宿主移除） |
 | F16 | 本地 Web 控制台服务 | P0→**done** | webui | 本机 HTTP 起停、健康检查、token 不出响应 |
 | F17 | 目录/拖拽与计划工作台 | P0→**done** | webui | 路径或拖拽导入；scan/plan；dry-run 无副作用 |
 | F18 | 一键同步 | P0→**done** | webui | 确认后 sync；进度与结果可观察 |
@@ -43,8 +43,10 @@
 | F20 | 配置与自检面板 | P1→**done** | webui | config 掩码编辑；doctor 报告可见 |
 | F21 | 审计与报告 | P2→**done** | webui | run 记录/失败明细；JSON 与契约对齐 |
 | F22 | 监听控制台 | P2→**done** | webui | watch 启停与事件日志；无常驻特权 |
-| F23 | 控制台壳层与视觉重设计 | P0→**done** | webui | 72px 侧栏四视图「上传/管理/设置/规范」；晨雾蓝×落日暖令牌；F17–F22 可达且契约不变 |
-| F24 | 桌面应用壳与安装包 | P0→**done** | desktop | Electron 壳加载完整控制台；原生目录对话框；Windows NSIS 安装包；npm 形态不受影响 |
+| F23 | 控制台壳层与视觉重设计 | P0→**done** | webui | 72px 侧栏多视图（F25 起第二视图为「统计」；图库视图 2026-09-30 加入；「规范」仅调试可见）；晨雾蓝×落日暖令牌；F17–F22 可达且契约不变 |
+| F24 | 桌面应用壳与安装包 | P0→**done** | desktop | Electron 壳加载完整控制台；原生目录对话框；Windows NSIS 安装包（2026-11-10 起 npm 形态移除，安装包为唯一形态） |
+| F25 | 使用统计视图 | P1 | webui | GET /api/stats 聚合（manifest 主源 + runs 回退 + 远端 trees/commits 补充）；总计 hero 卡 + 今天/近7天环比/连续天数/最忙一天 KPI；年历热力图；时段分布；只统计图像 |
+| F26 | 图库视图 | P1 | webui | 仓库文件夹树 + 图片墙（GET /api/gallery）；图片批量删除；仅浏览不改统计口径 |
 
 ---
 
@@ -102,11 +104,11 @@
 - 实现（域）：[module-rewrite · F9](design/module-rewrite.md#f9-manifest-与-revert)
 - AC：manifest 记录 doc/raw/localPath/sha256/publicUrl；**无 token**；`revert` 将 URL 还原为原文档中的 raw 路径；`revert --dry-run` 不写盘；损坏 manifest 报错不静默丢映射。
 
-## F10 Agent 机器接口
+## F10 Agent 机器接口（removed 2026-11-10）
 
-- 优先级：P0 · 模块：**cliops**
-- 实现（域）：[module-cliops · F10](design/module-cliops.md#f10-agent-机器接口)
-- AC：支持命令均有 `--json`；stdout 单一 JSON（诊断走 stderr）；含 `schemaVersion`；非 TTY 写文件需 `--yes` 否则退出码 7；退出码与文档表一致；重复 run 幂等可预期。
+- ~~优先级：P0 · 模块：**cliops**~~
+- 实现（域）：[module-cliops · F10](design/module-cliops.md#f10-agent-机器接口)（历史设计）
+- **已随 CLI 宿主移除**（2026-11-10 用户确认 Electron 单形态）：`src/cli.ts` 与 `bin/picbed.js` 删除；`--json` 信封语义由 Web API 承载，退出码映射仍活在 `src/app/errors.ts`。以下为历史 AC：支持命令均有 `--json`；stdout 单一 JSON（诊断走 stderr）；含 `schemaVersion`；非 TTY 写文件需 `--yes` 否则退出码 7；退出码与文档表一致；重复 run 幂等可预期。
 
 ## F11 单文件上传
 
@@ -132,11 +134,11 @@
 - 实现（域）：[module-transfer · F13](design/module-transfer.md#f13-多图床适配器)
 - AC：`HostAdapter` 可替换为非 GitHub 后端且 AC7 语义保持。实现：`host.type = github | local`；`local` 为文件系统图床（无需 token）；工厂 `createHostAdapter` 注入 sync/upload；URL/远端路径由适配器 `composeUrls`/`remotePath` 提供。
 
-## F14 VS Code / MCP 包装
+## F14 VS Code / MCP 包装（removed 2026-11-10）
 
-- 优先级：P3（已实现）· 模块：**cliops**
-- 实现（域）：[module-cliops · F14](design/module-cliops.md#f14-vs-code--mcp-包装)
-- AC：包装层不复制业务规则，只调用 CLI 契约。实现：`picbed-mcp` stdio JSON-RPC 服务；tools = doctor/scan/plan/sync/upload/revert；全部 `spawn` 既有 CLI + `--json`。
+- ~~优先级：P3（已实现）· 模块：**cliops**~~
+- 实现（域）：[module-cliops · F14](design/module-cliops.md#f14-vs-code--mcp-包装)（历史设计）
+- **已随 CLI/MCP 宿主移除**（2026-11-10 用户确认 Electron 单形态）：`src/mcp/` 与 `bin/picbed-mcp.js` 删除。历史 AC：包装层不复制业务规则，只调用 CLI 契约。实现：`picbed-mcp` stdio JSON-RPC 服务；tools = doctor/scan/plan/sync/upload/revert；全部 `spawn` 既有 CLI + `--json`。
 
 ## F16 本地 Web 控制台服务
 
@@ -154,7 +156,7 @@
 
 - 优先级：P0 · 模块：**webui**
 - 实现（域）：[module-webui · F18](design/module-webui.md#f18-一键同步)
-- AC：**拖放完成即触发 sync**（无独立「计划/同步」面板）；写盘/上传前仍**显式确认**（服务端需 `confirm`）；完成后 toast/简要反馈 uploaded 等计数；部分失败可见；幂等可预期。原 scan/plan/sync 按钮与计划表**移除**（API 保留给 CLI/管理流）。
+- AC：**拖放完成即触发 sync**（无独立「计划/同步」面板）；写盘/上传前仍**显式确认**（服务端需 `confirm`）；完成后 toast/简要反馈 uploaded 等计数；部分失败可见；幂等可预期。原 scan/plan/sync 按钮与计划表**移除**（`/api/plan`、`/api/sync` 仍由照片墙上传流程调用；`/api/manifest`、`/api/runs` 保留作审计/回滚数据源）。
 
 ## F19 回滚面板
 
@@ -186,13 +188,25 @@
 
 - 优先级：P0（已实现）· 模块：**webui**
 - 实现（域）：[module-webui · F23](design/module-webui.md#f23-web-控制台壳层与视觉重设计) · 视格：[wireframes/ui-shell.md](design/wireframes/ui-shell.md)（权威：用户《图床工具-UI方案》）
-- AC：界面为 **72px 侧栏 + 顶栏 + 内容区**；侧栏**四视图**均可直达且文案为「上传 / 管理 / 设置 / 规范」；默认进入**上传/文件放置**（DropZone 英雄区 + 根绑定 + 工作集 + plan/sync）；管理页含统计、manifest 网格、回滚、审计、监听；设置页含配置/doctor 与 Toggle；规范页含令牌与 Logo 切换；主题令牌与组件规格（晨雾蓝×落日暖、Toggle 36×20、Logo 三态）与交付规范一致；**token 不得出现在 DOM 可读文本**；API/`confirm`/掩码/策略 A 契约**无回归**。**「规范」视图仅本地调试可见**（见 F24 补充），发包/安装版侧栏不显示该入口。
+- AC：界面为 **72px 侧栏 + 顶栏 + 内容区**；侧栏视图均可直达且文案为「上传 / 统计 / 图库 / 设置 / 规范」（F25 2026-11-09 第二视图「管理」→「统计」；图库 2026-09-30 加入；「规范」仅本地调试可见，见 F24 补充）；默认进入**上传/文件放置**（DropZone 英雄区 + 照片墙）；图库页浏览仓库文件夹与图片；设置页含配置/doctor 与 Toggle；规范页含令牌与 Logo 切换；主题令牌与组件规格（晨雾蓝×落日暖、Toggle 36×20、Logo 三态）与交付规范一致；**token 不得出现在 DOM 可读文本**；API/`confirm`/掩码/策略 A 契约**无回归**。发包/安装版侧栏不显示「规范」入口。
+
+## F25 使用统计视图
+
+- 优先级：P1 · 模块：**webui**
+- 实现（域）：[module-webui · F25](design/module-webui.md#f25-使用统计视图)
+- AC（统计视图，2026-11-09；UI 2026-11-11 重设计）：侧栏第二视图由「管理」改为「统计」——manifest 网格、搜索/排序/批量复制外链工具栏与旧四统计卡（文件总数/本月上传/已映射/外链调用）**移除**，替换为使用统计视图（`GET /api/stats` 聚合；总计 hero 卡 48px 大数字 + 副行，原占比条+图例已删；今天 / 过去7天+环比 / 连续天数 / 最忙的一天 四 KPI 卡；过去一年 GitHub 风格日历热力图——宽度自适应、5 档色阶 +「少→多」图例；24 小时时段柱状图——左 y 轴、命中区 ≥24px；刷新按钮）。**只统计图像**（`IMAGE_EXT` 白名单，不映射「录制/其它文件」分类）。manifest `updatedAt` 为主事件源，runs 仅在 manifest 无条目时回退；owner/repo/token 齐备时以 Trees API 补充远端总数、Commits API 在本地无数据时填充时间线；远端失败降级为本地统计 + warning，不 500。日期桶按本地时区。API 契约（信封/confirm/掩码）不变。
+
+## F26 图库视图
+
+- 优先级：P1（已实现）· 模块：**webui**
+- 实现（域）：[module-webui · 图库视图](design/module-webui.md#图库视图)（2026-09-30 随 `8a1c1af` 落地）
+- AC：侧栏「图库」进入仓库浏览——文件夹树 + 图片墙（复用 `GET /api/gallery?path=` 列目录/文件）；图片批量删除（`/api/gallery/delete`）；图片格式白名单与 `IMAGE_EXT` 一致（复用 `lib/files.js isImageName()`，不内联枚举）；仅浏览仓库内容，不改 manifest 统计口径。
 
 ## F24 桌面应用壳与安装包
 
 - 优先级：P0（已实现）· 模块：**desktop**
 - 实现（域）：[module-desktop · F24](design/module-desktop.md#f24-桌面应用壳与安装包)
-- AC：双形态并存——**npm**（`picbed`/`picbed-mcp`/`picbed ui`，供本地开发测试与 Agent）与**桌面安装包**（下载安装即用）互不破坏。桌面端启动原生窗口并加载**完整 Web 控制台**（F16–F23 契约不变）；UI 服务仅绑 `127.0.0.1`；提供**原生目录选择**（策略 A 仍强制先绑 root）；窗口尺寸/位置可记忆；关闭窗口释放端口并停 watch；token 不进渲染进程；`npm pack` **不含** Electron/`desktop/`/`renderer/`；Windows NSIS 用户级安装包（`picbed-setup.exe`）可在无 Node 环境运行。**调试可见性**：侧栏「规范」仅在本地调试显示（源码树 / `desktop:dev` / `PICBED_UI_DEV=1`）；正式发包（`npm i -g`、安装包 `app.isPackaged`）**不得**显示该入口（`PICBED_UI_DEV=0` 强制关闭）。**开发热更新（`desktop:dev` = electron-vite）**：渲染层 **Vite HMR**（改 `renderer/*` 免刷新）；主进程/preload 由 electron-vite 重启；核心 `dist/` 由 `tsc -w` 产出。UI 单源在 `renderer/`（详见 module-desktop）。
+- AC（2026-11-10 修订：npm 形态移除）——**桌面安装包**为唯一分发形态（原「双形态并存」中 npm/`picbed ui` 侧已随 CLI/MCP 移除）。桌面端启动原生窗口并加载**完整 Web 控制台**（F16–F25 契约不变）；UI 服务仅绑 `127.0.0.1`；提供**原生目录选择**（策略 A 仍强制先绑 root）；窗口尺寸/位置可记忆；关闭窗口释放端口并停 watch；token 不进渲染进程；Windows NSIS 用户级安装包（`picbed-setup.exe`）可在无 Node 环境运行。**调试可见性**：侧栏「规范」仅在本地调试显示（源码树 / `desktop:dev` / `PICBED_UI_DEV=1`）；安装包 `app.isPackaged` **不得**显示该入口（`PICBED_UI_DEV=0` 强制关闭）。**开发热更新（`desktop:dev` = electron-vite）**：渲染层 **Vite HMR**（改 `renderer/*` 免刷新）；主进程/preload 由 electron-vite 重启；核心 `dist/` 由 `tsc -w` 产出。UI 单源在 `renderer/`（详见 module-desktop）。
 
 ---
 
