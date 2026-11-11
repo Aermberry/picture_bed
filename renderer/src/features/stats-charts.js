@@ -153,10 +153,13 @@ export function renderHours(hours, el) {
   svg.style.maxWidth = W + "px";
 
   // y 轴取整刻度（实线 hairline 网格；刻度文字在绘图区左侧，0 省略）
+  // 同一 v 只画一条线 + 一个标签（max=1 时 s=1/2 的 v 同为 1，否则两条线重叠）；
+  // s=0 的 v=0 基线不受去重影响，必须保留。
   const steps = 2;
   const seen = new Set();
   for (let s = 0; s <= steps; s++) {
     const v = Math.round((max * s) / steps);
+    if (seen.has(v) && s > 0) continue;
     const y = TOP_PAD + plotH - (v / max) * plotH;
     const line = svgEl("line");
     line.setAttribute("x1", String(axisW));
@@ -165,7 +168,7 @@ export function renderHours(hours, el) {
     line.setAttribute("y2", String(y));
     line.setAttribute("class", "hour-grid");
     svg.appendChild(line);
-    if (s > 0 && !seen.has(v)) {
+    if (s > 0) {
       seen.add(v);
       const lab = svgEl("text");
       lab.setAttribute("x", String(axisW - 6));
