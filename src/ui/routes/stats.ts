@@ -9,11 +9,9 @@ export async function statsRoutes(ctx: UiRouteContext): Promise<boolean> {
     const view = await buildStatsView({ cwd: ctx.cwd, cfg: ctx.loadCfg(), getToken: currentToken });
     ctx.send(200, envelope(true, 'api.stats', view, undefined, view.warnings));
   } catch (e) {
-    // 兜底：聚合异常也返回完整形状的空视图（无 500 路径）
-    ctx.send(
-      200,
-      envelope(true, 'api.stats', emptyStatsView([`统计聚合失败：${e instanceof Error ? e.message : String(e)}`])),
-    );
+    // 兜底：聚合异常也返回完整形状的空视图（无 500 路径）；warnings 双写保持信封契约
+    const w = [`统计聚合失败：${e instanceof Error ? e.message : String(e)}`];
+    ctx.send(200, envelope(true, 'api.stats', emptyStatsView(w), undefined, w));
   }
   return true;
 }

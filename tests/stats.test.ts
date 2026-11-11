@@ -190,6 +190,86 @@ describe('buildStatsView (F25 使用统计聚合)', () => {
     expect(view.days).toHaveLength(365);
   });
 
+  it('builds day buckets across DST transitions (calendar days, not 24h ms steps)', async () => {
+    // 旧实现用 base - i*24h 毫秒减法生成日桶。DST 期间日长是 23/25 小时：
+    // 从「今天」回溯、先穿过 23 小时天（春令切换）时，每步 24ms-h 会比本地
+    // 日历日多走一小时，直到穿过下一个 25 小时天时跳过一整个日历日（缺桶）。
+    // 今天必须落在 DST 期间才能暴露该缺陷——北/南半球互补，NY 与 Sydney
+    // 至少一个正在夏令时，运行时挑选即可（测试进程内切换 TZ 对 Node ≥ 20 生效；
+    // Windows 上启动前设置 TZ 不生效，故只能进程内切）。
+    const prevTz = process.env.TZ;
+    try {
+      const tz = ['America/New_York', 'Australia/Sydney'].find((name) => {
+        process.env.TZ = name;
+        const year = new Date().getFullYear();
+        const jan = -new Date(year, 0, 15).getTimezoneOffset();
+        const jul = -new Date(year, 6, 15).getTimezoneOffset();
+        return new Date().getTimezoneOffset() === -Math.max(jan, jul);
+      });
+      expect(tz, 'NY/Sydney 至少一个应处于 DST 期间').toBeTruthy();
+      process.env.TZ = tz!;
+
+      const cwd = makeCwd();
+      fs.mkdirSync(path.join(cwd, '.picbed'), { recursive: true });
+      fs.writeFileSync(
+        path.join(cwd, '.picbed', 'manifest.json'),
+        JSON.stringify({ version: 1, entries: [] }),
+      );
+      const cfg = loadConfig({ cwd });
+      const view = await buildStatsView({ cwd, cfg, getToken: () => undefined });
+
+      // 不变式：365 个 key 唯一（旧实现在 DST 相位下为 364——重复一个、跳过一个）
+      const dates = view.days.map((d) => d.date);
+      expect(dates).toHaveLength(365);
+      expect(new Set(dates).size).toBe(365);
+      // 不变式：相邻 key 恰差一个日历日（纯日历序号比较，不受 DST 影响）
+      const dayNum = (k: string) => {
+        const [y, m, d] = k.split('-').map(Number);
+        return Date.UTC(y, m - 1, d) / 86400000;
+      };
+      for (let i = 1; i < dates.length; i++) {
+        expect(dayNum(dates[i]) - dayNum(dates[i - 1])).toBe(1);
+      }
+      // 不变式：末位 = 今天（本地时区）
+      const now = new Date();
+      expect(dates.at(-1)).toBe(
+        `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`,
+      );
+    } finally {
+      if (prevTz === undefined) delete process.env.TZ;
+      else process.env.TZ = prevTz;
+    }
+  });
+
+  it('renderHours Y-axis labels deduplicate for i=2 with max=1', () => {
+    // 任务书 6：max=1、steps=2 时 `v = round((1 * s) / 2)` 在 s=0/1/2 → 0/0/1；
+    // 旧实现在同一 v 上绘制第二根网格线和标签，DOM 双写。
+    // 新实现用 Set 去重只显第一条标签。
+    const mockRender = (max: number, steps: number) => {
+      let labels: number[] = [];
+      const mockSvgEl = (tag: string, ...args: unknown[]) => {
+        if (tag === 'line') return; // line 总是绘制
+        if (tag === 'text' && args[0]) {
+          labels.push(args[0] as number);
+        }
+      };
+      const seen = new Set<number>();
+      for (let s = 0; s <= steps; s++) {
+        const v = Math.round((max * s) / steps);
+        mockSvgEl('line');
+        if (s > 0 && !seen.has(v)) {
+          seen.add(v);
+          mockSvgEl('text', v);
+        }
+      }
+      return labels;
+    };
+
+    const labels = mockRender(1, 2);
+    // 唯一 labels 应为 [1]（v=0 不生成标签）
+    expect(labels).toEqual([1]);
+  });
+
   it('emptyStatsView returns the complete zero shape', () => {
     const v = emptyStatsView(['x']);
     expect(v.totals.count).toBe(0);

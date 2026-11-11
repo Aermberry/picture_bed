@@ -46,10 +46,9 @@
     "desktop"
   ],
   "license": "MIT",
-  "dependencies": {
-    "@fission-ai/openspec": "^1.13.2"
-  },
+  "dependencies": {},
   "devDependencies": {
+    "@fission-ai/openspec": "^1.13.2",
     "@types/node": "^22.10.0",
     "electron": "^33.4.11",
     "electron-builder": "^25.1.8",

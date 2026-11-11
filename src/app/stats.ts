@@ -17,7 +17,6 @@ export interface StatsView {
   warnings: string[];
 }
 
-const DAY_MS = 24 * 60 * 60 * 1000;
 const WINDOW_DAYS = 365;
 const COMMITS_PER_PAGE = 100;
 
@@ -38,9 +37,11 @@ function startOfLocalDay(d: Date): Date {
 export function emptyStatsView(warnings: string[] = []): StatsView {
   const today = new Date();
   const days: StatsView['days'] = [];
-  const base = startOfLocalDay(today).getTime();
   for (let i = WINDOW_DAYS - 1; i >= 0; i--) {
-    days.push({ date: localDateKey(new Date(base - i * DAY_MS)), count: 0 });
+    // 日历日递减（非毫秒减法）：DST 切换日只有 23/25 小时，ms 减法会跳日或重日
+    const d = startOfLocalDay(today);
+    d.setDate(d.getDate() - i);
+    days.push({ date: localDateKey(d), count: 0 });
   }
   return {
     generatedAt: today.toISOString(),

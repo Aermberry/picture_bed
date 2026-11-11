@@ -154,6 +154,7 @@ export function renderHours(hours, el) {
 
   // y 轴取整刻度（实线 hairline 网格；刻度文字在绘图区左侧，0 省略）
   const steps = 2;
+  const seen = new Set();
   for (let s = 0; s <= steps; s++) {
     const v = Math.round((max * s) / steps);
     const y = TOP_PAD + plotH - (v / max) * plotH;
@@ -164,7 +165,8 @@ export function renderHours(hours, el) {
     line.setAttribute("y2", String(y));
     line.setAttribute("class", "hour-grid");
     svg.appendChild(line);
-    if (s > 0) {
+    if (s > 0 && !seen.has(v)) {
+      seen.add(v);
       const lab = svgEl("text");
       lab.setAttribute("x", String(axisW - 6));
       lab.setAttribute("y", String(y + 3));
