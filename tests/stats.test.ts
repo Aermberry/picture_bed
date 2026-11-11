@@ -4,6 +4,87 @@ import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { loadConfig } from '../src/config.js';
 import { buildStatsView, emptyStatsView } from '../src/app/stats.js';
+import { renderHours } from '../renderer/src/features/stats-charts.js';
+
+/**
+ * 最小 SVG DOM shim：只实现 stats-charts.js 用到的方法。
+ * 让测试直接检查真实 renderHours 产出的节点，而不是在测试里复刻一份循环。
+ */
+class FakeSvgNode {
+  tagName: string;
+  attributes: Record<string, string> = {};
+  childNodes: FakeSvgNode[] = [];
+  parentNode: FakeSvgNode | null = null;
+  style: Record<string, string> = {};
+  rectWidth = 0;
+  private text = '';
+  constructor(tagName: string) {
+    this.tagName = tagName;
+  }
+  setAttribute(k: string, v: unknown): void {
+    this.attributes[k] = String(v);
+  }
+  appendChild(c: FakeSvgNode): FakeSvgNode {
+    c.parentNode = this;
+    this.childNodes.push(c);
+    return c;
+  }
+  cloneNode(deep: boolean): FakeSvgNode {
+    const n = new FakeSvgNode(this.tagName);
+    n.attributes = { ...this.attributes };
+    n.style = { ...this.style };
+    n.text = this.text;
+    if (deep) for (const c of this.childNodes) n.appendChild(c.cloneNode(true));
+    return n;
+  }
+  get textContent(): string {
+    return this.text;
+  }
+  set textContent(v: string) {
+    this.text = String(v);
+    if (this.text === '') this.childNodes = [];
+  }
+  get previousSibling(): FakeSvgNode | null {
+    if (!this.parentNode) return null;
+    const i = this.parentNode.childNodes.indexOf(this);
+    return i > 0 ? this.parentNode.childNodes[i - 1] : null;
+  }
+  getBoundingClientRect(): { width: number } {
+    return { width: this.rectWidth };
+  }
+  closest(): FakeSvgNode | null {
+    return null;
+  }
+}
+
+const hasClass = (n: FakeSvgNode, c: string): boolean =>
+  (n.attributes.class ?? '').split(' ').includes(c);
+
+/** 24 槽 hours 数据；overrides 按 hour → count 覆盖。 */
+function hoursWithCounts(overrides: Record<number, number>): { hour: number; count: number }[] {
+  return Array.from({ length: 24 }, (_, hour) => ({ hour, count: overrides[hour] ?? 0 }));
+}
+
+/** 在最小 document 垫片下调用真实 renderHours，返回根 svg（宽度用容器矩形模拟）。 */
+function renderHoursSvg(
+  hours: { hour: number; count: number }[],
+  width = 720,
+): { wrap: FakeSvgNode; svg: FakeSvgNode } {
+  const g = globalThis as any;
+  const prevDoc = g.document;
+  g.document = { createElementNS: (_ns: string, tag: string) => new FakeSvgNode(tag) };
+  try {
+    const wrap = new FakeSvgNode('div');
+    wrap.rectWidth = width;
+    renderHours(hours, wrap);
+    const svg = wrap.childNodes.find((n) => n.tagName === 'svg');
+    if (!svg) throw new Error('renderHours 未产出 svg');
+    return { wrap, svg };
+  } finally {
+    if (prevDoc === undefined) delete g.document;
+    else g.document = prevDoc;
+  }
+}
 
 function tmp(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'picbed-stats-'));
@@ -241,33 +322,42 @@ describe('buildStatsView (F25 使用统计聚合)', () => {
     }
   });
 
-  it('renderHours Y-axis labels deduplicate for i=2 with max=1', () => {
-    // 任务书 6：max=1、steps=2 时 `v = round((1 * s) / 2)` 在 s=0/1/2 → 0/0/1；
-    // 旧实现在同一 v 上绘制第二根网格线和标签，DOM 双写。
-    // 新实现用 Set 去重只显第一条标签。
-    const mockRender = (max: number, steps: number) => {
-      let labels: number[] = [];
-      const mockSvgEl = (tag: string, ...args: unknown[]) => {
-        if (tag === 'line') return; // line 总是绘制
-        if (tag === 'text' && args[0]) {
-          labels.push(args[0] as number);
-        }
-      };
-      const seen = new Set<number>();
-      for (let s = 0; s <= steps; s++) {
-        const v = Math.round((max * s) / steps);
-        mockSvgEl('line');
-        if (s > 0 && !seen.has(v)) {
-          seen.add(v);
-          mockSvgEl('text', v);
-        }
-      }
-      return labels;
-    };
+  // 任务书 #4a：F1/F2 回归。断言真实 renderHours 产出的 SVG 节点，不在测试里复刻 mock 循环
+  // （审查方要求「test rendered SVG nodes rather than a copied mock loop」）。
+  // 用例数保持 175（不新增 it），以便 docs/architecture.md 的计数守卫在「本轮不碰 docs」下仍绿。
+  it('renderHours y-axis dedupe + bar/hit adjacency (rendered SVG nodes)', () => {
+    // F2：max=1、steps=2 时 `v = round((1 * s) / 2)` 在 s=0/1/2 → 0/1/1。
+    // 旧实现只把 label 放进 seen，line 无条件 append：s=1/2 两条线同 y（150,28,28）。
+    const { svg } = renderHoursSvg(hoursWithCounts({ 3: 1, 5: 1 }));
+    const grids = svg.childNodes.filter((n) => hasClass(n, 'hour-grid'));
+    const ys = grids.map((n) => n.attributes.y1);
+    expect(grids.length).toBeLessThanOrEqual(3);
+    expect(new Set(ys).size).toBe(ys.length);
+    expect(ys).toHaveLength(2);
+    // s=0 的 v=0 基线必须保留（去重不能误删第一条）
+    expect(ys).toContain('150');
+    // y 轴标签同样只出现一次（v=0 不生成标签）
+    const yTicks = svg.childNodes.filter(
+      (n) => hasClass(n, 'hour-tick') && n.attributes['text-anchor'] === 'end',
+    );
+    expect(yTicks.map((n) => n.textContent)).toEqual(['1']);
 
-    const labels = mockRender(1, 2);
-    // 唯一 labels 应为 [1]（v=0 不生成标签）
-    expect(labels).toEqual([1]);
+    // F1 DOM 前提：宽度 720 → slot=28.5、barW=22.5 <24 → 24 槽全部创建 hit；
+    // bar 先、hit 后紧邻 append（CSS :has(+ .hour-hit:hover) 的前提）。
+    const narrow = renderHoursSvg(hoursWithCounts({}));
+    const bars = narrow.svg.childNodes.filter((n) => hasClass(n, 'hour-bar'));
+    const hits = narrow.svg.childNodes.filter((n) => hasClass(n, 'hour-hit'));
+    expect(bars).toHaveLength(24);
+    expect(hits).toHaveLength(24);
+    for (const hit of hits) {
+      expect(hit.previousSibling).toBeTruthy();
+      expect(hasClass(hit.previousSibling!, 'hour-bar')).toBe(true);
+    }
+
+    // 宽柱（宽度 900 → slot≥36 → barW 封顶 24）不创建 hit：bar:hover 自身分支仍必需。
+    const wide = renderHoursSvg(hoursWithCounts({}), 900);
+    expect(wide.svg.childNodes.filter((n) => hasClass(n, 'hour-bar'))).toHaveLength(24);
+    expect(wide.svg.childNodes.filter((n) => hasClass(n, 'hour-hit'))).toHaveLength(0);
   });
 
   it('emptyStatsView returns the complete zero shape', () => {

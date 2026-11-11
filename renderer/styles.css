@@ -534,8 +534,10 @@
     .heat-month{font-size:10px; fill:var(--c-text-2)}
     .stats-hourwrap{padding-top:var(--sp-1)}
     .hour-bar{fill:var(--c-primary)}
-    /* bar 先于 hit 渲染，兄弟选择器方向反了；Chromium 支持 :has 反查前置 bar */
-    .hour-bar:hover, .hour-bar:has(~ .hour-hit:hover){fill:var(--c-primary-hover)}
+    /* bar 与 hit 同槽紧邻 append（bar 先、hit 后）：:has 反查前置 bar，且必须用紧邻
+       组合符 + ——泛兄弟 ~ 会在 hover 任一 hit 时提亮它前面所有槽的 bar。宽柱无 hit
+       时（barW 封顶 24）走 bar:hover 自身分支。 */
+    .hour-bar:hover, .hour-bar:has(+ .hour-hit:hover){fill:var(--c-primary-hover)}
     .hour-hit{pointer-events:all}
     .hour-hit:hover{cursor:default}
     .hour-bar-empty{fill:var(--c-bg-2)}

@@ -530,6 +530,12 @@ describe('ui server F16–F18', () => {
     // 统计视图热力图/时段样式与主题令牌联动（顺序色阶复用 --c-primary）
     expect(SPA_CSS).toContain('heat-lv4');
     expect(SPA_CSS).toContain('hour-bar');
+    // 任务书 #4a · F1：bar 与 hit 同槽紧邻 append（bar 先、hit 后），hover 提亮必须用
+    // 紧邻选择器 :has(+ .hour-hit:hover)；泛兄弟 ~ 版会提亮所有前置 bar，禁止回退。
+    expect(SPA_CSS).toContain('.hour-bar:has(+ .hour-hit:hover)');
+    expect(SPA_CSS).not.toMatch(/\.hour-bar:has\(~\s*\.hour-hit:hover\)/);
+    // 宽柱无 hit（barW 封顶 24）时靠 bar 自身 hover，分支必须保留
+    expect(SPA_CSS).toContain('.hour-bar:hover,');
     // hero 总计卡（2026-11-11 重设计：占比条/图例移除——单系列无需图例）
     expect(SPA_CSS).toContain('.stats-total{font-size:48px');
     expect(SPA_CSS).not.toContain('bar-seg');
