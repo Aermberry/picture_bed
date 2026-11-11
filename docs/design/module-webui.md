@@ -151,6 +151,10 @@ doc        # 设计规范（令牌/Logo/图标；仅本地调试可见）
 - 主题「晨雾蓝 × 落日暖」令牌、组件、Logo 动效以 [`wireframes/ui-shell.md`](wireframes/ui-shell.md) + 用户《设计交付规范》为准。
 - 壳层组件只消费既有 `/api/*`；禁止为布局新造与信封冲突的私有字段。
 
+### 图库视图
+
+侧栏第三视图（2026-09-30 加入），以文件夹树 + 图片墙浏览仓库内容：`GET /api/gallery?path=` 列目录/文件（与目录选择浮层共用），`POST /api/gallery/delete` 批量删除图片。图片格式判定复用 `isImageName()`（`IMAGE_EXT` 白名单，不内联枚举）；仅浏览与删除仓库内容，不回写 manifest、不改统计口径。
+
 ### 桌面原生桥（F24 渐进增强，不改 HTTP 契约）
 
 WebUI SPA **同时**服务浏览器（`picbed ui`）与 Electron 壳（[`module-desktop.md`](module-desktop.md)）：
@@ -335,7 +339,7 @@ sequenceDiagram
 
 ## F25 使用统计视图
 
-- **范围**：呈现层新增第二视图「统计」，**替换**原「管理」视图（manifest 网格 / 搜索 / 排序 / 批量复制外链 / 旧四统计卡移除）；API 契约、confirm 门、token 纪律不变。CLI 侧 `/api/manifest`、`/api/runs` 保留。
+- **范围**：呈现层新增第二视图「统计」，**替换**原「管理」视图（manifest 网格 / 搜索 / 排序 / 批量复制外链 / 旧四统计卡移除）；API 契约、confirm 门、token 纪律不变。内嵌 HTTP 后端保留 `/api/manifest`、`/api/runs` 两个端点（CLI 形态已随单宿主收敛移除）。
 - **端点**：`GET /api/stats` → 信封 `command: 'api.stats'`，data 为 `StatsView`（无 token 出现；远端失败不 500）：
 
 ```json
@@ -355,12 +359,12 @@ sequenceDiagram
 
 `days` 恒为 365 条（旧→今）、`hours` 恒为 24 条（固定长度，前端免判长度渲染空网格）；`last7.deltaPct` 在 `prev===0` 时为 `null`（无对比基线）。
 
-- **数据源映射（聚合在 app 层 `src/app/stats.ts` `buildStatsView({cwd, cfg, getToken})`，token 注入不导入）**：
-  1. **manifest 主源**：`loadManifest(cwd)` 每条目 = 一次上传事件，时间戳取 `updatedAt`；仅扩展名 ∈ `IMAGE_EXT`（`src/lib/img.ts`）的条目计入（**只统计图像**）。manifest 损坏 → 0 事件 + warning（`listManifestView` 宽容模式，不抛错）。
-  2. **runs 回退**：仅当 manifest 无图像事件时读 `listRuns(cwd, 200)`，按 `counts.uploaded` 计入 `startedAt` 时刻事件（run 记录无每图时间，精度低于 manifest）。
-  3. **远端补充**（owner/repo/token 齐备时尝试；仿 `routes/gallery.ts` fetch 头）：`GET /git/trees/{branch}?recursive=1` 过滤 `github.dir` 下图片扩展名 → `sources.remote` 总数；`GET /commits?path={dir}&per_page=100` 按 `commit.author.date` 在本地无事件时填充时间线（>100 截断加 warning；commit 数 ≠ 图片数，前端 hint 说明）。任何远端失败 → warning + `remoteAvailable:false`，本地统计照常返回。
+- **数据源映射（聚合在 app 层 `src/app/stats.ts` `buildStatsView({cwd, cfg, getToken})`，不直连凭据存储——route 经 app 层取 `currentToken`）**：
+  1. **manifest 主源**：`loadManifest(cwd)` 条目为**映射快照**（doc+raw+localPath 去重），统计近似而非精确上传事件日志；时间戳取 `updatedAt`；仅扩展名 ∈ `IMAGE_EXT`（`src/lib/img.ts`）的条目计入（**只统计图像**）。manifest 损坏 → 0 事件 + warning（stats.ts 内联 try/catch 直接 catch `loadManifest`，非 `listManifestView`——后者属 revert 域 `src/app/revert.ts`）。
+  2. **runs 回退**：仅当 manifest 无可用图像事件时读 `listRuns(cwd, 200)`，按 `counts.uploaded` 计入 `startedAt` 时刻事件（run 记录无每图时间，精度低于 manifest）。精确口径的演进议题见 F25 count 口径（已批准 v2 契约方向）。
+  3. **远端补充**（owner/repo/token 齐备时尝试；仿 `routes/gallery.ts` fetch 头）：`GET /git/trees/{branch}?recursive=1` 过滤 `github.dir` 下图片扩展名 → `sources.remote` 总数；`GET /commits?path={dir}&per_page=100` 按 `commit.author.date` 在本地无事件时填充时间线（最多读取 100 条提交时间，恰好 100 条时提示可能不完整——按条数推断，未验证第 101 条存在；commit 数 ≠ 图片数，前端 hint 说明）。分能力降级：Trees 失败 → 无库存数 + warning；Commits 失败 → 时间线不填充 + warning；`remoteAvailable` 仅表示库存（Trees）读取成功，本地统计照常返回。
 - **聚合规则**：日期桶用**本地时区** `YYYY-MM-DD`（有意区别于旧 manage.js 的 UTC 月计数——用户感知统计）；`last7` = [-6..0] 求和、prev = [-13..-7]；`streak.current` 从今天回溯连续 count>0（今天为 0 则从昨天起算）；`streak.longest` 为窗口内最长；`busiestDay` 并列取最早。
-- **UI 块**（`renderer/src/features/stats.js` + `stats-charts.js`，零依赖 SVG/DOM；2026-11-11 重设计）：toolbar（来源 hint + 刷新）；总计 hero 卡（48px 大数字 + 副行「过去一年累计上传 N 张图像」/「暂无上传记录」——原单段占比条 + 图例已删，单系列无需图例、满宽条零信息量）；4 KPI 卡（今天 / 过去7天+环比 ▲绿▼红 / 连续天数（副行最长 N）/ 最忙的一天）；年历热力图卡（53 周列 × 7 行 SVG，**宽度自适应**——cell 在 9–15px 间随容器伸缩、窄容器横向滚动，`heat-lv0..4` 5 档顺序色阶 lv0=`--c-bg-2`，lv1–4=`--c-primary` @ .25/.45/.7/1 随三套主题令牌联动；固定阈值 0 / 1 / 2–3 / 4–7 / 8+；卡头带「少 → 多」5 色块比例尺图例；月标签防挤压——与上一标签视距 <22px 丢弃；左侧行标签 + `<title>` tooltip）；时段卡（24 柱 SVG，y 轴刻度在**左**（0 省略）、柱顶 4px 圆角、基线直角，柱窄于 24px 时叠加整槽透明热区保命中区 ≥24px，峰桶标注「HH:00–HH+1:00 最忙」，x 刻度 0/6/12/18，hover 提亮 + tooltip，单系列无图例）。
+- **UI 块**（`renderer/src/features/stats.js` + `stats-charts.js`，零依赖 SVG/DOM；2026-11-11 重设计）：toolbar（来源 hint + 刷新）；总计 hero 卡（48px 大数字 + 副行「累计上传 N 张图像」（2026-11-12 对齐实现——totals 为全期口径，不声明时间窗；窗口语义归 F25 v2 契约）/「暂无上传记录」——原单段占比条 + 图例已删，单系列无需图例、满宽条零信息量）；4 KPI 卡（今天 / 过去7天+环比 ▲绿▼红 / 连续天数（副行最长 N）/ 最忙的一天）；年历热力图卡（53 周列 × 7 行 SVG，**宽度自适应**——cell 在 9–15px 间随容器伸缩、窄容器横向滚动，`heat-lv0..4` 5 档顺序色阶 lv0=`--c-bg-2`，lv1–4=`--c-primary` @ .25/.45/.7/1 随三套主题令牌联动；固定阈值 0 / 1 / 2–3 / 4–7 / 8+；卡头带「少 → 多」5 色块比例尺图例；月标签防挤压——与上一标签视距 <22px 丢弃；左侧行标签 + `<title>` tooltip）；时段卡（24 柱 SVG，y 轴刻度在**左**（0 省略）、柱顶 4px 圆角、基线直角，柱窄于 24px 时叠加整槽透明热区保命中区 ≥24px，峰桶标注「HH:00–HH+1:00 最忙」，x 刻度 0/6/12/18，hover 提亮 + tooltip，单系列无图例）。
 - **降级态**：未连远端 → hint「未连接远端（需配置 GitHub 与 token）」；全零 → 「暂无上传记录」；`/api/stats` 聚合异常兜底为 200 + `emptyStatsView` + warning（**无 500 路径**）。
 
 ## F23 Web 控制台壳层与视觉重设计
