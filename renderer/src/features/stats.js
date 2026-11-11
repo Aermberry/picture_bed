@@ -14,7 +14,7 @@ function renderSummary(d) {
   if (sub) {
     const total = d.totals?.count ?? 0;
     sub.textContent = total > 0
-      ? "过去一年累计上传 " + total + " 张图像"
+      ? "累计上传 " + total + " 张图像"
       : "暂无上传记录";
   }
 }
@@ -71,6 +71,12 @@ function renderStates(d) {
     hint.textContent = "本地 manifest 聚合 · 未连接远端（需配置 GitHub 与 token）";
   } else if (d.sources && d.sources.remoteAvailable) {
     hint.textContent = "本地 manifest 与远端仓库聚合 · 仅统计图像";
+  }
+  // 远端截断/manifest 损坏等提示在信封 warnings 里；hint 只追加第一条防溢出，
+  // 其余完整保留在 /api/stats 响应 JSON 中
+  const warns = d.warnings || [];
+  if (warns.length > 0) {
+    hint.textContent = hint.textContent + " · ⚠ " + warns[0];
   }
   const empty = (d.totals?.count ?? 0) === 0 && (d.sources?.runs ?? 0) === 0;
   $("statsHeatmapCard").querySelector("h3").textContent = empty
