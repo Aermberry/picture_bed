@@ -2,7 +2,7 @@ import { currentToken, emptyStatsView, buildStatsView } from '../../app/index.js
 import { envelope } from '../http/envelope.js';
 import type { UiRouteContext } from '../context.js';
 
-/** 使用统计：GET /api/stats → F25 统计视图聚合（本地 manifest/runs + 远端补充）。 */
+/** 使用统计：GET /api/stats → F25 v2 统计视图聚合（runs 唯一计数源 + 远端库存 context）。 */
 export async function statsRoutes(ctx: UiRouteContext): Promise<boolean> {
   if (ctx.method !== 'GET' || ctx.pathname !== '/api/stats') return false;
   try {
