@@ -35,8 +35,9 @@ src/app/
 ├─ doctor.ts     # doctorService（host-aware）/ publicConfig
 ├─ settings.ts   # 配置防腐层：resolvedConfig / readConfigKey / writeConfigKey / import / serialize / CONFIG_NAME / configTemplate
 ├─ auth.ts       # 鉴权防腐层：currentToken / saveUserToken / clearSavedToken / probeGh / startGhLogin
-├─ run-store.ts  # RunRecord 函数式仓库：newRunId / recordRun / listRuns / getRun / runsDir
+├─ run-store.ts  # RunRecord 函数式仓库：newRunId / recordRun / listRuns / scanAllRuns / getRun / runsDir
 ├─ repo-dir.ts   # 远端目录规则：createRepoDir / normalizeRepoDirPath / parentDirPath / DIR_PLACEHOLDER
+├─ stats.ts      # F25 v2 统计读模型：emptyStatsView / buildStatsView（runs 唯一计数源 + 365 日窗口 + 远端库存 context）
 └─ upload.ts     # uploadSingleAsset
 ```
 
@@ -54,6 +55,11 @@ src/app/
 | `publicConfig(cfg, extra?)` | 配置视图（token 掩码） | CLI `config list`；API `/api/config` |
 | `readConfigKey` / `writeConfigKey` | 键枚举 + **url.style 校验** + TOML 改写 | CLI `config get/set`；API `/api/config` |
 | `run-store.ts`（RunRecord 仓库，函数式） | `./.picbed/runs/*.json` 追加 / 读取 | CLI 与 Web 共用（审计 F21） |
+| `scanAllRuns(cwd)` | 统计读模型专用：全量读取 runs（不按文件名截断），返回 `{runs, corruptFiles}`——单文件损坏不静默跳过，计入 `corruptFiles` 回报 | `stats.ts buildStatsView`（F25 v2） |
+| `buildStatsView({cwd, cfg, getToken})` | F25 v2 统计聚合（无 token 落盘；不直连凭据存储）：runs 唯一计数源 + 成功上传动作单位 + 365 日统一窗口；组装 `contractVersion:2` / `period` / `measurement` / `sources`；远端库存独立软降级，**永不抛错** | API `GET /api/stats`（route 经 app 层取 `currentToken`） |
+| `emptyStatsView(warnings?)` | 零值完整形状（`measurement.state='unavailable'`，非真 0）；route 成功兜底与零配置场景共用 | `statsRoutes` 的 200 兜底（无 500 路径） |
+
+**统计读模型的上报语义（F25 v2）**：坏记录与读取失败不抛错、不吞掉，统一转成 `measurement.state` + `warnings`——①单文件损坏：`scanAllRuns` 计入 `corruptFiles`，`buildStatsView` 判 `state='partial'` 并 warning「N 条运行记录文件无法解析，统计不含这些记录」；②字段无效（`uploaded` 非非负安全整数或 `startedAt` 非法）：跳过该记录，同样判 `state='partial'` + warning；③runs 目录读取抛错（如路径不是目录）：`state='unavailable'`（不是 0）+ warning 带原因；④远端库存失败/未配置：只影响 `sources.remoteInventory.state='unavailable'` + warning，本地统计照常返回。route 成功与兜底路径都透传同一 `warnings`（信封顶层与 data 内双写一致）。
 
 ## 复杂任务：sync 编排链（为什么必须画出来）
 

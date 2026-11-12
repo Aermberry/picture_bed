@@ -89,7 +89,7 @@ WebUiFacade
   # POST /api/watch/stop
   # GET  /api/events          # SSE/长轮询：watch 与 sync 进度（实现可选）
   # GET  /api/gallery         # ?path= 列仓库目录/文件（图库视图 + 目录选择浮层共用）
-  # GET  /api/stats           # 使用统计聚合（F25 统计视图；manifest 主源 + runs 回退 + 远端补充）
+  # GET  /api/stats           # 使用统计聚合（F25 v2：runs 唯一计数源 + 365 日统一窗口 + 远端库存 context）
   # GET  /api/branches        # 列仓库分支（F20 设置页 Branch 下拉）
   # POST /api/repo/mkdir      # { path, confirm: true } 新建远程目录（.gitkeep 占位）· F20
   # POST /api/auth/token      # { token?, clear? , confirm: true } 粘贴 PAT → 本机凭据（~/.picbed/credentials.json，不写 picbed.toml）
@@ -339,12 +339,29 @@ sequenceDiagram
 
 ## F25 使用统计视图
 
-- **范围**：呈现层新增第二视图「统计」，**替换**原「管理」视图（manifest 网格 / 搜索 / 排序 / 批量复制外链 / 旧四统计卡移除）；API 契约、confirm 门、token 纪律不变。内嵌 HTTP 后端保留 `/api/manifest`、`/api/runs` 两个端点（CLI 形态已随单宿主收敛移除）。
-- **端点**：`GET /api/stats` → 信封 `command: 'api.stats'`，data 为 `StatsView`（无 token 出现；远端失败不 500）：
+- **范围**：呈现层新增第二视图「统计」，**替换**原「管理」视图（manifest 网格 / 搜索 / 排序 / 批量复制外链 / 旧四统计卡移除）；JSON 信封（`schemaVersion` 1）、confirm 门、token 纪律不变，v2 演进只发生在 `data` 内（`contractVersion: 2`）。内嵌 HTTP 后端保留 `/api/manifest`、`/api/runs` 两个端点（CLI 形态已随单宿主收敛移除）。
+- **端点**：`GET /api/stats` → 信封 `command: 'api.stats'`，data 为 `StatsView`（无 token 出现；远端失败不 500）。**契约版本 `contractVersion: 2` 位于 `data` 内；外层信封 `schemaVersion` 仍为 1**（演进只发生在 data 内）：
 
 ```json
 {
+  "contractVersion": 2,
   "generatedAt": "ISO",
+  "period": {
+    "kind": "rolling-days",
+    "days": 365,
+    "startDate": "YYYY-MM-DD",
+    "endDate": "YYYY-MM-DD",
+    "timeZone": "IANA 名或 unknown",
+    "scope": "local-run-store"
+  },
+  "measurement": {
+    "unit": "successful-image-upload",
+    "source": "runs",
+    "state": "available | partial | unavailable",
+    "countAccuracy": "recorded | unknown",
+    "timeAccuracy": "run-start-estimate | unknown",
+    "coverage": "retained-local-runs"
+  },
   "totals": { "count": 0 },
   "today": { "date": "YYYY-MM-DD", "count": 0 },
   "last7": { "count": 0, "prev": 0, "delta": 0, "deltaPct": null },
@@ -352,20 +369,45 @@ sequenceDiagram
   "busiestDay": { "date": null, "count": 0 },
   "days":  [ { "date": "YYYY-MM-DD", "count": 0 } ],
   "hours": [ { "hour": 0, "count": 0 } ],
-  "sources": { "manifest": 0, "runs": 0, "remote": null, "remoteAvailable": false },
+  "sources": {
+    "runs": { "state": "available | partial | unavailable" },
+    "manifest": { "use": "not-counted", "reason": "mapping-snapshot" },
+    "remoteCommits": { "use": "not-counted", "reason": "not-upload-events" },
+    "remoteInventory": { "count": null, "state": "complete | partial | unavailable" }
+  },
   "warnings": []
 }
 ```
 
-`days` 恒为 365 条（旧→今）、`hours` 恒为 24 条（固定长度，前端免判长度渲染空网格）；`last7.deltaPct` 在 `prev===0` 时为 `null`（无对比基线）。
+字段语义（字段名/枚举值为精确契约，不得改名）：`period` 恒定 `rolling-days` 365 日窗口（`startDate`=本地今天减 364 个日历日，`endDate`=本地今天；`timeZone` 为本次聚合 IANA 名，无有效名则显式 `'unknown'`；`scope` 固定 `'local-run-store'`）；`measurement.unit='successful-image-upload'`（单位=一次成功上传动作）、`source='runs'`、`coverage='retained-local-runs'`（仅覆盖本地保留的运行记录）；`sources.manifest`/`sources.remoteCommits` 恒为 `use:'not-counted'`（manifest 是映射快照、远端提交不是上传事件，均不参与计数与时间线）；`remoteInventory` 仅上下文（`count` 可 `null`；Trees 截断 → `state:'partial'`）。**v1 的 `sources.remote`（数字）与 `sources.remoteAvailable` 已移除，不保留永远 false 的旧别名。**
+
+`days` 恒为 365 条（旧→今）、`hours` 恒为 24 条（固定长度，前端免判长度渲染空网格）；`totals.count = sum(days.count) = sum(hours.count)`（恒 365 日窗口，窗口外的 run 不计入但记录仍在，不判 unavailable）；`last7.deltaPct` 在 `prev===0`（无对比基线）或 `measurement.state='partial'`（记录不完整，暂不比较）时为 `null`。
 
 - **数据源映射（聚合在 app 层 `src/app/stats.ts` `buildStatsView({cwd, cfg, getToken})`，不直连凭据存储——route 经 app 层取 `currentToken`）**：
-  1. **manifest 主源**：`loadManifest(cwd)` 条目为**映射快照**（doc+raw+localPath 去重），统计近似而非精确上传事件日志；时间戳取 `updatedAt`；仅扩展名 ∈ `IMAGE_EXT`（`src/lib/img.ts`）的条目计入（**只统计图像**）。manifest 损坏 → 0 事件 + warning（stats.ts 内联 try/catch 直接 catch `loadManifest`，非 `listManifestView`——后者属 revert 域 `src/app/revert.ts`）。
-  2. **runs 回退**：仅当 manifest 无可用图像事件时读 `listRuns(cwd, 200)`，按 `counts.uploaded` 计入 `startedAt` 时刻事件（run 记录无每图时间，精度低于 manifest）。精确口径的演进议题见 F25 count 口径（已批准 v2 契约方向）。
-  3. **远端补充**（owner/repo/token 齐备时尝试；仿 `routes/gallery.ts` fetch 头）：`GET /git/trees/{branch}?recursive=1` 过滤 `github.dir` 下图片扩展名 → `sources.remote` 总数；`GET /commits?path={dir}&per_page=100` 按 `commit.author.date` 在本地无事件时填充时间线（最多读取 100 条提交时间，恰好 100 条时提示可能不完整——按条数推断，未验证第 101 条存在；commit 数 ≠ 图片数，前端 hint 说明）。分能力降级：Trees 失败 → 无库存数 + warning；Commits 失败 → 时间线不填充 + warning；`remoteAvailable` 仅表示库存（Trees）读取成功，本地统计照常返回。
+  1. **runs 是唯一计数源**：经 `scanAllRuns(cwd)`（`src/app/run-store.ts`）全量读取 `.picbed/runs/*.json`，不按文件名截断；接受非负安全整数 `counts.uploaded` + 合法 `startedAt` 的记录，每条 run 的 `uploaded` 权重按其 `startedAt` 归入本地日/时桶（partial run 已成功部分照计，不要求 `ok=true`；`uploaded` 缺失按 0，存在但非法按无效记录）。窗口外（早于 `period.startDate`）的 run 不计入。每图无独立时间戳，时间精度即 `timeAccuracy='run-start-estimate'`。
+  2. **manifest = 映射快照，not-counted**：条目是「文档+引用→URL」的映射（1 图多引用会多计），不是上传事件日志，声明 `sources.manifest = { use: 'not-counted', reason: 'mapping-snapshot' }`；`stats.ts` 不再读 `loadManifest`，manifest 不参与任何计数或时间线填充。
+  3. **远端提交 = not-counted**：提交不是上传事件（commit 数 ≠ 图片数，且同图可多次提交），声明 `sources.remoteCommits = { use: 'not-counted', reason: 'not-upload-events' }`；`stats.ts` 不再调 Commits API。
+  4. **远端库存 = 仅上下文**（owner/repo/token 齐备时尝试；仿 `routes/gallery.ts` fetch 头）：`GET /git/trees/{branch}?recursive=1` 过滤 `github.dir` 下图片扩展名 → `sources.remoteInventory{count, state}`（`complete` / `partial`——Trees `truncated=true` 时列表不完整、计数可能偏小 / `unavailable`——失败或未配置，`count=null`）。任何失败降级为 warning，绝不抛出；独立库存失败不抹本地统计（本地计数照常返回）。
+- **状态三态（`measurement.state` / `sources.runs.state` 的唯一判定来源）**：
+
+  | 场景 | state | count | 说明 |
+  |---|---|---|---|
+  | runs 目录不存在 / 空 | `unavailable` | 0 | 「无可用上传历史」≠ 从未上传 |
+  | 有可解析记录且 uploaded 全 0 | `available` | 0 | 真 0（保存记录内为 0） |
+  | 有可解析记录、部分坏记录 | `partial` | 坏记录外的已读计数 | warning 说明丢了多少 |
+  | 全部可读无坏记录 | `available` | 实际 | `countAccuracy='recorded'` |
+  | 读取抛错 | `unavailable` | 0 | warning 带原因 |
+
+  `partial` 时 `countAccuracy` 仍可为 `recorded`（已读部分是记录值），但 renderer 必须显示「记录不完整」且 `last7.deltaPct` 置 `null`。
 - **聚合规则**：日期桶用**本地时区** `YYYY-MM-DD`（有意区别于旧 manage.js 的 UTC 月计数——用户感知统计）；`last7` = [-6..0] 求和、prev = [-13..-7]；`streak.current` 从今天回溯连续 count>0（今天为 0 则从昨天起算）；`streak.longest` 为窗口内最长；`busiestDay` 并列取最早。
-- **UI 块**（`renderer/src/features/stats.js` + `stats-charts.js`，零依赖 SVG/DOM；2026-11-11 重设计）：toolbar（来源 hint + 刷新）；总计 hero 卡（48px 大数字 + 副行「累计上传 N 张图像」（2026-11-12 对齐实现——totals 为全期口径，不声明时间窗；窗口语义归 F25 v2 契约）/「暂无上传记录」——原单段占比条 + 图例已删，单系列无需图例、满宽条零信息量）；4 KPI 卡（今天 / 过去7天+环比 ▲绿▼红 / 连续天数（副行最长 N）/ 最忙的一天）；年历热力图卡（53 周列 × 7 行 SVG，**宽度自适应**——cell 在 9–15px 间随容器伸缩、窄容器横向滚动，`heat-lv0..4` 5 档顺序色阶 lv0=`--c-bg-2`，lv1–4=`--c-primary` @ .25/.45/.7/1 随三套主题令牌联动；固定阈值 0 / 1 / 2–3 / 4–7 / 8+；卡头带「少 → 多」5 色块比例尺图例；月标签防挤压——与上一标签视距 <22px 丢弃；左侧行标签 + `<title>` tooltip）；时段卡（24 柱 SVG，y 轴刻度在**左**（0 省略）、柱顶 4px 圆角、基线直角，柱窄于 24px 时叠加整槽透明热区保命中区 ≥24px，峰桶标注「HH:00–HH+1:00 最忙」，x 刻度 0/6/12/18，hover 提亮 + tooltip，单系列无图例）。
-- **降级态**：未连远端 → hint「未连接远端（需配置 GitHub 与 token）」；全零 → 「暂无上传记录」；`/api/stats` 聚合异常兜底为 200 + `emptyStatsView` + warning（**无 500 路径**）。
+- **UI 块（v2，`renderer/src/features/stats.js` + `stats-charts.js`，零依赖 SVG/DOM；2026-11-11 重设计，2026-11-12 v2 契约同步）**：
+  - **契约门（先于一切数字渲染）**：`d.contractVersion !== 2` → 显示「统计契约不匹配」（hero `—` + 副行说明「数据版本过旧或过新，请刷新或升级应用」、hint「统计契约不匹配」），其余块不渲染；**禁止 `?? 0` 静默渲染**。
+  - toolbar：来源 hint（首条 warning 原文，其余进 `title` tooltip，全部 `textContent` 防注入）+ 刷新；面包屑标题「过去 365 天上传 N 次」。
+  - **hero 卡**：48px 大数字 + 副行「已保存记录中成功上传 N 次图像 · 上传时间按运行开始估算」；`measurement.state='partial'` 时副行追加「 · 记录不完整」；`state='unavailable'` → 大数字 `—` + 副行「暂无可用上传记录」（占位 0 **不得**说成从未上传）。
+  - 4 KPI 卡（今天 / 过去7天+环比 ▲绿▼红 / 连续天数（副行「窗口内最长 N 天」）/ 最忙的一天（副行「N 次 · 按现存记录」））；`deltaPct=null` 两态文案：`partial` → 「记录不完整，暂不比较」，否则 → 「无对比基线」。
+  - 年历热力图卡（53 周列 × 7 行 SVG，**宽度自适应**——cell 在 9–15px 间随容器伸缩、窄容器横向滚动，`heat-lv0..4` 5 档顺序色阶 lv0=`--c-bg-2`，lv1–4=`--c-primary` @ .25/.45/.7/1 随三套主题令牌联动；固定阈值 0 / 1 / 2–3 / 4–7 / 8+；卡头带「少 → 多」5 色块比例尺图例；月标签防挤压——与上一标签视距 <22px 丢弃；左侧行标签 + `<title>` tooltip「M月D日: 成功上传 N 次图像（按运行时间）」）；时段卡（24 柱 SVG，y 轴刻度在**左**（0 省略）、柱顶 4px 圆角、基线直角，柱窄于 24px 时叠加整槽透明热区保命中区 ≥24px，峰桶标注「HH:00–HH+1:00 最忙」，x 刻度 0/6/12/18，hover 提亮 + tooltip，单系列无图例）。
+  - **库存独立卡「当前远端库存」**：数值来自 `sources.remoteInventory.count`（`state='unavailable'` → `—` +「未连接远端」；`state='partial'` → 副注「列表不完整，数值可能偏小」）；上下文参考，**不称上传、不参与 count**。
+- **降级态（v2）**：`unavailable`（无可用历史）≠ 真 0——hero 显示「— / 暂无可用上传记录」，热力图卡头追加「（无可用上传记录）」；`partial` → hero 副行「记录不完整」+ 环比「记录不完整，暂不比较」；真 0（`available`）→ 如实显示 0；远端库存失败 → 库存卡「— / 未连接远端」+ warning，本地统计照常返回；`/api/stats` 聚合异常兜底为 200 + `emptyStatsView`（`measurement.state='unavailable'`）+ warning（**无 500 路径**）。
 
 ## F23 Web 控制台壳层与视觉重设计
 

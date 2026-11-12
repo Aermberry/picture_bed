@@ -34,7 +34,7 @@ export {
   DIR_PLACEHOLDER,
 } from './repo-dir.js';
 export type { CreateRepoDirOptions, CreateRepoDirResult } from './repo-dir.js';
-export { getRun, listRuns, newRunId, recordRun, runsDir } from './run-store.js';
+export { getRun, listRuns, newRunId, recordRun, runsDir, scanAllRuns } from './run-store.js';
 export type { RunRecord } from './run-store.js';
 export { buildStatsView, emptyStatsView } from './stats.js';
 export type { StatsView } from './stats.js';
