@@ -125,7 +125,7 @@
     <!-- 统计（F25 使用统计） -->
     <section class="content" id="view-stats" style="display:none">
       <div class="toolbar">
-        <span class="hint" id="statsHint" style="margin-right:auto">本地 manifest 与远端仓库聚合 · 仅统计图像</span>
+        <span class="hint" id="statsHint" style="margin-right:auto"></span>
         <button class="btn btn-ghost" id="statsRefresh" type="button">刷新</button>
       </div>
       <div class="card" id="statsSummaryCard">
@@ -153,6 +153,16 @@
       <div class="card" id="statsHoursCard">
         <h3>时段</h3>
         <div class="stats-hourwrap" id="statsHours"></div>
+      </div>
+      <div class="card" id="statsInventoryCard">
+        <div class="card-head">
+          <h3>当前远端库存</h3>
+          <span class="hint" id="statsInventoryState"></span>
+        </div>
+        <div class="stats-inventory">
+          <div class="num stats-total" id="statsInventoryValue">—</div>
+          <span class="hint">远端图床目录中现存图像文件数（上下文参考，不计入上方上传统计）</span>
+        </div>
       </div>
     </section>
 

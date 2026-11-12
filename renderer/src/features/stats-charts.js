@@ -115,7 +115,7 @@ export function renderHeatmap(days, el) {
       const parts = String(d.date).split("-");
       const title = svgEl("title");
       title.textContent =
-        Number(parts[1]) + "月" + Number(parts[2]) + "日: " + d.count + " 张";
+        Number(parts[1]) + "月" + Number(parts[2]) + "日: 成功上传 " + d.count + " 次图像（按运行时间）";
       rect.appendChild(title);
       svg.appendChild(rect);
     });
@@ -205,7 +205,7 @@ export function renderHours(hours, el) {
     }
     const title = svgEl("title");
     const hh = String(h.hour).padStart(2, "0");
-    title.textContent = hh + ":00–" + String((h.hour + 1) % 24).padStart(2, "0") + ":00 · " + v + " 张";
+    title.textContent = hh + ":00–" + String((h.hour + 1) % 24).padStart(2, "0") + ":00 · 成功上传 " + v + " 次图像（按运行时间）";
     bar.appendChild(title);
     svg.appendChild(bar);
     // 命中区 ≥24px：柱窄时叠加整槽透明热区

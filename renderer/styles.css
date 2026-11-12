@@ -510,6 +510,9 @@
     .stats-summary{display:flex; gap:var(--sp-8); align-items:baseline; flex-wrap:wrap}
     .stats-total{font-size:48px; font-weight:700; line-height:1.05}
     .stats-herosub{align-self:center; padding-bottom:var(--sp-1)}
+    /* F25 v2 库存区（独立 context，不参与上传统计） */
+    .stats-inventory{display:flex; gap:var(--sp-8); align-items:baseline; flex-wrap:wrap}
+    #statsInventoryCard h3{margin:0}
     .kpi-up{color:var(--c-success)}
     .kpi-down{color:var(--c-danger)}
     #statsHeatmapCard h3, #statsHoursCard h3{margin-top:0}
