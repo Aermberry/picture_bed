@@ -12,6 +12,7 @@ import { IMAGE_EXT } from '../src/lib/img.js';
 import { isImageName } from '../renderer/src/lib/files.js';
 import { loadConfig } from '../src/config.js';
 import { runSync } from '../src/app/sync.js';
+import { statsRoutes } from '../src/ui/routes/stats.js';
 import { rendererEntryJs, rendererJsAll } from './renderer-source.js';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -555,6 +556,104 @@ describe('ui server F16–F18', () => {
     expect(data.data.busiestDay.count).toBeGreaterThanOrEqual(0);
     expect(data.data.warnings).toEqual([]);
     expect(JSON.stringify(data)).not.toMatch(/ghp_/);
+  });
+
+  it('F25 v2 contract: contractVersion=2 in data, envelope schemaVersion stays 1, v2 fields present', async () => {
+    const { data } = await api('/api/stats');
+    // 信封 schemaVersion 保持 1（task 卡硬约束：外层契约不动，data 内演进）
+    expect(data.schemaVersion).toBe(1);
+    // v2 契约版本位于 data 内
+    expect(data.data.contractVersion).toBe(2);
+    expect(data.data.period).toMatchObject({
+      kind: 'rolling-days',
+      days: 365,
+      scope: 'local-run-store',
+    });
+    expect(data.data.period.startDate).toBe(data.data.days[0].date);
+    expect(data.data.period.endDate).toBe(data.data.today.date);
+    expect(typeof data.data.period.timeZone).toBe('string');
+    expect(data.data.measurement).toMatchObject({
+      unit: 'successful-image-upload',
+      source: 'runs',
+    });
+    expect(['available', 'partial', 'unavailable']).toContain(data.data.measurement.state);
+    expect(['recorded', 'unknown']).toContain(data.data.measurement.countAccuracy);
+    expect(['run-start-estimate', 'unknown']).toContain(data.data.measurement.timeAccuracy);
+    expect(data.data.measurement.coverage).toBe('retained-local-runs');
+    expect(data.data.sources.manifest).toEqual({ use: 'not-counted', reason: 'mapping-snapshot' });
+    expect(data.data.sources.remoteCommits).toEqual({
+      use: 'not-counted',
+      reason: 'not-upload-events',
+    });
+    expect(['complete', 'partial', 'unavailable']).toContain(data.data.sources.remoteInventory.state);
+    expect('remoteAvailable' in data.data.sources).toBe(false);
+    // renderer 契约常量：契约不匹配兜底 + 新文案（源码级断言，零 DOM 环境）
+    expect(spaApp).toContain('d.contractVersion !== 2');
+    expect(spaApp).toContain('统计契约不匹配');
+    expect(spaApp).toContain('过去 365 天上传');
+    expect(spaApp).toContain('已保存记录中成功上传');
+    expect(spaApp).toContain('上传时间按运行开始估算');
+    expect(spaApp).toContain('记录不完整');
+    expect(spaApp).toContain('当前远端库存');
+    expect(spaApp).toContain('按运行时间');
+    expect(spaApp).toContain('窗口内最长');
+    expect(spaApp).toContain('按现存记录');
+    // 移除的字段不得再被 renderer 消费
+    expect(spaApp).not.toContain('remoteAvailable');
+    expect(spaApp).not.toContain('d.sources.remote === null');
+  });
+
+  it('F25 v2 fallback distinguishes unavailable from true zero and keeps envelope warnings', async () => {
+    // 直呼路由函数注入 loadCfg 抛错（配置读取失败这类真实触发类）：
+    // 不能用坏 picbed.toml 走 HTTP——galleryRoutes 在路由表里先于 statsRoutes 且
+    // 顶部无条件 loadCfg，坏配置会让 gallery 先 500，到不了 stats 兜底。
+    let captured: { status: number; body: any } | null = null;
+    await statsRoutes({
+      method: 'GET',
+      pathname: '/api/stats',
+      cwd: tmp(),
+      loadCfg: () => {
+        throw new Error('注入的配置读取失败');
+      },
+      send: (status, body) => {
+        captured = { status, body };
+      },
+    } as unknown as Parameters<typeof statsRoutes>[0]);
+    expect(captured).toBeTruthy();
+    const body = (captured as { status: number; body: any }).body;
+    expect((captured as { status: number }).status).toBe(200); // 兜底无 500 路径
+    expect(body.ok).toBe(true);
+    expect(body.command).toBe('api.stats');
+    expect(body.schemaVersion).toBe(1);
+    expect(body.data.contractVersion).toBe(2);
+    // 兜底 = unavailable（不是真 0）
+    expect(body.data.measurement.state).toBe('unavailable');
+    expect(body.data.measurement.countAccuracy).toBe('unknown');
+    expect(body.data.sources.runs.state).toBe('unavailable');
+    // warnings 双写：信封顶层与 data 内一致（P0 卡 #1 第 4 项，保持）
+    expect(Array.isArray(body.warnings)).toBe(true);
+    expect(body.warnings.length).toBeGreaterThan(0);
+    expect(body.warnings).toEqual(body.data.warnings);
+    expect(body.data.totals.count).toBe(0);
+    expect(body.data.days).toHaveLength(365);
+    expect(body.data.hours).toHaveLength(24);
+  });
+
+  it('F25 v2: success path reflects runs as count source (true zero stays available)', async () => {
+    // 本 suite 的 cwd 在此前用例已跑过 runSync（写入了 RunRecord 且 uploaded ≥ 1）
+    const { data } = await api('/api/stats');
+    expect(data.data.sources.runs.state).toBe('available');
+    expect(data.data.measurement.state).toBe('available');
+    expect(data.data.measurement.countAccuracy).toBe('recorded');
+    expect(data.data.measurement.timeAccuracy).toBe('run-start-estimate');
+    // days/totals/hours 求和等式（runs 权重归 startedAt）
+    const daySum = (data.data.days as { count: number }[]).reduce((n, d) => n + d.count, 0);
+    const hourSum = (data.data.hours as { count: number }[]).reduce((n, h) => n + h.count, 0);
+    expect(data.data.totals.count).toBe(daySum);
+    expect(data.data.totals.count).toBe(hourSum);
+    expect(data.data.totals.count).toBeGreaterThan(0);
+    // manifest 不再作为计数源出现（number 字段已删）
+    expect(typeof data.data.sources.manifest).toBe('object');
   });
 
   it('F23 theme system: themes/logo/icon CSS in styles.css, whitelist in app.js', async () => {
