@@ -254,7 +254,7 @@ picbed/
 │  │  ├─ auth.ts                     //   鉴权 façade：token 获取与 gh 登录能力，UI 只许从这里取
 │  │  ├─ repo-dir.ts                 //   远端目录规则：段白名单(字母数字_-.与CJK)+长度上限（GitHub 无空目录 API）
 │  │  ├─ run-store.ts                //   .picbed/runs/ 运行记录：recordRun/listRuns/getRun（= RunRecorder）
-│  │  └─ stats.ts                    //   buildStatsView() 使用统计聚合：manifest 主源 + runs 回退 + 远端补充（F25）
+│  │  └─ stats.ts                    //   buildStatsView() 使用统计聚合 v2：runs 唯一计数源；manifest 映射快照 / 远端提交 not-counted；远端库存仅上下文（F25）
 │  │
 │  │  ── 图床适配器（端口 + 实现，F13 双后端）──
 │  ├─ host/
@@ -293,7 +293,7 @@ picbed/
 │  │  │  ├─ auth.ts                  //     PAT 粘贴保存/清除（写凭据文件，不写 toml）
 │  │  │  ├─ watch.ts                 //     监听：状态 / 启动 / 停止
 │  │  │  ├─ gallery.ts               //     图库：远端目录浏览 + 批量删除选中
-│  │  │  ├─ stats.ts                 //     使用统计：GET /api/stats（manifest/runs/远端聚合，F25）
+│  │  │  ├─ stats.ts                 //     使用统计：GET /api/stats（runs 唯一计数源；manifest/远端提交 not-counted，远端库存仅上下文，F25 v2）
 │  │  │  ├─ branches.ts              //     分支列表：GET /api/branches（设置页 Branch 下拉）
 │  │  │  ├─ system.ts                //     系统类只读端点：doctor 自检 + manifest 视图 + 远程目录创建
 │  │  │  └─ health.ts                //     /api/health 存活探针
@@ -325,7 +325,7 @@ picbed/
 │  ├─ build-desktop.mjs              //   electron-builder 打包（extraMetadata.main 注入 Electron 入口）
 │  └─ desktop-dev.mjs                //   桌面 dev 编排：起 Vite + electron，代理 /api
 │
-└─ tests/                            // vitest（175 用例 / 18 个用例文件 + 1 个辅助；架构约定都有活守卫）
+└─ tests/                            // vitest（195 用例 / 18 个用例文件 + 1 个辅助；架构约定都有活守卫）
    ├─ layering.test.ts               //   分层 7 条断言（§2.5.4）
    ├─ lib-single-source.test.ts      //   跨层单点：横切逻辑只许在 src/lib/
    ├─ package-surface.test.ts        //   npm 导出面：files/exports 不得越界发布面

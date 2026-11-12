@@ -45,7 +45,7 @@
 | F22 | 监听控制台 | P2→**done** | webui | watch 启停与事件日志；无常驻特权 |
 | F23 | 控制台壳层与视觉重设计 | P0→**done** | webui | 72px 侧栏多视图（F25 起第二视图为「统计」；图库视图 2026-09-30 加入；「规范」仅调试可见）；晨雾蓝×落日暖令牌；F17–F22 可达且契约不变 |
 | F24 | 桌面应用壳与安装包 | P0→**done** | desktop | Electron 壳加载完整控制台；原生目录对话框；Windows NSIS 安装包（2026-11-10 起 npm 形态移除，安装包为唯一形态） |
-| F25 | 使用统计视图 | P1 | webui | GET /api/stats 聚合（manifest 主源 + runs 回退 + 远端 trees/commits 补充）；总计 hero 卡 + 今天/近7天环比/连续天数/最忙一天 KPI；年历热力图；时段分布；只统计图像 |
+| F25 | 使用统计视图 | P1 | webui | GET /api/stats 聚合（v2 口径：runs 唯一计数源、成功上传动作计数、365 日统一窗口、状态三态测量；manifest/远端提交 not-counted、远端库存仅上下文）；hero 卡 + 今天/近7天环比/连续天数/最忙一天 KPI；年历热力图；时段分布；只统计图像 |
 | F26 | 图库视图 | P1 | webui | 仓库文件夹树 + 图片墙（GET /api/gallery）；图片批量删除；仅浏览不改统计口径 |
 
 ---
@@ -194,13 +194,13 @@
 
 - 优先级：P1 · 模块：**webui**
 - 实现（域）：[module-webui · F25](design/module-webui.md#f25-使用统计视图)
-- AC（统计视图，2026-11-09；UI 2026-11-11 重设计）：侧栏第二视图由「管理」改为「统计」——manifest 网格、搜索/排序/批量复制外链工具栏与旧四统计卡（文件总数/本月上传/已映射/外链调用）**移除**，替换为使用统计视图（`GET /api/stats` 聚合；总计 hero 卡 48px 大数字 + 副行「累计上传 N 张图像」，原占比条+图例已删；今天 / 过去7天+环比 / 连续天数 / 最忙的一天 四 KPI 卡；过去一年 GitHub 风格日历热力图——宽度自适应、5 档色阶 +「少→多」图例；24 小时时段柱状图——左 y 轴、命中区 ≥24px；刷新按钮）。**只统计图像**（`IMAGE_EXT` 白名单，不映射「录制/其它文件」分类）。manifest `updatedAt` 为主事件源，runs 仅在 manifest 无可用图像事件时回退；owner/repo/token 齐备时以 Trees API 补充远端总数、Commits API 在本地无数据时填充时间线；远端失败降级为本地统计 + warning，不 500。日期桶按本地时区。API 契约（信封/confirm/掩码）不变。
+- AC（统计视图，2026-11-09；UI 2026-11-11 重设计；**口径 v2 2026-11-12**）：侧栏第二视图由「管理」改为「统计」——manifest 网格、搜索/排序/批量复制外链工具栏与旧四统计卡（文件总数/本月上传/已映射/外链调用）**移除**，替换为使用统计视图（`GET /api/stats` 聚合；hero 卡 48px 大数字 + 副行「已保存记录中成功上传 N 次图像 · 上传时间按运行开始估算」，partial 追加「记录不完整」，unavailable 显示「— / 暂无可用上传记录」；今天 / 过去7天+环比（`deltaPct=null` 分「记录不完整，暂不比较」/「无对比基线」两态）/ 连续天数 / 最忙的一天 四 KPI 卡；过去 365 天 GitHub 风格日历热力图——宽度自适应、5 档色阶 +「少→多」图例；24 小时时段柱状图——左 y 轴、命中区 ≥24px；「当前远端库存」独立卡；刷新按钮）。**计数单位 = 一次成功上传动作**（`measurement.unit='successful-image-upload'`），**runs 是唯一计数源**（`scanAllRuns` 全量读取，`counts.uploaded` 按 `startedAt` 归桶；partial run 已成功部分照计）；**范围恒为 365 日统一窗口**（`period: rolling-days/365`，窗口外 run 不计入但记录仍在，不判 unavailable）。manifest 为映射快照、远端提交不是上传事件，二者均 `not-counted`（`sources.manifest.reason='mapping-snapshot'`、`sources.remoteCommits.reason='not-upload-events'`）；**状态结构化**（`measurement.state` / `sources.runs.state` 三态 available/partial/unavailable，判定表见 module-webui §F25；读取抛错→unavailable≠0）；**远端库存与上传语义分离**（`sources.remoteInventory` 仅上下文，Trees truncated→partial，失败/未配置→unavailable，不参与 count、不称上传）。data 内 `contractVersion: 2`，外层信封 `schemaVersion` 仍为 1；renderer 契约不匹配时显式「统计契约不匹配」，不得 `?? 0` 静默渲染。API 契约（信封/confirm/掩码）不变。
 
 ## F26 图库视图
 
 - 优先级：P1（已实现）· 模块：**webui**
 - 实现（域）：[module-webui · 图库视图](design/module-webui.md#图库视图)（2026-09-30 随 `8a1c1af` 落地）
-- AC：侧栏「图库」进入仓库浏览——文件夹树 + 图片墙（复用 `GET /api/gallery?path=` 列目录/文件）；图片批量删除（`/api/gallery/delete`）；图片格式白名单与 `IMAGE_EXT` 一致（复用 `lib/files.js isImageName()`，不内联枚举）；仅浏览仓库内容，不改 manifest 统计口径。
+- AC：侧栏「图库」进入仓库浏览——文件夹树 + 图片墙（复用 `GET /api/gallery?path=` 列目录/文件）；图片批量删除（`/api/gallery/delete`）；图片格式白名单与 `IMAGE_EXT` 一致（复用 `lib/files.js isImageName()`，不内联枚举）；仅浏览仓库内容，不改 manifest 统计口径。**F26/F25 边界**：图库删图只改仓库远端文件，**不回写、不抵消 F25 历史**（F25 以 runs 成功上传动作计数；删除远端图片不改变既有 run 记录，故历史计数不回落；远端库存卡只是当下仓库快照，删图只影响库存数值本身）。
 
 ## F24 桌面应用壳与安装包
 
