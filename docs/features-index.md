@@ -39,10 +39,10 @@
 | F16 | 本地 Web 控制台服务 | P0→**done** | webui | 本机 HTTP 起停、健康检查、token 不出响应 |
 | F17 | 目录/拖拽与计划工作台 | P0→**done** | webui | 路径或拖拽导入；scan/plan；dry-run 无副作用 |
 | F18 | 一键同步 | P0→**done** | webui | 确认后 sync；进度与结果可观察 |
-| F19 | 回滚面板 | P1→**done** | webui | manifest 可视；revert 可 dry-run |
+| F19 | 回滚面板 | ~~P1→**done**~~ **removed 2026-09-30** | webui | ~~manifest 可视；revert 可 dry-run~~（UI 面板已移除；API 仍在） |
 | F20 | 配置与自检面板 | P1→**done** | webui | config 掩码编辑；doctor 报告可见 |
-| F21 | 审计与报告 | P2→**done** | webui | run 记录/失败明细；JSON 与契约对齐 |
-| F22 | 监听控制台 | P2→**done** | webui | watch 启停与事件日志；无常驻特权 |
+| F21 | 审计与报告 | ~~P2→**done**~~ **removed 2026-09-30** | webui | ~~run 记录/失败明细；JSON 与契约对齐~~（UI 面板已移除；API 仍在） |
+| F22 | 监听控制台 | ~~P2→**done**~~ **removed 2026-09-30** | webui | ~~watch 启停与事件日志；无常驻特权~~（UI 面板已移除；API 仍在） |
 | F23 | 控制台壳层与视觉重设计 | P0→**done** | webui | 72px 侧栏多视图（F25 起第二视图为「统计」；图库视图 2026-09-30 加入；「规范」仅调试可见）；晨雾蓝×落日暖令牌；F17–F22 可达且契约不变 |
 | F24 | 桌面应用壳与安装包 | P0→**done** | desktop | Electron 壳加载完整控制台；原生目录对话框；Windows NSIS 安装包（2026-11-10 起 npm 形态移除，安装包为唯一形态） |
 | F25 | 使用统计视图 | P1 | webui | GET /api/stats 聚合（v2 口径：runs 唯一计数源、成功上传动作计数、365 日统一窗口、状态三态测量；manifest/远端提交 not-counted、远端库存仅上下文）；hero 卡 + 今天/近7天环比/连续天数/最忙一天 KPI；年历热力图；时段分布；只统计图像 |
@@ -158,11 +158,11 @@
 - 实现（域）：[module-webui · F18](design/module-webui.md#f18-一键同步)
 - AC：**拖放完成即触发 sync**（无独立「计划/同步」面板）；写盘/上传前仍**显式确认**（服务端需 `confirm`）；完成后 toast/简要反馈 uploaded 等计数；部分失败可见；幂等可预期。原 scan/plan/sync 按钮与计划表**移除**（`/api/plan`、`/api/sync` 仍由照片墙上传流程调用；`/api/manifest`、`/api/runs` 保留作审计/回滚数据源）。
 
-## F19 回滚面板
+## F19 回滚面板（removed 2026-09-30）
 
-- 优先级：P1 · 模块：**webui**
-- 实现（域）：[module-webui · F19](design/module-webui.md#f19-回滚面板)
-- AC：可浏览 manifest（doc / raw / publicUrl / sha256）；支持 `revert --dry-run` 等价预览（不写盘）；确认后将 URL 还原为原文档 raw 路径；manifest 损坏时界面可见错误且不静默清空。
+- ~~优先级：P1 · 模块：**webui**~~
+- 实现（域）：[module-webui · F19](design/module-webui.md#f19-回滚面板)（历史设计）
+- **UI 面板已于 2026-09-30 删除**（commit `2aa016f`，标题 `feat(ui): manage view = uploaded gallery; drop revert/audit/watch panels`，删除 `renderer/index.html` 31 行；当前 `renderer/index.html` 只有五个视图：`upload` / `stats` / `gallery` / `settings` / `doc`；全仓 `grep -rn 'id="revert\|id="runs\|id="watch' renderer/` → 零命中）。**API 仍在**：`src/ui/routes/revert.ts:7` `POST /api/revert`；且有测试守着：`tests/ui-panels.test.ts:141`（`/api/revert`）。以下为历史 AC：可浏览 manifest（doc / raw / publicUrl / sha256）；支持 `revert --dry-run` 等价预览（不写盘）；确认后将 URL 还原为原文档 raw 路径；manifest 损坏时界面可见错误且不静默清空。
 
 ## F20 配置与自检面板
 
@@ -172,17 +172,17 @@
 - AC（目录选择，2026-10-01）：`github.dir` 行可**浏览并点选仓库远程目录**——聚焦输入框或点「选择目录」弹出可停留浮层（当前路径 + 文件夹列表 + 上级/刷新 + 新建 + 关闭，**不自动消失**，点外部/Esc/关闭收起）；目录来源于仓库远端（复用 `GET /api/gallery?path=` 的 `type==='dir'`），owner/repo/token 不齐时给引导而非报错。可**新建文件夹**（GitHub 无空目录 API，以空内容 `.gitkeep` 占位提交）；**选中或新建成功即写入并保存 `github.dir`**，无需再点「保存设置」；该输入框为**只读展示态**——不接受手工键入，只显示当前选中的目录，值唯一来源是浮层点选或新建回填（2026-10-01 补）。
 - AC（分支下拉，2026-10-03）：`github.branch` 行可**点选仓库远端分支**——点击/聚焦 Branch 输入框即在输入框下方展开分支下拉（`GET /api/branches` 列分支，当前分支高亮），点选某分支**立即写入并保存 `github.branch`**（无需再点「保存设置」）；owner/repo/token 不齐时在下拉内给引导而非弹错；点外部 / `Esc` 收起；该输入框为**只读展示态**，值唯一来源是下拉点选（2026-10-03 补）。
 
-## F21 审计与报告
+## F21 审计与报告（removed 2026-09-30）
 
-- 优先级：P2 · 模块：**webui**
-- 实现（域）：[module-webui · F21](design/module-webui.md#f21-审计与报告)
-- AC：可查看最近 run 记录（时间、命令、counts、ok/partial/fail）；可展开失败明细（path + reason + 退出码语义）；可导出 JSON，信封含 `schemaVersion` 且字段与 [`cross-cutting.md`](design/cross-cutting.md) 对齐；报告**无 token**。
+- ~~优先级：P2 · 模块：**webui**~~
+- 实现（域）：[module-webui · F21](design/module-webui.md#f21-审计与报告)（历史设计）
+- **UI 面板已于 2026-09-30 删除**（commit `2aa016f`，标题 `feat(ui): manage view = uploaded gallery; drop revert/audit/watch panels`，删除 `renderer/index.html` 31 行；当前 `renderer/index.html` 只有五个视图：`upload` / `stats` / `gallery` / `settings` / `doc`；全仓 `grep -rn 'id="revert\|id="runs\|id="watch' renderer/` → 零命中）。**API 仍在**：`src/ui/routes/runs.ts:7` `GET /api/runs`、`:12` `GET /api/runs/<id>`；且有测试守着：`tests/ui-panels.test.ts:130`（`/api/runs`）。以下为历史 AC：可查看最近 run 记录（时间、命令、counts、ok/partial/fail）；可展开失败明细（path + reason + 退出码语义）；可导出 JSON，信封含 `schemaVersion` 且字段与 [`cross-cutting.md`](design/cross-cutting.md) 对齐；报告**无 token**。
 
-## F22 监听控制台
+## F22 监听控制台（removed 2026-09-30）
 
-- 优先级：P2 · 模块：**webui**
-- 实现（域）：[module-webui · F22](design/module-webui.md#f22-监听控制台)
-- AC：可对目录启停 watch（等价 F12 语义）；变更批次在界面可见；**默认 `preview` 仅预览**，可选「确认后同步」；`auto` 须显式打开；停止后进程/监听退出，**无**常驻特权；忽略规则与 F12 一致（`node_modules`/`.git`/`.picbed`）。
+- ~~优先级：P2 · 模块：**webui**~~
+- 实现（域）：[module-webui · F22](design/module-webui.md#f22-监听控制台)（历史设计）
+- **UI 面板已于 2026-09-30 删除**（commit `2aa016f`，标题 `feat(ui): manage view = uploaded gallery; drop revert/audit/watch panels`，删除 `renderer/index.html` 31 行；当前 `renderer/index.html` 只有五个视图：`upload` / `stats` / `gallery` / `settings` / `doc`；全仓 `grep -rn 'id="revert\|id="runs\|id="watch' renderer/` → 零命中）。**API 仍在**：`src/ui/routes/watch.ts:7` `GET /api/watch`、`:12` `POST /api/watch/start`、`:50` `POST /api/watch/stop`；且有测试守着：`tests/ui-panels.test.ts:155`（`/api/watch/start`）。以下为历史 AC：可对目录启停 watch（等价 F12 语义）；变更批次在界面可见；**默认 `preview` 仅预览**，可选「确认后同步」；`auto` 须显式打开；停止后进程/监听退出，**无**常驻特权；忽略规则与 F12 一致（`node_modules`/`.git`/`.picbed`）。
 
 ## F23 Web 控制台壳层与视觉重设计
 
