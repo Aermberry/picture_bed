@@ -52,3 +52,9 @@ coverage/
 .agents/
 .mimocode/
 .codebuddy/
+/*.png
+.claude/
+.codex/
+.playwright-mcp/
+skills-lock.json
+*.excalidraw
