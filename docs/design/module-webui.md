@@ -8,7 +8,7 @@
 
 ## 目的与边界
 
-webui 是本地控制台呈现层：在 Electron 生命周期内提供 scan/plan/sync/revert/config/doctor/watch 能力，不复制 ingest/transfer/rewrite 业务规则；通过 `src/app/` 共享服务与 CLI 共用应用逻辑和 `AppError`。默认仅绑定 `127.0.0.1`，不提供多用户、公网部署或反向代理鉴权；token 不进入 HTTP 响应、页面、run 记录或日志，写操作必须经过显式确认。
+webui 是本地控制台呈现层：在 Electron 生命周期内提供 scan/plan/sync/revert/config/doctor/watch 能力，不复制 ingest/transfer/rewrite 业务规则；通过 `src/app/` 共享服务复用应用逻辑与 `AppError`（CLI 宿主已移除，Web/桌面是唯一消费面）。默认仅绑定 `127.0.0.1`，不提供多用户、公网部署或反向代理鉴权；token 不进入 HTTP 响应、页面、run 记录或日志，写操作必须经过显式确认。
 
 实现落点：`src/ui/{server,context,root,watch,gh-login,inline-cache}.ts`、`src/ui/http/{body,errors,envelope,guard,static}.ts`、`src/ui/routes/{auth,branches,config,gallery,health,plan,preview,revert,runs,session,stats,sync,system,watch}.ts`、`renderer/{index.html,styles.css,main.js,src/**}`。
 

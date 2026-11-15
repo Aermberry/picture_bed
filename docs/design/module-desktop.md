@@ -49,6 +49,7 @@ NativeBridge { selectDirectory(): string | null, selectFiles(): string[] }
 
 - 环境开关：`PICBED_DESKTOP_SUPERVISED=1`、`PICBED_DESKTOP_DEV=1`、`ELECTRON_ENTRY=desktop/main.mjs`；清除泄漏的 `ELECTRON_RUN_AS_NODE`。
 - Renderer 由 Vite HMR 更新；main/preload 变更由 electron-vite 重启 Electron；`dist/` 变更触发进程级重启，清空 Node ESM 模块缓存。
+- Vite 会话中禁止 `loadURL(uiHandle.url)`——那会离开 HMR 页，热更新表现为「改了没反应」（main.mjs 在 rendererDevUrl 存在时提前 return，不落 uiHandle.url）。
 - 默认 UI 端口 `4780`；端口占用报错退出，可用 `PICBED_UI_PORT` 调整。打包态不安装热更新监听。
 - 子进程快速失败时按 300ms×n（上限 2s）退避，最多重启 5 次；不得误杀 `tsc -w`。SIGINT/SIGTERM 清理子进程并退出。
 - `out/` 为 electron-vite 构建产物；不使用打包后的 `out/main` 作为 Electron 入口。

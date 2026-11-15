@@ -63,7 +63,7 @@
 
 - 优先级：P0 · 模块：**ingest**
 - 实现（域）：[module-ingest · F3](design/module-ingest.md#f3-目录扫描与文档发现)
-- 现状：默认扫描 `md,html,htm`（可配置）并遵循 ignore glob；跳过 `node_modules`/`.git`，不跟随出根 symlink；结果按规范化路径稳定排序，不可读目录记 warning 后继续。
+- 现状：默认扫描 `md,html,htm`（可配置）并遵循 ignore glob；跳过 `node_modules`/`.git`，不跟随出根 symlink；结果按规范化路径稳定排序，不可读的文档文件记 warning 后继续；不可读目录直接跳过（无 warning）。
 
 ## F4 图片引用抽取
 
@@ -87,7 +87,7 @@
 
 - 优先级：P0 · 模块：**transfer**
 - 实现（域）：[module-transfer · F7](design/module-transfer.md#f7-github-图床上传)
-- 现状：经 Contents API 上传并生成 `raw`/`jsdelivr`/`custom` URL；同 sha 重复 sync 不重复上传；429/403 退避后重试或以退出码 5 明确失败，commit message 可配置。
+- 现状：经 Contents API 上传并生成 `raw`/`jsdelivr`/`custom` URL；同 sha 重复 sync 不重复上传；429/403 直接失败映射 E_REMOTE，不重试，commit message 可配置。
 
 ## F8 文档链接回写
 
@@ -159,7 +159,7 @@
 
 - 优先级：~~P1 · 模块：**webui**~~
 - 实现（域）：[module-webui · F19](design/module-webui.md#f19-回滚面板)（历史设计）
-> 已移除：2026-09-30，commit `2aa016f` 删除 UI 面板；`GET /api/runs` 仍在 `src/ui/routes/runs.ts:7,12`，测试守卫在 `tests/ui-panels.test.ts:130`。
+> 已移除：2026-09-30，commit `2aa016f` 删除 UI 面板；`POST /api/revert` 仍在 `src/ui/routes/revert.ts:7`，测试守卫在 `tests/ui-panels.test.ts:141`。
 
 ## F20 配置与自检面板
 

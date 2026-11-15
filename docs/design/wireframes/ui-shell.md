@@ -30,7 +30,7 @@ App (flex, height 100vh)
 ### 1.1 上传视图（默认）
 
 - 空态为 DropZone 英雄区（最小高度 420px），接受图片或 md/html 文档，不接受文件夹。
-- 有扫描结果时显示照片墙：扫描数量、重置/上传操作，Material Tailwind Masonry 瀑布流 2/3/4 列、间距 8；图块满宽、保留自然宽高比、圆角 16，hover 显示文件名。可继续拖入。
+- 有扫描结果时显示照片墙：扫描数量、重置/上传操作，Material Tailwind Masonry 瀑布流 2/3/4 列、间距 6（与 renderer/styles.css `.photo-wall` 的 gap:6px 一致）；图块满宽、保留自然宽高比、圆角 16，hover 显示文件名。可继续拖入。
 - 已移除根绑定行、工作集、scan 按钮组及计划分组表。
 
 ### 1.2 统计视图（F25）
@@ -169,6 +169,7 @@ HTTP 信封、`confirm` 门、路径安全、token 纪律不变（见 cross-cutt
 
 ## 8. 开放问题
 
+- 深色主题：**不纳入本期**（F23 范围决策，已裁决）。
 暂无未决问题。
 
 ---

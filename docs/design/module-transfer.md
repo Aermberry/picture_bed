@@ -41,7 +41,7 @@ transfer 将 ingest 产出的 `Asset` 分类为可预览计划，经图床适配
 - 远端路径模板：`{dir}/{yyyy}/{mm}/{sha12}-{safeName}`。
 - URL 风格：`raw` → `https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{path}`；`jsdelivr` → `https://cdn.jsdelivr.net/gh/{owner}/{repo}@{branch}/{path}`；`custom` 使用用户模板。
 - `{path}` 按 `/` 分段百分号编码，分隔符保留；custom 模板同样使用编码后的路径。
-- 上传串行；无重试、无退避；远端 403/429 映射 `E_REMOTE`。单文件不得超过 50 MB。
+- 上传串行；无重试、无退避；远端 403/429 映射 `E_REMOTE`。单文件建议不超过 50 MB——当前实现无上传前大小校验，超限由远端拒绝，表现为 `E_REMOTE`。
 
 ## F11 单文件上传
 
@@ -56,7 +56,7 @@ transfer 将 ingest 产出的 `Asset` 分类为可预览计划，经图床适配
 
 ## 失败语义
 
-单资产失败与其他资产隔离；有部分成功时汇总为 partial。远端 API 非 2xx（含 403/429）映射 `E_REMOTE`，退出码 5；单文件超限拒绝上传。host 配置无效或缺少必需目录能力报 `E_CONFIG`；GitHub 缺 token 报 `E_TOKEN`，本地路径越出 host root 报 `E_LOCAL`。
+单资产失败与其他资产隔离；有部分成功时汇总为 partial。远端 API 非 2xx（含 403/429）映射 `E_REMOTE`，退出码 5。host 配置无效或缺少必需目录能力报 `E_CONFIG`；GitHub 缺 token 报 `E_TOKEN`，本地路径越出 host root 报 `E_LOCAL`。
 
 完整 code → 退出码 / HTTP 映射见 [`module-app.md`](module-app.md)。
 

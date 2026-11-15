@@ -52,6 +52,7 @@ HTTP 特判顺序由 `src/app/errors.ts#httpStatusForCode` 实现；退出码以
 - 执行链：scan → extract → resolve → plan → upload → rewrite → manifest；上传与回写共用同一轮 collect 快照。
 - `runSync` 自行执行 collect+plan，不复用调用方先前的 plan；鉴权失败在任何写操作之前发生。
 - `plan` 与 dry-run 不写文档、不上传；dry-run 仅计划，不调用写入路径。
+- 工作集限定：runSync/runPlan 接受可选 includeDocs（只 plan 这些文档）与 includeImages（只处理这些图片引用）参数——WebUI F18「仅处理当前会话工作集」的 app 层机制；两者缺省时全量。
 - 上传或回写按单文件隔离失败；有部分成功时以 `partial` 表达，退出码 6 / HTTP 207 共用同一判定。
 - manifest 每次 run 最多保存一次；RunRecord 记录运行结果，token 不进入审计数据。
 
