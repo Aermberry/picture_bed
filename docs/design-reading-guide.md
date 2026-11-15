@@ -1,236 +1,46 @@
 # 设计文档阅读指南
 
-> 面向：**第一次接触** picture_bed / picbed 设计文档的人  
-> 写法：先讲清文档里**标识体系**（`F`、`P`、模块名、`AC`…）各自是什么、为何存在，再讲它们如何组合，最后才落到具体条目。  
-> 版本：2026-09-27（与 electron-vite / `renderer/` 单源对齐）
+## 1. 文档地图
 
----
+- [功能点总表](features-index.md)：F/P/模块归属与 AC 定义权威；[架构总纲](architecture.md)：分层、选型与分期。
+- [横切约定](design/cross-cutting.md)：跨模块契约；[`design/module-*.md`](design/)：各模块域规则、数据、不变量、接口与失败语义。
+- [UI 视格](design/wireframes/ui-shell.md)：F23 视图与主题令牌；[桌面模块](design/module-desktop.md)：Electron、`renderer/` 单源与 electron-vite。
+- [SPA 拆分文档](design/archive/module-webui-spa-split.md)：历史决策轨迹；本文说明如何阅读标识及其链接关系。
 
-## 0. 文档地图（先看谁）
+## 2. 阅读路径
 
-| 文件 | 角色 | 何时读 |
-|------|------|--------|
-| [`features-index.md`](features-index.md) | **AC 权威** · F/P/模块归属 | 要知道「做成什么样才算完」 |
-| [`architecture.md`](architecture.md) | 分层、选型、分期、开放问题 | 要知道「为何这样分」 |
-| [`design/cross-cutting.md`](design/cross-cutting.md) | 退出码 / JSON 信封 / 确认门 | 跨模块契约 |
-| `design/module-*.md` | 各限界上下文详设 | 实现/评审某一块 |
-| [`design/wireframes/ui-shell.md`](design/wireframes/ui-shell.md) | F23 视格与主题令牌 | 改 UI 视觉 |
-| [`design/module-desktop.md`](design/module-desktop.md) | 桌面壳 + **`renderer/` 单源 + electron-vite** | 改 UI 结构 / 热更新 / 打包 |
-| `design/module-webui-spa-split.md` | **历史**（SPA 出模板串） | 只读决策轨迹 |
-| 本文 | 标识体系怎么读 | 第一次打开 `docs/` |
+1. 在功能点总表锁定目标 `Fx`，阅读其优先级、归属模块和 AC。
+2. 进入对应 `module-*` 阅读域规则；跨模块契约再查 cross-cutting。
+3. 需要理解分层或选型时查 architecture；修改 UI 视觉时查 wireframes。
 
----
+## 3. 标识体系
 
-## 0.1 阅读路径（总览）
+**F（Feature Point ID）**：稳定指称一项可独立描述、验收的产品能力，定义权威在 [features-index.md](features-index.md)。
+F 号只保证唯一，不是类名、开发任务号或 issue 号；发布后不复用、不改指。
 
-| 层级 | 你将建立的认识 | 对应章节 |
-|------|----------------|----------|
-| **L1 抽象** | 文档为何要用编号；各类标识的**角色与用途** | §1–§3 |
-| **L2 体系** | 标识如何串成网（定义处 / 引用处 / 优先级 / 模块） | §4–§6 |
-| **L3 落地** | 本项目里每个 `F` 是什么、属于谁 | §7 |
-| **L4 示例** | 拿一条真实功能点完整走一遍 | §8 |
+**P（Priority）**：表示交付顺序，不代表难度或缺陷等级；数字越小越优先。
+P0 为 MVP 闭环（含 F16–F18、F23、F24），P1 为第二批，P2 为增强，P3 为 backlog；按优先级安排阅读深度。
 
----
+**模块（module）**：表示主要业务责任归属，不等同于代码目录或 CLI 子命令。
+`ingest`/`transfer`/`rewrite`/`cliops`/`webui`/`desktop` 是模块；`app` 是非限界上下文的共享应用编排层。
 
-# L1 · 抽象：标识体系是什么、用来做什么
+**AC（Acceptance Criteria）**：从属于 F 的可观察完成条件，是对外承诺的验收判据。
+AC 不是实现步骤或 API 字段表；模块文档补充实现规则，不重定义 AC。
 
-## 1. 为什么设计文档需要「编号」
+## 4. 双向链接
 
-同一件产品能力会同时出现在：需求/验收清单、架构分期表、模块详设、CLI 契约表。若每处都用口语短名（「自动替换链接」），极易同物异名或异物同名。
+定义权威：features-index；域实现：module 文档；全局契约：cross-cutting；分层与选型：architecture。
+`features-index.md（F 定义） ↔ design/module-*.md（域实现与功能点映射） ↔ design/cross-cutting.md（全局契约）`；architecture 负责分层视图。
 
-稳定标识用来：**指称**、**对齐**、**溯源**、**排序/分期**、**归属**。标识是索引与契约的锚点，不是类名，也不是 Git issue 号。
+## 5. 示例：读懂 F4
 
----
+1. 总表中的 F4：P0、归属 ingest，AC 覆盖多语法、代码区不误抽、偏移精确。
+2. [module-ingest.md#f4](design/module-ingest.md#f4-图片引用抽取)：查看抽取算法、跳过规则与 `ImageRef` 形状。
+3. 全局 ref 字段语义查 [cross-cutting.md](design/cross-cutting.md)。
+4. 实现争议先回到对应 AC；同样路径适用于其他 Fx。
 
-## 2. 标识类型总览（角色层）
+## 6. 维护约定
 
-```text
-┌─────────────────────────────────────────────────────────┐
-│  指称层：F 编号（Feature Point ID）                       │
-│  「这是哪一项产品能力」                                    │
-├─────────────────────────────────────────────────────────┤
-│  排序层：P 等级（Priority）                               │
-│  「这项能力有多要紧 / 何时做」                             │
-├─────────────────────────────────────────────────────────┤
-│  归属层：模块 / 限界上下文标签                             │
-│  「这项能力主要由哪块业务负责」                            │
-├─────────────────────────────────────────────────────────┤
-│  契约层：AC（Acceptance Criteria，验收标准）               │
-│  「做到什么程度才算这一项完成」                            │
-└─────────────────────────────────────────────────────────┘
-```
-
-> **某一项产品能力（F）**，在**一定优先级（P）**下，**主要落在某模块**，并以**某组验收标准（AC）**判定是否完成。
-
----
-
-## 3. 各类标识的定义与用途
-
-### 3.1 `F` + 数字 —— 功能点编号
-
-| 维度 | 说明 |
-|------|------|
-| **是什么** | 可独立描述、可独立验收的产品能力的**稳定代号** |
-| **形式** | 大写 `F` + 数字（`F1`、`F2`…数字只保证唯一） |
-| **不是什么** | 不是类名、任务号、issue 号 |
-| **权威定义处** | [`features-index.md`](features-index.md) |
-| **稳定性** | 发布后不复用、不改指；废弃可在定义处标注 |
-
-### 3.2 `P` + 档位 —— 优先级
-
-| 维度 | 说明 |
-|------|------|
-| **是什么** | 交付序列与本期是否纳入 |
-| **形式** | `P0`–`P3`（数字越小越优先） |
-| **不是什么** | 不是难度分、故事点、缺陷级别 |
-| **读法** | P0 精读；P1–P2 读 AC+归属；P3 知道为何延后即可 |
-
-本项目刻度：**P0**=MVP 最小闭环（含 Web F16–F18、UI 壳层 F23、桌面壳 F24），**P1**=第二批，**P2**=增强，**P3**=原 backlog（CLI 扩展已全部实现）。
-
-### 3.3 模块名 —— 归属标签
-
-| 维度 | 说明 |
-|------|------|
-| **是什么** | 主要责任所在的限界上下文 |
-| **本项目** | `ingest` / `transfer` / `rewrite` / `cliops` / `webui` / `desktop`，另加 **`app` 共享应用编排层**（非限界上下文；2026-11-10 起 CLI 宿主已移除，app 服务由 WebUI 独享） |
-| **不是什么** | 不是 CLI 子命令名，不等于未来仓库文件夹（可对齐但允许调整） |
-
-### 3.4 `AC` —— 验收标准
-
-| 维度 | 说明 |
-|------|------|
-| **是什么** | 「做完/没做完」的**可观察条件** |
-| **不是什么** | 不是实现步骤、不是 API 字段表 |
-| **与 F 的关系** | AC 从属于 F；对外承诺的是 AC |
-
----
-
-# L2 · 体系：标识如何组织与使用
-
-## 4. 一张能力的多点出现
-
-| 出现位置 | 职责 | 权威性 |
-|----------|------|--------|
-| **功能点总表** `features-index.md` | 标准定义：标题、P、模块、AC | **定义权威** |
-| **模块文档** `design/module-*.md` | 域规则：数据、不变量、接口、失败语义 | **实现权威（域）** |
-| **横切文档** `design/cross-cutting.md` | 退出码、JSON、密钥、路径 | 全局契约 |
-| **架构文档** `architecture.md` | 分层、分期引用 | 索引/视图，不重定义 AC |
-
-## 5. 双向链接
-
-```text
-              features-index.md（F 定义权威）
-                        ▲                ▲
-                        │                │
-   module-cliops.md 等  │                │  cross-cutting.md
-   （域实现 + 映射节）  │                │  （全局契约）
-                        └────────────────┘
-```
-
-标准读法：总表锁定 `Fx` → 读 P/模块/AC → 进 module 实现 → 必要时查 cross-cutting。
-
----
-
-# L3 · 落地：本项目的功能点与模块
-
-## 6/7. 总表与模块含义
-
-完整条目以 [`features-index.md`](features-index.md) 为准。
-
-| 模块 | 职责（一句话） | 对应 F |
-|------|----------------|--------|
-| **ingest** | 扫描、抽取、解析、去重 | F3–F5 |
-| **transfer** | 计划、上传、URL | F6–F7, F11 |
-| **rewrite** | 回写、manifest、revert | F8–F9 |
-| **cliops** | 配置、doctor、Agent 契约 | F1–F2, F10 |
-| **webui** | 本地 Web 控制台（拖拽工作台、确认门、壳层视觉） | F16–F23 |
-| **desktop** | Electron 桌面壳、原生对话框、Windows 安装包 | F24 |
-| **app**（共享层，非限界上下文） | CLI/Web 共用的应用编排：collect/plan/sync/revert/doctor/config/runs 与错误码映射 | 服务 cliops/webui 路径（F1–F2, F6–F9, F18–F21） |
-
-文档分层：
-
-| 层 | 文件 |
-|----|------|
-| 架构总纲 | [`architecture.md`](architecture.md) |
-| 功能定义权威 | [`features-index.md`](features-index.md) |
-| 模块详设 | `design/module-*.md` |
-| 横切约定 | [`design/cross-cutting.md`](design/cross-cutting.md) |
-| UI 视格（F23） | [`design/wireframes/ui-shell.md`](design/wireframes/ui-shell.md) |
-| UI 渲染层 / 桌面开发（F24） | [`design/module-desktop.md`](design/module-desktop.md)（`renderer/` + electron-vite） |
-| 阅读指南 | 本文 |
-
----
-
-# L4 · 示例：读懂一条功能点
-
-## 8. 示例：`F4` 图片引用抽取
-
-1. **总表**：P0 · 模块 ingest · AC=覆盖多语法、代码块不误伤、含精确偏移。  
-2. **域实现** `module-ingest.md#f4`：抽取算法、跳过规则、ImageRef 形状。  
-3. **横切**：`cross-cutting.md` 中 JSON 里 ref 字段含义。  
-4. 实现争议先对齐「对应哪条 AC」。
-
-任意 `Fx` 推广：
-
-```text
-总表锁定 Fxx → P → 模块 → AC → module 域规则 → cross-cutting（仅当全局契约）
-```
-
----
-
-## 9. 常见误解
-
-| 误解 | 澄清 |
-|------|------|
-| F 是开发任务号 | 否；任务应**引用** Fxx |
-| P3 不用读设计 | P 只表示交付序位 |
-| 模块名=代码目录 | 设计归属；实现落点定栈后实例化 |
-| AC 是实现步骤 | AC 是可观察结果 |
-
----
-
-## 10.1 图长在设计过程里（2026-10-02）
-
-> 原则：**不单独制作 UML 图**。图是某个模块设计步骤的产物，必须就地长在该模块的文档里。
-
-### 语言：**只用 Mermaid**
-
-> 曾经用 PlantUML 画过一批，结果在 GitHub 网页、IDE 预览、Typora 里**都渲染不出来**，只能看到代码块——因为 Markdown 预览原生渲染的是 mermaid 代码块，而不是 plantuml 代码块（后者需要插件与 Graphviz）。参考范例 `module-collection.md` 也写的是「图为 Mermaid」。
->
-> 结论：**只留一种**。图用 ```mermaid 代码块书写，不保留 `.puml` 副本（两份并存必然漂移）。
-> 语言提示：想修图而没有 Mermaid 参考时，可在 https://mermaid.live 粘贴预览。
-
-### 何时画
-
-按「**只画复杂任务**」原则（AGENTS.md §核心惯例）：
-
-| 情形 | 画什么 | 本项目的例子 |
-|------|--------|--------------|
-| 端口契约 + 多个实现 | class 图 | [`module-transfer.md`](design/module-transfer.md) §端口（`HostAdapter` + github/local） |
-| 跨多文件的编排链 | sequence 图 | [`module-app.md`](design/module-app.md) §复杂任务（`runSync` 全链路） |
-| 多分支判定 / 状态机 | state 图 | [`module-transfer.md`](design/module-transfer.md) §F6（plan 五分类决策） |
-| 进程与本地状态的接缝 | sequence 图 | [`module-webui.md`](design/module-webui.md) §F20.2（gh 登录 spawn + 轮询） |
-| 依赖方向（防边界破坏） | component 图 | [`architecture.md`](architecture.md) §2.5.4 |
-| ❌ 单个工具函数 / 字段列表 / 一次性示例 | **不画**；用 TS 类型或一段 Markdown | — |
-
-### 画在哪：每张图要有三件套
-
-1. **图前**：这一节要解决的问题，以及图的**输入**（数据模型 / 调用签名 / 前提约束）。
-2. **图**：mermaid 代码块；语义优先，**不调皮肤不调色**（配色属于渲染器）。
-3. **图后**：从这张图能读出哪些**否则读不出来**的结论（职责边界、判定顺序、失败隔离点），并回指到守护它的测试（如 `tests/layering.test.ts`）。**写不出结论的图说明它不该存在**。
-
-### 维护
-
-- 改接口签名、编排顺序、状态分支时，图与其后的结论**一起改**。
-- **不要**把图放进 `diagrams/` 之类的独立目录：脱离上下文的图必然漂移（本项目曾有一批孤立 `.puml`，零外部引用，现已全部并入各模块文档并改为 Mermaid）。
-- 渲染：GitHub / IDE Markdown 预览 / Typora 开箱即用；改图前可在 https://mermaid.live 预览。
-
----
-
-## 10. 维护约定
-
-新增功能点：先在 `features-index.md` 登记 → 在 `module-*` 加「功能点映射」链回总表 → 若影响分期更新 `architecture.md` §9 → 必要时修订本指南。
-
----
-
-*标识是索引，不是实现。先认清角色，再读具体编号。*
+新增 F 时先登记总表，再由 module 文档建立映射；分期变化同步更新 architecture。
+仅在确需表达流程或状态时使用 Mermaid；模块文档默认无图，架构图归 [architecture.md](architecture.md)。
+标识是索引，不是实现；修改契约时同步维护定义、域实现和双向链接。

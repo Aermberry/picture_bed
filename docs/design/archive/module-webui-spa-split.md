@@ -1,3 +1,5 @@
+> **归档说明**：本文档是已实现完毕的历史设计（SPA 出模板串，评审 ②）；实现已被 `renderer/` 单源（electron-vite）取代。现役契约见 [`module-webui.md`](../module-webui.md) 与 [`module-desktop.md`](../module-desktop.md)。
+
 # webui SPA 拆分设计（评审 ②：SPA 出模板串）
 
 > **状态：历史文档（2026-09-27）**  

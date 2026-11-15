@@ -1,437 +1,163 @@
 # picbed 架构设计
 
-> 状态：**F1–F25 已实现**（形态 2026-11-10 收敛：**Electron 桌面单宿主**）· 本地 Web UI（内嵌）+ Desktop 壳
-> 定位：**架构总纲**（分层 / 存储 / 数据模型 / 安全 / NFR / 技术选型）。
-> 功能点的完整规格（优先级、AC、实现归属、双向链接）以 [`features-index.md`](features-index.md) 为唯一来源；本文档不重复其逐条 AC。
-> **新人阅读指南**（F 编号、模块名、文档怎么串）：[`design-reading-guide.md`](design-reading-guide.md)。
-> 范围：本地工具 **picbed**——扫描目录中 Markdown / HTML 等文档内嵌图片，经 PicX 同源 **GitHub 图床通道**上传，自动回写稳定公开链接；**Electron 桌面应用**供终端用户安装即用，内嵌同一份本地 Web 控制台供拖拽/点选操作。
-> 约束输入：
-> - 形态（2026-09-23）：**CLI + 本地 Web UI**（非公网、非多用户）
-> - 形态（2026-09-26 用户确认）：**双形态**——npm 保留本地开发测试与 Agent 通道；发布后提供 **Windows 桌面安装包**（Electron）供用户下载安装使用
-> - 形态（2026-11-10 用户确认）：**Electron 单形态**——删除 CLI、MCP、npm 发布与 `picbed ui` 独立启动；`src/ui/**` 保留为 Electron 内嵌后端（`desktop/main.mjs` → `dist/ui/index.js`）。历史脉络保留供追溯
-> - 痛点：CLI 对人类不友好；希望**拖拽文档**即可工作；终端用户不应被要求装 Node
-> - 图床：对齐 PicX 模型 = **GitHub Contents API + URL 风格约定**；另支持 `local` 后端（F13）
-> - 交付：F1–F24 已实现；桌面壳见 [`design/module-desktop.md`](design/module-desktop.md)
->
-> 技术选型已采用 **Node/TS**（§7）；UI 栈见 §7.1；桌面壳见 §7.2。
+> **架构总纲**：分层、存储、数据模型、安全、NFR 与技术选型。功能点规格以 [`features-index.md`](features-index.md) 为唯一来源。
+> 新人阅读指南：[`design-reading-guide.md`](design-reading-guide.md)。产品是本地 Electron 桌面应用：扫描 Markdown/HTML 图片引用，经 GitHub 图床上传并回写稳定链接；内嵌本地 Web 控制台。
+> 当前唯一宿主为 Electron；CLI、MCP、独立 `picbed ui` 与 npm 发布面已移除（2026-11-10）。`src/ui/**` 仍作为 Electron 内嵌后端。
 
 ---
 
 ## 1. 目标与非目标
 
 ### 目标
-- G0 抽取：从目录内 Markdown / HTML 文档中识别内嵌图片引用（含代码块防护）。
-- G1 解析：将相对路径解析为本地文件，内容哈希去重，生成可预览的上传计划。
-- G2 上传：经 GitHub Contents API 将图片写入图床仓库，生成稳定公开 URL（raw / jsdelivr / custom）。
-- G3 回写：把文档中的本地引用替换为公开链接，可 dry-run、可备份、可 revert。
-- ~~G4 Agent 契约：无交互默认、稳定退出码、`--json` schema、幂等重跑~~（2026-11-10 随 CLI 宿主移除；退出码语义仍活在 `app/errors.ts` → HTTP 状态码映射）。
-- G5 安全：token 不入库、不进日志/manifest；默认拒绝路径越界与绝对路径。
-- G6 本地 Web 控制台：人在浏览器中**拖拽图片或文档**（不接受文件夹）完成 scan/plan/sync/revert/config/doctor/watch（F16–F22）。
+- 从 Markdown/HTML 文档抽取图片引用（代码块防护），解析本地资产并按内容哈希去重。
+- 经 GitHub Contents API 上传图片，生成 raw / jsdelivr / custom URL；支持 local host。
+- 精确回写引用，可 dry-run、备份与 revert；图片字节只读。
+- 本地 Web 控制台完成 scan/plan/sync/revert/config/doctor/watch；Electron 是唯一宿主。
+- Token 不入库、不进日志/manifest；默认拒绝路径越界与绝对路径。
 
 ### 非目标
-- 公网部署、多用户/账号体系、云端托管 UI。
-- 完整图床资产管理 GUI（picx-app 已覆盖）：不做相册/批量改图工具箱。
-- GitHub OAuth 登录（已移除；用 PAT / `gh auth token`）。
-- 图片压缩、水印、裁剪工具箱。
-- 非图片二进制托管（PDF / 视频等）。
-- macOS/Linux 安装包首发（链路预留，见 F24；Windows 优先）。
+- 公网部署、多用户/账号体系、云端 UI；GitHub OAuth。
+- 图片管理工具箱（相册、批量改图）、压缩/水印/裁剪、非图片二进制托管。
+- Windows 首发之外的 macOS/Linux 安装包（链路预留）。
 
-### 已超出原 v1 划界但已实现
-- 多图床：`HostAdapter` 工厂（**github | local**，F13）。
-- watch 监听（F12）。~~MCP 包装（F14）~~——2026-11-10 随 CLI/MCP 宿主移除。
-- 本地 Web 控制台（F16–F23）——原「CLI only」非目标已按用户确认收窄；2026-11-10 起仅作为 Electron 内嵌 UI 存在。
-- **桌面壳（F24）**——原「不做 Tauri/桌面壳」已于 2026-09-26 按用户双形态需求打开；设计见 [`design/module-desktop.md`](design/module-desktop.md)。2026-11-10 起**唯一**宿主与分发形态。
-- 使用统计视图（F25）。
+已实现的扩展包括多 host（GitHub/local）、watch、内嵌 Web 控制台、桌面壳与使用统计，详见 [`features-index.md`](features-index.md)。
 
 ---
 
 ## 2. 总体架构
 
-分层 + 单向依赖：**WebUI（呈现，Electron 内嵌）→ 应用编排 → 领域核心 → 主机/文件系统适配器**。核心域无网络 I/O，便于单测。
+单向依赖：**WebUI（Electron 内嵌）→ 应用编排 → 领域核心 → host / 文件系统适配器**。核心域无网络 I/O，便于单测。
 
-**跨层单点（`src/lib/`，2026-10-02 补）**：越界判定、图片扩展名、摘要计算、token 掩码、文档类型判定这类「错了即安全/数据事故」的横切逻辑，只放在 `src/lib/`（`paths.ts` / `img.ts` / `hash.ts` / `mask.ts` / `doc.ts`），任何层都从这里取用——此前它们在 6 / 3 / 3 / 2 / 2 处各自实现。例外：`app/repo-dir.ts` 的**远端**目录路径规则（段字符白名单 + 长度上限）与本地 FS 越界是两套语义，不合并；`watch.ts` 的根外事件退化为绝对路径也不是越界守卫。防回归见 `tests/lib-single-source.test.ts`。
+**跨层单点**：越界判定、图片扩展名、摘要、token 掩码、文档类型判定只在 `src/lib/` 实现（`paths.ts` / `img.ts` / `hash.ts` / `mask.ts` / `doc.ts`），防止安全与数据规则分叉；远端 repo-dir 规则语义不同，不与本地 FS 越界合并。`watch.ts` 根外事件转绝对路径也不是越界守卫。回归由 `tests/lib-single-source.test.ts` 守护。
 
-```
-┌──────────────────────────────────────────────────────────┐
-│  分发形态                                                 │
-│   桌面：Electron 壳 + Windows NSIS 安装包（F24；唯一形态）   │
-└───────────────▲──────────────────────────────────────────┘
-                │
-┌───────────────┴──────────────────────────────────────────┐
-│  WebUI 呈现层（本地控制台 F16–F25，Electron 内嵌）          │
-│   静态页 + HTTP API · 拖拽/路径工作台 · ConfirmGate        │
-│   仅 127.0.0.1 · token 不进浏览器                         │
-│   Desktop 壳（F24）加载同一 SPA；picbedNative 可选桥        │
-└───────────────▲──────────────────────────────────────────┘
-                │  同一应用 DTO / JSON 信封
-┌───────────────┴──────────────────────────────────────────┐
-│  应用编排 Application（app 共享层）                          │
-│   collect/runPlan/runSync/runRevert · Doctor/Config/Runs     │
-└───────────────▲──────────────────────────────────────────┘
-                │
-┌───────────────┴──────────────────────────────────────────┐
-│  领域核心 Core（栈无关、无 I/O）                             │
-│   DocumentScanner · RefExtractor · AssetResolver           │
-│   Deduper · LinkRewriter · ManifestModel · ExitPolicy      │
-└───────▲───────────────────────▲───────────────────────────┘
-        │                       │
-┌───────┴────────┐     ┌───────┴───────────────────────────┐
-│ HostAdapter    │     │ LocalStore                          │
-│ GitHub Contents│     │ FS · hash · cache · backup · manifest │
-└────────────────┘     └───────────────────────────────────┘
+```text
+Electron 壳
+    ↓
+WebUI 呈现层（本地 HTTP API、静态页、工作台、ConfirmGate；token 不进浏览器）
+    ↓ 同一 DTO / JSON 信封
+应用编排（collect / plan / sync / revert / doctor / config / runs）
+    ↓
+领域核心（扫描 / 抽取 / 解析 / 计划 / 回写 / 清单，无 I/O）
+    ↓
+HostAdapter（GitHub Contents / local）与 LocalStore（FS / hash / cache / backup / manifest）
 ```
 
 ### 2.1 存储层
 
-| 存储 | 内容 | 位置 | 写者 |
-|------|------|------|------|
-| 源文档 | md / html 等 | 用户指定目录（原地回写，无写副本模式） | 用户 / `LinkRewriter` |
-| HTML 呈现 | 设计评审页 | `docs/html/index.html`（+ `styles.css` / `app.js`） | 设计维护者 |
-| 源图片 | 本地图片文件 | 相对文档目录解析 | **只读**（picbed 不改图片字节） |
-| 配置 | owner/repo/branch/dir/url 风格 | `./picbed.toml` / ENV | `init` / `config set` |
-| Token | GitHub PAT / gh | `PICBED_GITHUB_TOKEN` / `GITHUB_TOKEN` / 本机凭据 `~/.picbed/credentials.json` / `gh auth token` | 用户（禁止入库） |
-| Manifest | localPath+sha → publicUrl | `./.picbed/manifest.json` | `ManifestStore` |
-| Backup | 回写前文档副本 | `./.picbed/backup/` | `LinkRewriter` |
-| Cache | sha → 已上传 URL | 并入 manifest 或 `./.picbed/cache.json` | `SyncOrchestrator`（app 共享层） |
-| Run 记录 | 每次 sync/revert 等结果摘要 | `./.picbed/runs/`（建议 gitignore） | `RunRecorder`（app 共享层） |
-| 远端图床 | 图片 blob | GitHub 图床仓库 `{dir}/…` | `GitHubHostAdapter` |
+| 存储 | 内容与位置 | 写者 / 约束 |
+|------|------------|-------------|
+| 源文档 | 用户目录内 md/html，原地回写 | 用户 / `LinkRewriter` |
+| 源图片 | 相对文档目录解析 | 只读，不改图片字节 |
+| 配置 | `picbed.toml` / ENV | 用户与设置流程 |
+| Token | ENV、本机 `~/.picbed/credentials.json`、`gh auth token` | 用户；禁止入库 |
+| Manifest / backup | `./.picbed/manifest.json`、`./.picbed/backup/` | `ManifestStore` / `LinkRewriter` |
+| Cache / runs | manifest 或 `.picbed/cache.json`、`.picbed/runs/` | app 共享层；runs 建议 gitignore |
+| 远端图床 | `{dir}/…` 图片 blob | `GitHubHostAdapter` |
 
-设计要点：
-- **图片字节只读**：工具只改文档中的链接文本，不改图片文件。
-- **内容寻址幂等**：`sha256` 相同视为同一资产，不重复上传。
-- **manifest 不可含 secret**：可供 Agent 与审计安全读取。
-- **备份可关**：默认写 backup，由 `picbed.toml [rewrite] backup = false` 关闭；revert 依赖 manifest 而非 backup 必须存在。
+设计要点：内容寻址以 sha256 保证幂等；manifest、日志与配置不得含 secret；backup 可由配置关闭，revert 不要求 backup 存在。
 
-### 2.2 领域服务层（核心能力）
+### 2.2 领域服务层
 
-> ⚠️ 下面这些是**讨论用的逻辑角色名**，不是代码里的类名或文件名（源码中真实字面出现的只有 `HostAdapter` 家族与 `picbedNative`；`DoctorService` 对应的是**函数** `doctorService()`，无同名类型/类）。
-> 想知道每个角色落在哪个文件、导出什么函数，见 **§2.5.2 概念 → 代码实体**。
+下列名称是讨论用逻辑角色，不一定是源码类名；真实代码映射见 §2.5.2。
 
-- **DocumentScanner**：遍历目录，按扩展名/忽略规则得到 `DocFile[]`。
-- **RefExtractor**：从 MD/HTML 抽取 `ImageRef[]`（精确偏移，跳过 fenced/inline code）。
-- **AssetResolver**：相对文档目录解析路径；校验存在性/MIME/扩展名；拒绝越界与默认拒绝绝对路径。
-- **Deduper**：按 `sha256` 合并多引用为单 `Asset`。
-- **PlanBuilder**：产出 `upload | skip-cache | skip-remote | rewrite-only | blocked` 计划。
-- **HostAdapter**：`GitHubHostAdapter` / `LocalHostAdapter`；`createHostAdapter` 按 `host.type` 注入；生成 public URL。
-- **LinkRewriter**：按偏移切片替换 URL，保留 alt/title/srcset 其它候选；原子写。
-- **ManifestStore**：读写映射，支撑幂等、revert、审计。
-- **DoctorService**（app 共享层）：配置完整性、token 探测、API 连通与权限；按 `host.type` 分派，local 主机不要求 token。见 `design/module-app.md`。
-- **WebUiFacade / UiServer / ConfirmGate / ViewMapper**（webui）：本机 HTTP 控制台、写操作确认门、拖拽工作集与视图映射；**不**重写域规则（F16–F22）。
-- **AppShell / SideNav / DropZone**（webui 呈现壳层，F23）：双栏布局、上传/统计/图库/设置导航、文件放置英雄区与主题令牌；只消费既有 API。
-- **DesktopShell / NativeBridge**（desktop，F24）：Electron 主进程宿主 UI 服务与窗口；preload 暴露目录/文件对话框；打包 NSIS。**不**承载业务规则。
+- **DocumentScanner / RefExtractor / AssetResolver**：扫描文档、抽取带精确偏移的引用、解析并验证本地资产。
+- **Deduper / PlanBuilder**：按 sha256 去重；产生 `upload | skip-cache | skip-remote | rewrite-only | blocked` 五态计划。
+- **HostAdapter**：GitHub / local 适配器与 `createHostAdapter` 工厂，负责上传及 public URL。
+- **LinkRewriter / ManifestStore**：按偏移原子回写、revert 与幂等映射。
+- **DoctorService**（app 函数）：配置、凭据、连通与权限自检，按 host 类型分派。
+- **WebUI / Desktop**：本机 HTTP 控制台、确认门、工作集、呈现壳与原生对话框；不复制业务规则。
 
 ### 2.3 应用编排
 
-- **SyncOrchestrator**：scan → extract → resolve → plan → upload（限流/退避）→ rewrite → manifest。
-- 单文件失败隔离：默认继续，结果标记 `partial`（退出码 6）。
-- `--dry-run`：只跑到 plan 并输出，不写文档、不上传（或 `plan` 子命令等价）。
-- **唯一实现**落在 `src/app/`（collect/plan/sync/revert/doctor/config/runs，见 `design/module-app.md`）；WebUI 只做协议适配（JSON 信封 / HTTP 状态码）与确认门，不复制编排逻辑。
-- **错误单一来源**：`AppError { code, exitCode, path?, hint? }` 统一定义 code → 退出码 → HTTP 状态码映射，见 `design/module-app.md`。
+- 唯一业务编排位于 `src/app/`：collect → plan → sync（上传→回写→manifest）及 revert、doctor、config、runs。
+- WebUI 只做 JSON/HTTP 协议适配与确认门；单文件失败隔离，结果可为 partial。
+- dry-run 只执行到 plan，不写文档、不上传。
+- `AppError` 是错误码及 HTTP 状态映射的单一来源；见 [`design/module-app.md`](design/module-app.md)。
 
-### 2.4 源码目录与发布单元（2026-10-02 补；2026-11-10 npm 面移除）
+### 2.4 源码目录与发布单元
 
-**历史不变式（npm 发布时代）：放进 `src/` = 进 npm 包。** npm 发布已随 CLI/MCP 移除（2026-11-10），但该链仍约束桌面包的构建来源——`src/` 是唯一被 `tsc` 编译进 `dist/` 的树，`desktop/main.mjs` 只从 `dist/ui/index.js` 取 `createUiServer`：
+npm 发布面已移除；`package.json` 的 files 规则仅作发布面守卫残余约束。`src/` 是唯一经 `tsc` 编译至 `dist/` 的树，Electron 从 `dist/ui/index.js` 加载 UI 服务。目录划分按发布目标而非“是否源码”：`renderer/`、`desktop/`、`scripts/`、`tests/` 也是源码，但不属于 `tsc` 输入。
 
-```
-tsconfig.json  rootDir=src · include=src/** · outDir=dist
-      ↓
-package.json   files=[dist, README.md]（npm 发布已移除；files 仅作发布面守卫的残余约束）
-```
+| 目录 | 职责 | 构建与产物 | 目标 |
+|------|------|------------|------|
+| `src/` | UI 服务、app 编排、领域核心 | `tsc` → `dist/**` | 桌面包后端 |
+| `renderer/` | 原生 ESM Web 前端，零构建 | 原样静态下发 | 桌面包 |
+| `desktop/` | Electron main / preload | electron-vite → `out/` | 桌面包 |
+| `scripts/` | 构建与巡检工具 | Node 直跑 | 仓库 / CI |
+| `tests/` | vitest 用例与辅助 | vitest | 仓库 / CI |
 
-顶层目录的划分维度**不是「是不是源码」**，而是**「发布目标」**：`renderer/`、`desktop/`、`scripts/`、`tests/` 同样是源码，但只属于桌面包 / 仓库本地。
+目录边界不可随意合并：`src/ui/http/static.ts` 按包根定位 `renderer/`；Vite 的 `renderer.root` 若上提到 `src/` 会暴露 TS 源码；`renderer/` 是 Electron/Vite 的标准进程术语，改名需同步调用点与守卫且损失生态可识别性。实测把 renderer/scripts 纳入 `src/` 会引入 strict TS 错误、扩大 dist 与发布包（tarball +33%）。`tests/package-surface.test.ts` 与 `npm run validate:pack` 守护发布面。
 
-| 目录 | 内容 | 谁构建 | 产物 | 发布目标 |
-|------|------|--------|------|----------|
-| `src/` | UI 服务器 + app 编排 + 领域核心（TypeScript strict，`checkJs`） | `tsc` | `dist/**` | **桌面包**（`dist/ui/index.js` 是 Electron 唯一后端入口） |
-| `renderer/` | Web 控制台前端 F16–F25（浏览器原生 ESM，**零构建**） | 无（原样） | 自身 | 桌面包；Electron 窗口经 UI 服务器静态下发 |
-| `desktop/` | Electron 壳（main ESM + preload CJS） | `electron-vite` | `out/main` `out/preload` | 桌面包 |
-| `scripts/` | 构建 / 巡检工具 | 无（`node` 直跑） | — | 仓库本地 / CI |
-| `tests/` | vitest 用例与夹具 | 无 | — | 仓库本地 |
+### 2.5 当前实现地图
 
-约束（移动前先看这些）：
+逻辑角色与实际源码并非同名；下列映射和目录树描述磁盘实现。
 
-1. **`src/ui/http/static.ts`** 用 `new URL('../../../renderer')` 按**包根相对位置**定位渲染器；renderer 一旦进 `dist/`，相对路径会对不上 Vite dev 的另一套根。
-2. **`electron.vite.config.mjs`** 的 `renderer.root` 是 Vite 静态根、rollup input 是 `renderer/index.html`。把 root 上提到 `src/` 会让 dev server 把**整个 `src/` 当静态根暴露**（TS 源码可被 HTTP 取到）。
-3. **`renderer/` 是 Electron/Vite 生态术语**（`main` / `preload` / `renderer` 三块；main process / renderer process）。不改成 `console/` 之类自造名：改名要在 ≥5 处同步（含测试断言与设计文档），却丢掉生态可识别性。
+#### 2.5.1 运行时形态：Electron 唯一宿主
 
-实测代价（把 `renderer/` + `scripts/` 复制进 `src/` 各编译一次）：
+Electron `desktop/main.mjs` 加载 `dist/ui/index.js` 的 `createUiServer`。开发态固定监听 `4780` 供 Vite 代理 `/api`，生产态由 OS 分配端口；BrowserWindow 加载服务 URL。Web UI 同一进程承载静态下发与 `/api/*`，请求经过 guard、static、routes；`src/ui/index.ts` 是服务唯一出口。`createUiServer`（206 行）由架构守卫约束为少于 250 行。
 
-| 指标 | 现状 | 移进 `src/` |
-|------|------|-------------|
-| `tsc` 错误 | 0 | **50 行**（`TS7053` / `TS7006`…strict 下的浏览器 JS） |
-| `dist/` 文件 | 204 | 270（+`dist/renderer` 57、+`dist/scripts` 9） |
-| npm tarball | 208 文件 / 120.5 KB | **274 文件 / 160.6 KB**（+33%） |
-
-守卫：`tests/package-surface.test.ts`（manifest 级：入口/exports 不得越界发布面；bin 检查随 CLI 移除）+ `npm run validate:pack`（真实 `npm pack --dry-run --json` 审计 tarball，需先 `npm run build`）。
-
-### 2.5 当前实现地图（2026-10-02 补）
-
-> §2–§2.3 描述的是**逻辑角色**（`DocumentScanner` 这类名字便于讨论，**不是**代码里的类名／文件名）。本节才是磁盘上的实际代码，两者由 2.5.2 的映射表连接。
-
-#### 2.5.1 运行时形态：一份编排，Electron 唯一宿主
-
-同一份应用编排（`src/app/*`）由 Electron 桌面壳承载，**壳层不复制业务规则**。历史形态曾含 CLI / MCP / `picbed ui` 独立启动三个宿主，2026-11-10 按用户确认全部移除：
-
-```text
-[1] Electron 桌面  desktop/main.mjs:80 动态 import('../dist/ui/index.js')  ─► src/app/*
-                  → 同一个 createUiServer                                    │
-                  → dev: listen(4780) 供 Vite proxy /api；prod: listen(0)    ▼
-                  → BrowserWindow.loadURL(uiHandle.url)              src/{scan,extract,resolve,
-                                                                       plan,rewrite,manifest}.ts
-                                                                          │
-                                                                          ▼
-                                                                    src/host/*（适配器）
-```
-
-| 宿主 | 入口 | 关键事实 |
-|------|------|----------|
-| 桌面 | `desktop/main.mjs` | **不重新实现 UI**：动态 `import('../dist/ui/index.js')` 取 `createUiServer`（`main.mjs:80-86`）；dev 固定 `4780` 让 Vite 代理 `/api`，prod 用 `listen(0)` 由 OS 分配（`main.mjs:87-90`），窗口加载 `uiHandle.url`（`main.mjs:149`） |
-| Web UI（内嵌） | `src/ui/server.ts` `createUiServer`（206 行，**只装配**） | 同一 Node 进程同时承载静态下发与 `/api/*`；流程为 安检（`http/guard`）→ 静态（`http/static`）→ 路由表（`routes/`）；`src/ui/index.ts` 是 `createUiServer` 的唯一出口 |
-
-已移除宿主（2026-11-10）：CLI（`bin/picbed.js` → `src/cli.ts`，commander）、MCP（`src/mcp/server.ts`，stdio JSON-RPC）、`picbed ui` 独立启动（`src/cli.ts` 的 `ui` 子命令）。`src/ui/**` 全部保留——Electron 经它复用 Web 控制台。
+CLI（`bin/picbed.js`、`src/cli.ts`）、MCP（`src/mcp/`）和独立 UI 启动命令已移除；`src/ui/**` 保留给 Electron 复用。
 
 #### 2.5.2 §2.2 概念 → 代码实体
 
-| §2.2 概念 | 代码实体 | 备注 |
-|-----------|----------|------|
+| 概念 | 代码实体 | 备注 |
+|------|----------|------|
 | `DocumentScanner` | `src/scan.ts` → `scanDocs()` | |
-| `RefExtractor` | `src/extract.ts` → `extractRefs()` + `blankCodeRegions()` | 代码块防护抽成独立函数 |
-| `AssetResolver` | `src/resolve.ts` → `resolveAssets()` | 越界判定取 `src/lib/paths.ts` |
-| `Deduper` | **`src/resolve.ts:134-148` 内联**（`sha256Hex` → 以 sha 为 key 合并引用） | **无**独立类/文件 |
-| `PlanBuilder` | `src/plan.ts` → `buildPlan()` | 输出五态 action |
-| `LinkRewriter` | `src/rewrite.ts` → `rewriteDoc()` / `applyRewrites()` / `writeDocAtomic()` / `revertDoc()` | 原子写在同文件 |
-| `ManifestStore` | `src/manifest.ts` → `loadManifest` / `saveManifest` / `upsertEntry` / `findCachedUrl()` | |
-| `HostAdapter` 工厂 | `src/host/index.ts` → `createHostAdapter()`；实现在 `github.ts` / `local.ts` | 代码中**真实同名** |
-| `DoctorService` | `src/app/doctor.ts` → `doctorService()` | **函数**形态，非同名类型/类（`DoctorService` 字面量不在源码中） |
-| `SyncOrchestrator` | `src/app/sync.ts` → `runSync()` | scan → … → manifest 全流程 |
-| `RunRecorder` | `src/app/run-store.ts` → `recordRun` / `listRuns` / `getRun()` | |
-| `ConfirmGate` | 写操作的确认语义，落在 `src/ui/routes/{sync,revert}.ts` 等路由 | 类名不存在 |
-| `ViewMapper` / `WebUiFacade` / `AppShell` / `SideNav` / `DropZone` | `renderer/index.html` + `renderer/src/features/*`（如 `drop.js` 英雄区） | 纯前端，**不在** `src/` |
-| `NativeBridge` / `DesktopShell` | `desktop/main.mjs` + `desktop/preload.cjs`（`picbedNative` 桥） | |
+| `RefExtractor` | `src/extract.ts` → `extractRefs()` / `blankCodeRegions()` | 代码块防护 |
+| `AssetResolver` | `src/resolve.ts` → `resolveAssets()` | 路径规则在 `src/lib/paths.ts` |
+| `Deduper` | `src/resolve.ts` 内联 | sha256 合并，无独立类 |
+| `PlanBuilder` | `src/plan.ts` → `buildPlan()` | 五态 action |
+| `LinkRewriter` | `src/rewrite.ts` | 替换、原子写、revert |
+| `ManifestStore` | `src/manifest.ts` | load/save/upsert/cache |
+| `HostAdapter` 工厂 | `src/host/index.ts` | 实现在 `github.ts` / `local.ts` |
+| `DoctorService` | `src/app/doctor.ts` → `doctorService()` | 函数，非同名类 |
+| `SyncOrchestrator` | `src/app/sync.ts` → `runSync()` | 全流程 |
+| `RunRecorder` | `src/app/run-store.ts` | runs 记录 |
+| `ConfirmGate` | `src/ui/routes/{sync,revert}.ts` 等 | 路由确认语义 |
+| WebUI / 壳层 | `renderer/index.html`、`renderer/src/features/*` | 纯前端 |
+| Desktop / NativeBridge | `desktop/main.mjs`、`desktop/preload.cjs` | `picbedNative` 桥 |
 
-已核实：22 个角色名里仅 `HostAdapter`、`GitHubHostAdapter`、`LocalHostAdapter`、`picbedNative` 在源码中**字面出现**；`DoctorService` 对应的是**函数** `doctorService()`（大小写不同，无同名类型/类），其余为讨论用名，勿按名 grep。
+`HostAdapter` 家族与 `picbedNative` 是源码中的实际名称；其余角色名用于描述职责，不应据名推断类型或文件。
 
-#### 2.5.3 全仓目录树（逐文件职责）
+#### 2.5.3 全仓目录树（目录级）
 
-> 注释来自代码事实（文件头 doc / 导出符号 / 既有守卫），非命名推测。读法：先看 §2.4 的「目录 × 发布目标」，再看本树「每个文件干什么」，最后看 §2.5.4「谁能 import 谁」。
+每行列出目录、其下 git 跟踪文件数与用途；深度统一至两级子目录。详细文件职责见代码与模块设计文档。
 
 ```text
 picbed/
-├─ src/                              // ★ 唯一被 tsc 编译的源码树（tsc → dist/；Electron 后端唯一来源）
-│  │
-│  │  ── 领域核心（根目录平铺；无网络 I/O；不存在 core/ 目录）──
-│  ├─ types.ts                       // 领域模型唯一真源：DocFile/ImageRef/Asset/SyncPlanItem/ManifestEntry…
-│  ├─ scan.ts                        // scanDocs() 遍历目录产出 DocFile[]          （= DocumentScanner）
-│  ├─ extract.ts                     // extractRefs() 从 MD/HTML 抽 ImageRef[]；blankCodeRegions() 防代码块误伤
-│  ├─ resolve.ts                     // resolveAssets() 相对路径→本地文件 + sha256 合并去重（AssetResolver；Deduper 内联在此，无独立类）
-│  ├─ plan.ts                        // buildPlan() 产出 upload|skip-cache|skip-remote|rewrite-only|blocked 五态
-│  ├─ rewrite.ts                     // rewriteDoc()/applyRewrites() 偏移切片替换；writeDocAtomic() 原子写；revertDoc() 回滚
-│  ├─ manifest.ts                    // .picbed/manifest.json 读写：load/save/upsertEntry/findCachedUrl
-│  ├─ watch.ts                       // fs.watch 调度；根外事件退化为绝对路径（非越界守卫，见 §2 开头的例外说明）
-│  ├─ config.ts                      // picbed.toml 解析/校验/模板；token 解析在 infra/gh-cli.ts（env → 本机凭据 → gh），禁止入库
-│  ├─ user-token.ts                  // 本机用户级 PAT 存储（~/.picbed/credentials.json；不进 git、不写 toml）
-│  │
-│  │  ── 跨层单点（错了即安全/数据事故的横切逻辑；tests/lib-single-source 守护）──
-│  ├─ lib/
-│  │  ├─ paths.ts                    //   本地路径越界判定的唯一实现
-│  │  ├─ img.ts                      //   图片扩展名 / MIME 的唯一真源（IMAGE_EXT / IMAGE_MIME / mimeOf）
-│  │  ├─ hash.ts                     //   sha256 唯一实现 + 远端文件名 12 位短摘要
-│  │  ├─ mask.ts                     //   token 掩码唯一实现（config / app / ui 共用）
-│  │  ├─ inline.ts                   //   文档内 data:image/* 解码（MIME 反查扩展名、10MB 上限）
-│  │  └─ doc.ts                      //   文档类型（markdown / html）判定的唯一实现（kindOf）
-│  │
-│  │  ── 应用编排（唯一实现；WebUI 一律从这里取能力）──
-│  ├─ app/
-│  │  ├─ index.ts                    //   统一出口（facade）
-│  │  ├─ errors.ts                   //   AppError：code → 退出码 → HTTP 状态码的唯一映射
-│  │  ├─ collect.ts                  //   collect() 收集工作集文档
-│  │  ├─ plan.ts                     //   runPlan() 预览计划
-│  │  ├─ sync.ts                     //   runSync() 上传→回写→manifest 全流水线（= SyncOrchestrator）
-│  │  ├─ revert.ts                   //   runRevert() 按 manifest 还原本地链接
-│  │  ├─ upload.ts                   //   uploadSingleAsset() 单文件上传
-│  │  ├─ doctor.ts                   //   doctorService() 配置完整性/凭据/连通自检（按 host.type 分派）
-│  │  ├─ settings.ts                 //   resolvedConfig() —— ui 层取配置的唯一入口（禁直连 config.ts）
-│  │  ├─ auth.ts                     //   鉴权 façade：token 获取与 gh 登录能力，UI 只许从这里取
-│  │  ├─ repo-dir.ts                 //   远端目录规则：段白名单(字母数字_-.与CJK)+长度上限（GitHub 无空目录 API）
-│  │  ├─ run-store.ts                //   .picbed/runs/ 运行记录：recordRun/listRuns/getRun（= RunRecorder）
-│  │  └─ stats.ts                    //   buildStatsView() 使用统计聚合 v2：runs 唯一计数源；manifest 映射快照 / 远端提交 not-counted；远端库存仅上下文（F25）
-│  │
-│  │  ── 图床适配器（端口 + 实现，F13 双后端）──
-│  ├─ host/
-│  │  ├─ types.ts                    //   HostAdapter 端口接口（AC7 语义稳定）
-│  │  ├─ index.ts                    //   createHostAdapter() 工厂：github | local（代码中真实同名）
-│  │  ├─ github.ts                   //   GitHubHostAdapter：Contents API 上传 + raw/jsdelivr/custom URL
-│  │  └─ local.ts                    //   LocalHostAdapter：本地目录后端
-│  │
-│  ├─ infra/                         // 外部进程/凭据基础设施
-│  │  └─ gh-cli.ts                   //   无 OAuth App 的 token 来源：gh auth token / gh api
-│  │
-│  │  ── WebUI 呈现层（服务端；picbed ui 与 Electron 桌面共用同一份）──
-│  ├─ ui/
-│  │  ├─ index.ts                    //   统一出口：re-export createUiServer / INDEX_HTML（desktop 从这里取）
-│  │  ├─ server.ts                   //   createUiServer()：安检→静态→路由表；只装配无业务（实测 206 行，layering 守卫 <250 行）
-│  │  ├─ root.ts                     //   RootBinder：拖拽策略 A——先绑根，再把相对线索映射到真实 FS
-│  │  ├─ watch.ts                    //   WatchController：watch 的 UI 状态机（preview | confirm-each | auto）
-│  │  ├─ gh-login.ts                 //   GhLoginStore：gh auth login 会话单例（同时只允许一个流程）
-│  │  ├─ context.ts                  //   UiRouteContext：安检放行后交给路由的依赖注入（含拖拽工作集条目）
-│  │  ├─ static.ts                   //   1 行 re-export INDEX_HTML（对外薄壳；真身在 spa/index.ts，读 renderer/index.html）
-│  │  ├─ inline-cache.ts             //   内嵌图内存字节缓存：plan 登记、preview 按合成名反查（无磁盘文件）
-│  │  ├─ http/                       //   HTTP 协议横切
-│  │  │  ├─ guard.ts                 //     同源 / X-Picbed-UI / Host / 请求体安检
-│  │  │  ├─ body.ts                  //     请求体大小上限
-│  │  │  ├─ envelope.ts              //     统一 JSON 信封（WebUI 同形状）
-│  │  │  ├─ errors.ts                //     未捕获异常 → 状态码+信封（状态码真源在 app/errors.ts）
-│  │  │  └─ static.ts                //     下发 renderer/**；/src/** 仅白名单后缀、禁目录逃逸
-│  │  ├─ routes/                     //   业务路由（14 个，各 <250 行，layering 守卫）
-│  │  │  ├─ session.ts               //     根绑定 + 拖拽工作集（服务端唯一可变状态）
-│  │  │  ├─ plan.ts                  //     /api/scan + /api/plan
-│  │  │  ├─ sync.ts                  //     /api/sync：ConfirmGate + dryRun + 工作集作用域
-│  │  │  ├─ revert.ts                //     /api/revert：ConfirmGate；清单损坏单独 400
-│  │  │  ├─ preview.ts               //     图片预览 MIME（仅预览用；上传语义以 manifest/adapter 为准）
-│  │  │  ├─ runs.ts                  //     运行记录：列表 + 单条
-│  │  │  ├─ config.ts                //     配置读写（token 掩码）
-│  │  │  ├─ auth.ts                  //     PAT 粘贴保存/清除（写凭据文件，不写 toml）
-│  │  │  ├─ watch.ts                 //     监听：状态 / 启动 / 停止
-│  │  │  ├─ gallery.ts               //     图库：远端目录浏览 + 批量删除选中
-│  │  │  ├─ stats.ts                 //     使用统计：GET /api/stats（runs 唯一计数源；manifest/远端提交 not-counted，远端库存仅上下文，F25 v2）
-│  │  │  ├─ branches.ts              //     分支列表：GET /api/branches（设置页 Branch 下拉）
-│  │  │  ├─ system.ts                //     系统类只读端点：doctor 自检 + manifest 视图 + 远程目录创建
-│  │  │  └─ health.ts                //     /api/health 存活探针
-│  │  └─ spa/
-│  │     ├─ index.ts                 //   INDEX_HTML：运行时读 renderer/index.html（单一 UI 源，非第二份 HTML）
-│  │     ├─ styles.ts                //   SPA_CSS：server.ts 据此下发 /styles.css
-│  │     └─ globals.d.ts             //   Window.picbedNative / __PICBED_UI_DEV__ 环境类型（不 emit）
-│
-├─ renderer/                         // Web 控制台前端（零构建，浏览器原生 ESM；进桌面包+静态下发）
-│  ├─ index.html                     //   壳层结构：Sidebar 72px + 五视图（上传/统计/图库/设置 + 规范仅调试）
-│  ├─ styles.css                     //   主题令牌（CSS 变量；JS 只写 data-theme/data-logo）
-│  ├─ main.js                        //   <20 行，仅 import 引导（逻辑全在 src/ 下）
-│  └─ src/
-│     ├─ app.js                      //   视图装配：init 各 feature 并接线导航
-│     ├─ lib/                        //   api.js(fetch+X-Picbed-UI 封装) / dom.js / files.js / titles.js
-│     ├─ components/                 //   toast.js / modal.js / selectable-grid.js（可复用 UI）
-│     └─ features/                   //   按功能垂直切：drop(拖拽) photo-wall gallery stats stats-charts
-│                                    //     settings theme logo dir-picker branch-picker gh-login blocked-warn health（一功能一文件）
-│
-├─ desktop/                          // Electron 壳（进桌面包）
-│  ├─ main.mjs                       //   主进程：动态 import('../dist/ui/index.js') 复用 createUiServer；
-│  │                                 //     窗口状态记忆 / 对话框 IPC / dev 热重载；零业务规则
-│  ├─ preload.cjs                    //   contextBridge 暴露 picbedNative（唯一真源）：仅目录/文件对话框，不暴露 token 与任意 FS
-│  ├─ icon.png                       //   electron-builder 安装包图标（buildResources）
-│  └─ make-icon.py                   //   图标生成脚本（一次性工具，代码零引用；随 files: desktop/**/* 进桌面包）
-│
-├─ scripts/                          // 构建/巡检工具（node 直跑；仓库本地与 CI）
-│  ├─ validate.mjs                   //   四 profile 门禁：design / bootstrap / scripts / pack（真实 tarball 审计）
-│  ├─ build-desktop.mjs              //   electron-builder 打包（extraMetadata.main 注入 Electron 入口）
-│  └─ desktop-dev.mjs                //   桌面 dev 编排：起 Vite + electron，代理 /api
-│
-└─ tests/                            // vitest（195 用例 / 18 个用例文件 + 1 个辅助；架构约定都有活守卫）
-   ├─ layering.test.ts               //   分层 7 条断言（§2.5.4）
-   ├─ lib-single-source.test.ts      //   跨层单点：横切逻辑只许在 src/lib/
-   ├─ package-surface.test.ts        //   npm 导出面：files/exports 不得越界发布面
-   ├─ architecture-map.test.ts       //   §2.5 字面量 vs 实现：目录树条目 / 文件计数 / 行数偏差即失败
-   ├─ renderer-source.ts             //   辅助（非用例）：读渲染层源做断言，供其它用例复用
-   └─ （其余 12 个用例文件：ui/ui-panels/stats/pipeline/host/desktop/auth/config/watch/repo-dir/extract/user-token）
+├─ .githooks/ · 3 文件 · 本地 Git hooks
+├─ .github/ · 2 文件 · GitHub 配置
+│  └─ workflows/ · 2 文件 · CI 与发布工作流
+├─ desktop/ · 4 文件 · Electron 桌面壳
+├─ docs/ · 17 文件 · 架构、功能与设计文档
+│  ├─ design/ · 11 文件 · 模块与横切设计
+│  └─ html/ · 3 文件 · 设计评审页
+├─ openspec/ · 3 文件 · 变更规格
+│  ├─ changes/ · 1 文件 · 进行中的变更
+│  └─ specs/ · 1 文件 · 主规格
+├─ renderer/ · 24 文件 · 原生 ESM Web 控制台
+│  └─ src/ · 21 文件 · 前端模块
+├─ scripts/ · 3 文件 · 构建与验证脚本
+├─ src/ · 64 文件 · TypeScript 应用与领域实现
+│  ├─ app/ · 13 文件 · 应用编排
+│  ├─ host/ · 4 文件 · 图床适配器
+│  ├─ infra/ · 1 文件 · 外部工具与凭据基础设施
+│  ├─ lib/ · 6 文件 · 跨层单点逻辑
+│  └─ ui/ · 30 文件 · 内嵌 Web 服务
+├─ tests/ · 19 文件 · 测试与辅助
 ```
 
-规模：`src/` 64 文件（2026-11-10 CLI/MCP 移除后实测）；`renderer/` 24 文件（2026-11-11 统计图表拆出 `stats-charts.js`）；`desktop/` 4 文件（preload 只允许 `.cjs` 一份，`tests/desktop.test.ts` 守着）；`scripts/` 3 文件；`tests/` 18 个用例文件 + 1 个辅助。
+规模：`src/` 64 文件；`renderer/` 24 文件；`desktop/` 4 文件；`scripts/` 3 文件；`tests/` 18 个用例文件 + 1 个辅助。vitest（197 用例 / 18 个用例文件 + 1 个辅助），测试用例总数与辅助数均有守卫。`desktop/` preload 只允许一份 `.cjs`，由 `tests/desktop.test.ts` 守护。
 
 #### 2.5.4 依赖方向与守卫
 
-依赖**只能向内**：呈现层（`ui/**`）→ `app` → 领域核心 → `host` / `infra`。下面的箭头就是这个约束全貌；**紧接着落在它上面的 7 条断言才是真正的执行者**：
+依赖只能向内：呈现层 → `app` → 领域核心 → host / infra。入口不得越过 app 直连 host 或 infra；领域不依赖 host 选择、token 来源或 HTTP。`app/*` 是唯一横向业务边界。
 
-```mermaid
-flowchart LR
-    subgraph 入口层
-        WEB[Web 控制台]
-        DESK[桌面壳]
-    end
-
-    subgraph 应用编排层
-        APP[编排服务<br/>计划与同步与回滚与自检]
-        AUTH[配置与鉴权]
-        RS[运行记录]
-        ERR[错误码映射]
-    end
-
-    subgraph 领域核心
-        DOMAIN[扫描抽取解析计划回写清单]
-        CFG[配置加载]
-        TY[领域类型]
-    end
-
-    subgraph 端口
-        HA[HostAdapter 接口]
-        HF[端口工厂]
-    end
-
-    subgraph 基础设施
-        GHC[gh 命令行封装]
-        UT[本机凭据读写]
-        LIB[路径与图片与摘要与掩码]
-    end
-
-    subgraph 适配器实现
-        GHAD[GitHub 适配器]
-        LCAD[本地目录适配器]
-    end
-
-    subgraph 外部
-        API[GitHub 接口]
-        FSX[本地文件系统]
-    end
-
-    WEB --> APP
-    WEB --> AUTH
-    DESK --> APP
-
-    APP --> DOMAIN
-    APP --> CFG
-    APP --> RS
-    APP --> ERR
-    APP --> HF
-    AUTH --> CFG
-    AUTH --> GHC
-    AUTH --> UT
-
-    DOMAIN --> TY
-    DOMAIN --> LIB
-    CFG --> LIB
-
-    GHAD -.->|实现| HA
-    LCAD -.->|实现| HA
-    HF --> HA
-    HF --> GHAD
-    HF --> LCAD
-
-    GHAD --> API
-    LCAD --> FSX
-    GHC --> UT
-```
-
-这张图要记住的三件事（逐条对应下面的守卫断言）：
-
-1. **`app/*` 是唯一横向边界**：入口都指向它（桌面 Boot UI 的方式是 `import dist/ui/index.js`，不是 IPC 复制业务）。
-2. **呈现层不得越过 `app` 直达 `host/*` 与 `infra/*`**——这是历史上漂移的来源（Web 侧自己实现了 doctor/config/鉴权）。
-3. **`Domain` 与 Port/Infra 之间没有箭头**：领域核心对「用哪个 host、token 从哪来、HTTP 怎么发」一无所知，换后端只需动 Port 与 Implementations 两个包。
-
-依赖**只能向内**不是口头约定，由 **`tests/layering.test.ts`** 强制执行：
-
-| 规则 | 断言位置 |
-|------|----------|
-| 呈现层（`ui/**`）不直连 `host/` / `infra/` / `user-token` | `layering.test.ts:28` |
-| `ui/**` 不直连 `config.ts`，配置一律走 `app/settings.ts` 的 `resolvedConfig` | `:40` |
-| `app/**` 不深连具体适配器实现，只走 `host` 端口 | `:54` |
-| `app/**` 零呈现依赖（不碰 `node:http` / `ui`） | `:61` |
-| `host/**` 不反向依赖 `app/**` | `:83` |
-| `ui/server.ts` 只做装配：不含 `'/api/'` 字面量且 <250 行 | `:68` |
-| 业务路由都在 `ui/routes/` 下，各 <250 行 | `:75` |
-
-另两道守卫：跨层单点由 `tests/lib-single-source.test.ts` 守；npm 发布面由 `tests/package-surface.test.ts` + `npm run validate:pack` 守（见 §2.4）。
+`tests/layering.test.ts` 强制：UI 不直连 `host/`、`infra/`、`user-token` 或 `config.ts`；app 不深连适配器且无呈现依赖；host 不反向依赖 app；`ui/server.ts` 只装配且低于 250 行；路由位于 `ui/routes/` 且各低于 250 行。`tests/lib-single-source.test.ts` 守护跨层单点，`tests/package-surface.test.ts` 与 `npm run validate:pack` 守护发布面。
 
 ---
 
-## 3. 领域模型（栈无关）
+## 3. 领域模型
 
 ```text
 DocFile ──contains──► ImageRef ──resolves──► Asset ──uploads──► RemoteImage
@@ -443,90 +169,66 @@ SyncPlanItem:  action + asset? + remote? + reason? + code? + ref?
 SyncResult:    ok, uploaded, rewrittenDocs[], summary, items[], warnings[], errors[], partial, errorCode?, runId
 ```
 
-不变量：
-1. 同一 `sha256` 在一次 run 中至多产生一次远端写入（缓存命中则零写入）。
-2. 文档回写只改变被抽取引用的 URL 子串，不重排其它文本。
-3. 配置与 manifest、日志中不得出现 token 明文。
+不变量：一次 run 内相同 sha256 至多一次远端写入；回写只改 URL 子串；配置、清单与日志无 token 明文。
 
 ---
 
 ## 4. 图床通道（PicX / GitHub）
 
-PicX 图床本质是 **GitHub 仓库文件托管 + URL 风格**。picbed 对齐概念：
+PicX 同源模型为 GitHub 仓库文件托管与 URL 风格约定；支持 GitHub 与 local host。
 
-| PicX 概念 | picbed 配置 | 说明 |
-|-----------|--------------|------|
-| Token | `PICBED_GITHUB_TOKEN` / `GITHUB_TOKEN` / `gh auth token` | PAT 或 GitHub CLI；repo 或 fine-grained Contents RW |
-| Owner / Repo / Branch / 目录 | `github.owner/repo/branch/dir` | 图床仓库 |
-| CDN 规则 | `url.style` | `raw` \| `jsdelivr` \| `custom` |
+| 概念 | picbed 配置 | 说明 |
+|------|-------------|------|
+| Token | `PICBED_GITHUB_TOKEN` / `GITHUB_TOKEN` / 本机凭据 / `gh auth token` | PAT 或 GitHub CLI；Contents RW |
+| 仓库 | `github.owner/repo/branch/dir` | 图床仓库 |
+| CDN | `url.style` | `raw` / `jsdelivr` / `custom` |
 
-上传路径模板（可配置）：`{dir}/{yyyy}/{mm}/{sha12}-{safeName}`  
-URL：
-- raw：`https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{path}`
-- jsdelivr：`https://cdn.jsdelivr.net/gh/{owner}/{repo}@{branch}/{path}`
-- custom：用户模板
-
-上传串行；无重试/退避，403/429 直接映射 `E_REMOTE`；单文件建议 ≤50MB。
+上传路径为 `{dir}/{yyyy}/{mm}/{sha12}-{safeName}`；URL 可为 `https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{path}`、`https://cdn.jsdelivr.net/gh/{owner}/{repo}@{branch}/{path}` 或用户模板。上传串行，无重试/退避；403/429 映射 `E_REMOTE`，单文件建议不超过 50 MB。
 
 ---
 
-## 5. 命令与 Agent 契约（2026-11-10 已移除）
+## 5. 命令与 Agent 契约（已移除）
 
-CLI 命令面（`init/doctor/scan/plan/sync/upload/revert/watch/config/ui/commands`）与 Agent 机器接口（`--json` 信封、稳定退出码、MCP stdio 协议）已于 2026-11-10 随 CLI / MCP 宿主删除。退出码语义仍作为内部约定活在 `src/app/errors.ts`（`AppError.code` → HTTP 状态码映射），由 Web API 信封承载；Web API 信封语义见 [`design/cross-cutting.md`](design/cross-cutting.md)，详细 AC 见 [`features-index.md`](features-index.md)。
+退出码语义由 `src/app/errors.ts` 承载并映射到 HTTP；Web API 信封见 [`design/cross-cutting.md`](design/cross-cutting.md)，功能 AC 见 [`features-index.md`](features-index.md)。
 
 ---
 
 ## 6. 安全与隐私
 
-- Token 最小权限：仅目标图床仓库 Contents 读写。
-- 拒绝：路径穿越（`..` 出根）、默认拒绝绝对路径与 `file://`。
-- 日志/JSON 错误禁止回显 secret；`config list` 掩码。
-- `.picbed/backup`、`manifest`、`.picbed/runs` 建议 gitignore（manifest 无 secret 仍建议本地）。
-- **Web 控制台**：默认只监听 `127.0.0.1`；token **永不**进入 HTTP 响应/页面；写操作需页面确认 + 服务端 `confirm`；同源静态 + API，不做跨站开放；非回环绑定须显式且告警。
-- **桌面壳**：继承 WebUI 安全模型；`contextIsolation: true`、`nodeIntegration: false`；preload 仅暴露对话框/窗口状态，不暴露 token 或任意 FS 写。
+- Token 仅需目标图床仓库 Contents 读写权限；日志与错误禁止回显 secret，配置展示必须掩码。
+- 拒绝路径穿越、默认拒绝绝对路径与 `file://`；源图片只读。
+- `.picbed/backup`、manifest 与 `.picbed/runs` 建议 gitignore。
+- Web 默认只监听 `127.0.0.1`；token 不进入 HTTP、页面或 SSE；写操作需页面确认及服务端 `confirm`；非回环绑定须显式并告警。
+- Electron 继承 Web 安全模型：`contextIsolation: true`、`nodeIntegration: false`；preload 只暴露对话框/窗口状态，不暴露 token 或任意 FS 写入。
 
 ---
 
-## 7. 技术选型（可改）
+## 7. 技术选型
 
-| 项 | 推荐 | 备选 | 理由 |
-|----|------|------|------|
-| 语言 | TypeScript + Node ≥20 | Go | 与 PicX 生态同源；MD/HTML 库成熟 |
-| ~~CLI~~ | ~~commander~~（2026-11-10 已随 CLI 移除） | — | 桌面单宿主后无命令面 |
-| 校验 | zod | — | 配置与 JSON schema |
-| HTTP | undici | net/http | 可控超时/重试 |
-| 测试 | vitest + fixture | go test | 黄金文件友好 |
-
-栈无关设计优先；定栈后仅实例化目录与构建，不改 AC。
-
-### 7.1 Web 控制台（F16–F22，可改）
-
-| 项 | 推荐 | 备选 | 理由 |
-|----|------|------|------|
-| 服务 | Node `http` / 轻量路由 | fastify | 本地单用户，无需重框架 |
-| 前端 | **`renderer/` 单源 + electron-vite**（Vite HMR；`picbed ui` / 安装包静态下发同一套）（**已迁移 2026-09-27**，见 [`design/module-desktop.md`](design/module-desktop.md)） | React | 仍为原生 HTML/CSS/JS；Vite 只做开发构建，不引入组件框架 |
-| 实时进度 | SSE | 轮询 | sync/watch 推送简单 |
-| 拖拽路径 | 根绑定 + 相对路径解析（**策略 A，已冻结**） | File System Access 预览暂存（不纳入） | 浏览器不给绝对路径；原地回写必须服务端可解析真实路径 |
-
-### 7.2 桌面壳（F24，2026-09-26 用户确认）
-
-| 项 | 选型 | 备选 | 理由 |
-|----|------|------|------|
-| 桌面框架 | **Electron + electron-builder** | Tauri + Node sidecar | 复用 Node 核心与现有 WebUI，改动最小；Tauri 需 sidecar 重打包，链路更复杂 |
-| 首发平台 | **Windows NSIS `.exe`** | macOS DMG / Linux AppImage | 用户确认 Windows 优先；同一 builder 可后扩 |
-| 壳能力 | 完整控制台 + 原生目录对话框 + 窗口状态记忆 | 仅包一层窗口 | 用户确认要原生体验 |
-| 依赖归属 | `electron`/`electron-builder`/`electron-vite`/`vite` 仅 devDependencies | 进 dependencies | `npm i -g picbed` 不应携带桌面运行时 |
-| 运行模型 | 内嵌 `createUiServer` → `127.0.0.1` → BrowserWindow；dev 加载 Vite（HMR），prod 加载同源静态 UI | 自定义 protocol | 复用既有 HTTP API，契约零改动 |
-| 开发工具链 | **electron-vite**（渲染 HMR + main/preload 重启） | 手写 `fs.watch` relaunch | 见 [`design/module-desktop.md`](design/module-desktop.md) |
+| 项 | 选型 | 约束 |
+|----|------|------|
+| 语言 | TypeScript + Node ≥20（备选 Go） | 与 PicX 生态同源；MD/HTML 库成熟；栈无关设计优先 |
+| 校验 | zod | 配置与 JSON schema |
+| HTTP | Node `http` / 轻量路由（备选 fastify）；undici | 本机单用户不需重框架；网络调用需可控超时/重试 |
+| 测试 | vitest + fixture（备选 go test） | 黄金文件友好 |
+| 前端 | `renderer/` 原生 HTML/CSS/ESM + electron-vite | 不引入 React/组件框架；Vite 做开发构建 |
+| 实时进度 | SSE（备选轮询） | sync/watch 推送简单 |
+| 拖拽路径 | 先绑 root，再将相对线索解析为真实路径（策略 A） | 浏览器不给绝对路径；原地回写必须服务端解析真实路径；暂存预览不纳入 |
+| 桌面 | Electron + electron-builder（备选 Tauri + Node sidecar） | 复用 Node 核心与 WebUI，改动最小；Tauri 需 sidecar 重打包 |
+| 首发 | Windows NSIS `.exe` | 用户优先 Windows；同一 builder 可后扩 macOS/Linux |
+| 壳能力 | 完整控制台、原生目录对话框、窗口状态记忆 | 不只是包一层窗口 |
+| 桌面依赖 | Electron、electron-builder、electron-vite、Vite 为 devDependencies | 桌面包由构建链打包 |
+| 运行 | 内嵌 `createUiServer` → `127.0.0.1` → BrowserWindow | dev 用 Vite HMR；prod 同源静态 UI；复用 HTTP API |
+| 开发工具链 | electron-vite | 渲染 HMR 与 main/preload 重启 |
 
 ---
 
 ## 8. NFR
 
-- 正确性 > 速度：误改文档不可接受（偏移替换 + 黄金测试）。
-- 可脚本化：无 TTY 不阻塞；同一命令重复执行结果可预测。
-- 可观测：`--verbose` 逐步日志；JSON 内含 counts 与 per-item 结果。
-- 可移植：Windows 路径分隔符与大小写敏感差异在 Resolver 统一。
+- 正确性优先：精确偏移替换与黄金测试防止误改文档。
+- 可脚本化：无 TTY 不阻塞；重复执行结果可预测，dry-run 无副作用。
+- 可观测：verbose 提供逐步日志；JSON/API 提供 counts、逐项结果与错误；运行记录支持审计。
+- 可移植：Resolver 统一 Windows/POSIX 路径分隔与大小写差异。
 
 ---
 
@@ -534,50 +236,43 @@ CLI 命令面（`init/doctor/scan/plan/sync/upload/revert/watch/config/ui/comman
 
 | 分支 | 职责 |
 |------|------|
-| `main` | 发布/稳定 |
+| `main` | 发布与稳定 |
 | `develop` | 功能集成 |
-| `feature/*` | 实现（如 `feature/yigecli-mvp`，历史分支名） |
-| `docs/design` | **文档设计专属分支**（`docs/`、HTML 呈现、标识体系变更优先落此分支） |
-| `release/*` / `hotfix/*` | 可选 |
+| `feature/*` | 功能实现 |
+| `docs/design` | 设计文档、HTML 呈现与标识体系；修改后合入 `develop` |
+| `release/*` / `hotfix/*` | 按需用于发布与修复 |
 
-约定：设计评审与文档修订走 `docs/design`；代码实现走 `feature/*`，里程碑冻结时把设计快照合入 `develop`/`main`。
+文档修订走 `docs/design`，实现走 `feature/*`；里程碑设计快照进入 `develop` / `main`。
 
-## 10. 分期（与 F/P 对齐，引用不重定义 AC）
+---
 
-| 阶段 | 内容 | 对应优先级 | 状态 |
-|------|------|------------|------|
-| M0 设计冻结 | 本文档 + features-index + modules | — | done |
-| M1 骨架 | init/doctor/config | P0 子集 | done |
-| M2 抽取 | scan/plan | P0 | done |
-| M3 上传 | upload/sync 幂等 | P0 | done |
-| M4 回写 | rewrite/revert | P0 | done |
-| M5 打磨 | Agent schema / 发布 | P1 | done（v0.2.0） |
-| M6 扩展 | F12 watch / F13 multi-host / F14 MCP / F15 token auth | P0/P3 | done |
-| M7 Web 控制台 | F16–F18 最小闭环（服务+拖拽工作台+sync） | P0 | **done** |
-| M8 Web 完备 | F19–F22 revert/config/doctor/审计/watch | P1–P2 | **done** |
-| M9 UI 壳层重设计 | F23 侧栏多视图（F25 起「上传/统计/…」，图库 2026-09-30 加入）+ 晨雾蓝×落日暖 | P0 | **done** |
-| M10 桌面壳 | F24 Electron 壳 + Windows 安装包 + 原生对话框 | P0 | **done** |
-| M11 渲染层 electron-vite | `renderer/` 单源 + Vite HMR + 照片墙等 UI 迭代 | P0 | **done** |
+## 10. 分期（与 F/P 对齐）
 
-具体功能点、AC 与模块归属：[`features-index.md`](features-index.md)。
+| 阶段 | 内容 | 优先级 | 状态 |
+|------|------|--------|------|
+| M0 设计冻结 | 本文档、features-index 与 modules | — | 完成 |
+| M1 骨架 | init / doctor / config | P0 子集 | 完成 |
+| M2 抽取 | scan / plan | P0 | 完成 |
+| M3 上传 | upload / 幂等 sync | P0 | 完成 |
+| M4 回写 | rewrite / revert | P0 | 完成 |
+| M5 打磨 | Agent schema / 发布 | P1 | 完成；现宿主已移除 |
+| M6 扩展 | watch、多 host、MCP、token auth | P0/P3 | 完成；CLI/MCP 宿主已移除 |
+| M7 Web 控制台 | F16–F18 服务、拖拽工作台、sync 闭环 | P0 | 完成 |
+| M8 Web 完备 | F19–F22 revert/config/doctor/审计/watch | P1–P2 | 完成 |
+| M9 UI 壳层 | F23 多视图、图库与主题 | P0 | 完成 |
+| M10 桌面壳 | F24 Electron、Windows 安装包、原生对话框 | P0 | 完成 |
+| M11 渲染层 | renderer 单源、Vite HMR、照片墙等 UI 迭代 | P0 | 完成 |
+
+功能点、验收标准与模块归属见 [`features-index.md`](features-index.md)。
 
 ---
 
 ## 11. 状态与开放问题
 
-1. URL 默认风格：jsdelivr / raw / 自定义域名？（当前模板默认 jsdelivr）  
-2. ~~命令名/包名是否冻结为 `picbed`？~~ **已冻结**（2026-09-22，由 `yigecli` 更名）。  
-3. ~~v1 是否纳入 watch、VS Code 集成？~~ **已实现 F12/F14**。  
-4. ~~实现语言最终确认 Node/TS 或 Go？~~ **已采用 Node/TS**。  
-5. 是否增加更多 HostAdapter（对象存储等）？  
-6. ~~是否发布到 npm 官方源？（当前仅 GitHub Release tarball）~~ **已启用双通道**（2026-09-23，用户已注册 npm 账号）：GitHub Release tarball **+** `npm publish`（`npx picbed` / `npm i -g picbed`）。  
-7. ~~Web 子命令名：`ui` 还是 `serve`？~~ **已冻结为 `ui`**（2026-09-23，用户确认）；不为 `serve` 保留别名。  
-8. ~~Web 前端栈：原生 / 轻量 Vite / React？~~ **演进完毕（2026-09-27）**：模板串 SPA → `src/ui/spa/` 模块（评审 ②）→ **`renderer/` 单源 + electron-vite**（Vite HMR，不引入 React）。当前权威见 [`design/module-desktop.md`](design/module-desktop.md)；历史见 [`design/module-webui-spa-split.md`](design/module-webui-spa-split.md)。  
-9. ~~拖拽后「无 root」时：强制先绑根，还是允许暂存预览（策略 B）？~~ **已冻结为策略 A：强制先绑根**（2026-09-23）；未绑根不得进入 scan/plan/sync；暂存预览不纳入本期。  
-10. ~~watch 在 UI 默认模式：`preview` / `confirm-each` / `auto`？~~ **已冻结为默认 `preview`**（2026-09-23，采纳建议）；`auto` 须显式打开并仍写 RunRecord。
-11. **F23 UI 壳层**：草图已锁定双栏侧栏 + 主区「文件放置」（侧栏现况见 [`design/wireframes/ui-shell.md`](design/wireframes/ui-shell.md) §1——上传/统计/图库/设置 + 规范仅调试；原「管理」视图 2026-11-09 由 F25 统计替换）。开放：刷新后 root 自动读入策略、深色主题、侧栏图标风格（见该文件 §8）。
-12. **F24 桌面壳**：Electron + Windows NSIS + 完整原生体验已冻结（2026-09-26）。开放：代码签名（SmartScreen）、macOS/Linux 产物、自动更新（electron-updater）——均不阻塞首发。
+- 是否增加更多 HostAdapter（如对象存储）。
+- F23：刷新后 root 自动读入策略、深色主题与侧栏图标风格。
+- F24：代码签名（SmartScreen）、macOS/Linux 产物与自动更新；均不阻塞首发。
 
 ---
 
-*功能定义看总表，域规则看 module-*，本文只负责怎么分层与为何这样分。*
+*功能定义见总表，域规则见 module-*；本文负责说明分层与架构决策。*

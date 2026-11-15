@@ -1,136 +1,50 @@
-# cliops 模块详细设计
+# cliops 模块（历史附录）
 
 > 归属功能点：F1 项目初始化与配置、F2 环境与鉴权自检、F10 Agent 机器接口、F12 watch 监听、F14 VS Code/MCP 包装、F15 Token 鉴权。
 > 架构见 [`../architecture.md`](../architecture.md)；定义见 [`../features-index.md`](../features-index.md)；全局契约见 [`cross-cutting.md`](cross-cutting.md)。
 >
 > **⚠️ 状态（2026-11-10）：CLI / MCP 宿主已删除**（`src/cli.ts`、`src/mcp/`、`bin/*` 随 Electron 单形态收敛移除）。本文件保留为**历史设计**（`validate:design` profile 仍要求其存在），F10/F14 的命令面与 MCP 通道已不存在；配置模型 / token 解析顺序 / doctor 语义仍由 app 层实现并被 WebUI 复用。
+> 宿主（CLI/MCP/npm 面）已移除；本文档保留 F1/F2/F15 存活契约与 F10/F12/F14 历史归属。
 
 ## 目的
 
-cliops 负责 **配置生命周期、健康检查、命令编排入口与机器可读契约**，使 picbed 对人可读、对 Agent 可编程。业务规则在 ingest/transfer/rewrite；本模块保证输入合法、输出稳定、失败可判定。
-
-边界原则：
-- Token 从 ENV / 本机凭据文件 / `gh`（GitHub CLI）读取；输出一律掩码。  
-- 非 TTY **禁止**交互阻塞；写文件类命令无 `--yes` 时退出码 7。  
-- `--json` 时 stdout 仅 JSON，诊断走 stderr。
-- **编排唯一实现在 `src/app/`**（见 [`module-app.md`](module-app.md)）：CLI 只做 argv 解析、确认门（`--yes`）、JSON 信封与退出码映射；collect/plan/sync/revert/doctor/config/runs 均调用 app 共享层，不复制业务编排。
-
-## 模块文件夹结构（栈无关）
-
-```
-cliops/
-├─ domain/
-│  ├─ cqe/           # InitConfigCommand、DoctorQuery、GlobalFlags
-│  ├─ entity/        # ResolvedConfig、DoctorReport、JsonEnvelope
-│  ├─ service/       # ConfigLoader、OutputFormatter；编排与 DoctorService 调用 app 共享层
-│  └─ facade/        # CliFacade
-├─ exceptions/       # ConfigInvalidError、UsageError、AuthError
-└─ cli/              # argv 解析、子命令注册、进程退出码映射
-```
+本文是 cliops 的历史附录。宿主已随 2026-11-10 Electron 单宿主收敛移除；配置、自检与 doctor 现由 `src/app/settings.ts` 与 WebUI routes 承载，存活契约以当前实现为准。
 
 ## 配置模型（ResolvedConfig）
 
-```
-host:   { type: github|local }
-github: { owner, repo, branch, dir }
-local:  { root, publicBase, dir }
-url:    { style: raw|jsdelivr|custom, customTemplate? }
-scan:   { extensions[], ignore[] }
-upload: { concurrency, commitMessage }
-rewrite:{ backup: boolean }
-# token 不在 ResolvedConfig 的可序列化输出中；仅内存注入 HostAdapter
-```
-
-优先级：**ENV（`PICBED_*`）> `./picbed.toml` > `./.picbed/config.toml`**（从 cwd 向上查找，见 `src/config.ts#findConfigPath`）。CLI 的 `--config` / `--cwd` 只决定配置文件位置；**无用户级配置**，`loadConfig` 的 `overrides` 参数当前无调用方。
+历史配置由 `host`（github/local）、`url`（raw/jsdelivr/custom）、`scan`（extensions/ignore）、`upload`（concurrency/commitMessage）和 `rewrite.backup` 组成；GitHub 与本地 host 分别配置仓库或根目录/publicBase。解析优先级为 `PICBED_*` ENV > `./picbed.toml` > `./.picbed/config.toml`（从 cwd 向上查找）；token 不进入可序列化配置。当前对应物由 `src/app/settings.ts` 提供。
 
 ## F1 项目初始化与配置
 
-- `init`：写出 `picbed.toml` 模板（无 secret）；已存在需 `--force`。  
-- `config get|set|list`：枚举校验（如 `url.style`）由 app 层 `writeConfigKey` 单点执行；`list` 对 secret 掩码 `****`。  
-- 非法配置：退出码 2（用法）或 3（缺鉴权类），消息含键名。
-
-## F14 VS Code / MCP 包装
-
-- 入口：`picbed-mcp`（stdio，newline-delimited JSON-RPC 2.0）。
-- Tools：`picbed_doctor|scan|plan|sync|upload|revert`——每个 tool **只**拼 CLI argv 并 `spawn` `picbed … --json`。
-- **禁止**在包装层重写抽取/上传/回写规则；输出原样透传 CLI JSON。
-- VS Code：把 `picbed-mcp` 配进 MCP / 任务即可；扩展层不承载业务。
-
-## F12 watch 监听
-
-- `watch <path> --debounce <ms>`：`fs.watch` 递归监听文档目录；防抖合并变更批次。
-- 触发后调用既有 `sync` 子命令（spawn CLI，不复制业务规则）；支持 `--dry-run`。
-- 可退出：SIGINT / SIGTERM 关闭 watcher 后进程结束；**无**常驻服务/特权。
+历史 CLI 的 `init` 写无 secret 的 `picbed.toml` 模板，`config get|set|list` 由 app 层校验配置键、掩码 secret。当前配置读写契约由 `src/app/settings.ts` 和 WebUI routes 承载；非法配置的历史退出码 2/3 分别表示用法错误/缺鉴权。
 
 ## F2 环境与鉴权自检
 
-Doctor 实现于 app 共享层 `doctorService`（[`module-app.md`](module-app.md)），**按 `host.type` 分派**：
-
-github 主机：
-1. 必需配置键存在且类型正确（owner/repo/branch）  
-2. token 存在（不回显）  
-3. GitHub API 可达  
-4. 对 `owner/repo` 具备 Contents 读写（最小探测）  
-
-local 主机：仅检查 `host.type`，**不**要求 token，也**不**做 API 探测。
-
-输出 `DoctorReport { ok, checks[], failures[] }`；github 主机任一 hard 失败 → 退出码 3；local 主机无 token 亦 `ok=true`。
+doctor 语义仍由 app 层与 WebUI `/api/doctor` 承载：github 检查必需配置、token、API 可达性及 Contents 读写权限；local 不要求 token 或 API 探测。历史 github hard failure 退出码 3，在 Web API 中对应信封 `error.code`。
 
 ## F10 Agent 机器接口
 
-- 每个子命令支持 `--json`，信封：`{ schemaVersion, ok, command, data?, error?, warnings? }`。  
-- 退出码表见 [`cross-cutting.md`](cross-cutting.md)。  
-- 幂等提示写入 data，供 Agent 断点续跑。  
-- `picbed commands --json` 列出命令与选项（可发现性）。
+墓碑：2026-11-10 随 CLI 宿主移除；`--json` 信封语义由 Web API 承载。
+
+## F12 watch 监听
+
+watch API 契约现由 [`module-webui.md`](module-webui.md) 数据契约的路由表承载；历史 `fs.watch` 递归监听以 debounce 合并变更，再触发 sync，可 dry-run，SIGINT/SIGTERM 关闭 watcher。
+
+## F14 VS Code / MCP 包装
+
+墓碑：2026-11-10 随 CLI/MCP 宿主移除（与 features-index F14 墓碑一致）。
 
 ## F15 GitHub Token 鉴权
 
-### 意图
+解析顺序契约见 [`cross-cutting.md`](cross-cutting.md#7-github-token-解析顺序)；token 只在内存中使用，诊断与输出必须掩码且不得回显。
 
-**不提供 OAuth 登录**（自建 OAuth App 对最终用户过重）。鉴权只使用现成 token。
+## 实现落点（历史）
 
-### Token 解析顺序
-
-1. `PICBED_GITHUB_TOKEN`
-2. `GITHUB_TOKEN`
-3. 本机凭据 `~/.picbed/credentials.json`（由 Web 设置页 `POST /api/auth/token` 写入；CLI 无 `login` 命令）
-4. `gh auth token`（`gh` = **GitHub CLI** 官方命令行，不是 `git`；需已 `gh auth login`。`gh` 不存在则跳过）
-
-（实现：`src/infra/gh-cli.ts#resolveToken`，`source` 依次为 `env` / `user` / `gh`。）
-
-缺 token 时错误 **hint 必须展开说明** PAT 与 GitHub CLI 的获取方式，避免用户不知道 `gh` 是什么。
-
-### 失败语义
-
-| 情况 | 退出码 |
-|------|--------|
-| 无任何 token | 3 |
-| token 无权限 / API 失败 | 5（或 doctor 汇总 3） |
-| `login` / `logout` | 2（已移除，给出 hint） |
-
-## 实现落点（TS/Electron 适配；历史）
-
-> **历史记录（2026-11-10 归档）**：`src/cli.ts` 已删除，以下签名/类图/时序描述的是已移除的实现，仅作追溯。存活部分：`src/app/index.ts` barrel、`src/types.ts` 的 `JsonEnvelope/EXIT`（types 由 WebUI 信封继续使用）。
-
-### 实际文件夹结构（已移除的 cli.ts）
-
-```text
-src/
-├─ cli.ts          # [已删除 2026-11-10] run(argv)：参数解析 + 子命令分发 + emit/fail 输出
-├─ app/
-│  └─ index.ts     # barrel：再导出全部应用服务（WebUI 唯一入口）
-└─ types.ts        # JsonEnvelope<T> / JsonError / EXIT / ExitCode（存活；WebUI 信封沿用）
-```
-
-### 服务签名（TS，历史）
-
-| 服务 | 签名 | 职责 |
-|------|------|------|
-| `run` | `run(argv: string[]): Promise<ExitCode>` | CLI **唯一导出**：解析 argv → 分发子命令 → 调 app 服务 → 返回退出码（已删除） |
-| `emit` / `fail` | 模块私有 | JSON 输出信封（已删除；WebUI 用自己的 `envelope`） |
-| `loadCfg` | `loadCfg(cwd, config?)` | 转调 `app/settings.ts#resolvedConfig`（防腐层） |
-
-> **分层收敛（2026-10-27 修，历史）**：此前 `src/cli.ts` 直连 `./config.js`，违反 app 层防腐约束；后收敛至 app 层并由 `tests/layering.test.ts` 覆盖。该教训（守卫只过滤 `ui/` 前缀导致 `src/` 根文件漏网）已记录，现守卫只覆盖 `ui/`。
+- 2026-11-10 移除的 `src/cli.ts` 曾导出 `run(argv): Promise<ExitCode>`，负责 argv 分发及退出码映射。
+- CLI 的 `emit` / `fail` 输出信封已删除；WebUI 使用自身 envelope。
+- `src/app/index.ts` 是应用服务 barrel；`src/types.ts` 保留 WebUI 使用的 `JsonEnvelope` / `EXIT` 类型。
+- `loadCfg` 历史上转调 `app/settings.ts#resolvedConfig`。
+- 2026-10-27 分层收敛修正 CLI 直连 `./config.js`；历史 layering 守卫曾漏检 `src/` 根文件。
 
 ## 功能点映射
 
@@ -142,3 +56,5 @@ src/
 | [F12](../features-index.md#f12-watch-监听) | §F12 | watch 经 `/api/watch` 存活 |
 | [F14](../features-index.md#f14-vs-code--mcp-包装) | §F14 | **removed 2026-11-10** |
 | [F15](../features-index.md#f15-github-token-鉴权) | §F15 | token 解析顺序存活（app/auth.ts） |
+
+*规则与数据以本模块为准；验收契约以 features-index AC 为准。*
