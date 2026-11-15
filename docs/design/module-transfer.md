@@ -1,311 +1,64 @@
-# transfer 模块详细设计
+# transfer 模块设计
 
 > 归属功能点：F6 上传计划 plan、F7 GitHub 图床上传、F11 单文件上传。
 > 架构见 [`../architecture.md`](../architecture.md)；定义见 [`../features-index.md`](../features-index.md)；ingest 见 [`module-ingest.md`](module-ingest.md)；横切见 [`cross-cutting.md`](cross-cutting.md)。
-> 栈无关；Host 细节经 `HostAdapter` 端口注入（F13：github | local）。
 
-## 目的
+## 目的与边界
 
-transfer 将 ingest 产出的 `Asset` 变为可写回的 `RemoteImage`：先形成**可预览计划**，再经 **GitHub Contents API**（PicX 同源模型）上传，并按 URL 风格生成公开链接。只读缓存决定跳过，保证幂等。
+transfer 将 ingest 产出的 `Asset` 分类为可预览计划，经图床适配器上传后生成 `RemoteImage`，供 rewrite 回写。plan 只读缓存，不上传、不改文档。
 
-边界原则：
-- **不改文档文本**（rewrite 职责）。
-- **不读目录发明引用**（ingest 职责）；可接受单文件路径（F11）。
-- Token 仅在适配器边界注入，不进入领域结果对象。
-- **适配器经端口取用（2026-10-02 补）**：编排层只用 `host/index.js` 的端口工厂 `createHostAdapter`，**不**深连 `host/github.js` / `host/local.js`。目录能力（F20）是端口上的**可选能力** `HostAdapter.entryType?()`——GitHub 经 Contents API 实现，其它后端可不实现，编排层须先判空并报 `E_CONFIG`。
+- 不抽取新引用；批量输入来自 ingest，F11 可接收单文件路径。
+- 不改文档文本；回写由 rewrite 负责。
+- Token 仅注入适配器，不进入领域结果对象。
+- 编排只经 `createHostAdapter` 工厂和 `HostAdapter` 端口，不深连 github/local 实现。
+- 目录浏览是可选端口能力 `entryType?()`；调用方须判空，所需能力不可用时报 `E_CONFIG`。
 
-## 模块文件夹结构（栈无关）
+实现落点：`src/host/{types,index,github,local}.ts`、`src/app/{upload,sync}.ts`、`src/plan.ts`、`src/manifest.ts`、`src/infra/gh-cli.ts`。
 
-```
-transfer/
-├─ domain/
-│  ├─ cqe/          # BuildPlanQuery、UploadAssetsQuery、UploadOneQuery
-│  ├─ entity/       # SyncPlan、SyncPlanItem、RemoteImage
-│  ├─ service/      # PlanBuilder、UrlComposer、UploadScheduler
-│  ├─ port/         # HostAdapter <<interface>>
-│  └─ facade/       # TransferFacade
-├─ packages/        # 防腐层：GitHubHostAdapter（Contents API）
-└─ exceptions/      # UploadFailedError、RateLimitedError、HostAuthError
-```
+## 数据契约
 
-## 端口
-
-```
-HostAdapter
-  type / requiresToken
-  exists(repoPath): boolean
-  putFile(repoPath, bytes, message, branch): void
-  composeUrls(repoPath): { publicUrl, rawUrl, cdnUrl? }
-  remotePath(sha256, localPath, now?): string
-  # 实现负责传输语义；uploadAsset 只依赖本端口（AC7 稳定）
-```
-
-工厂：`createHostAdapter(cfg, token?)` 按 `host.type` 选择后端。
-
-契约速览即上文代码块；下图把**端口 + 两个实现 + 工厂 + 传输数据契约**放在一张图里，用于确认「换后端要动哪些文件」：
-
-```mermaid
-classDiagram
-    class HostAdapter {
-        <<interface>>
-        +type : string
-        +requiresToken : boolean
-        +exists(repoPath) Promise~boolean~
-        +putFile(repoPath, bytes, message, branch) Promise~void~
-        +deleteFile(repoPath, sha, message, branch) Promise~void~
-        +composeUrls(repoPath) HostUrls
-        +remotePath(sha256, localPath, now?) string
-        +entryType?(repoPath) Promise~'file'|'dir'|null~
-    }
-    class HostUrls {
-        +publicUrl : string
-        +rawUrl : string
-        +cdnUrl? : string
-    }
-    class Asset {
-        +localPath : string
-        +sha256 : string
-        +bytes : number
-        +mime : string
-        +refs : ImageRef[]
-        +data? : Buffer
-    }
-    class RemoteImage {
-        +publicUrl : string
-        +rawUrl : string
-        +cdnUrl? : string
-        +repoPath : string
-        +sha256 : string
-    }
-    class SyncPlanItem {
-        +action : PlanAction
-        +asset? : Asset
-        +remote? : RemoteImage
-        +reason? : string
-        +code? : string
-        +ref? : ImageRef
-    }
-    class GitHubHostAdapter {
-        +type : github
-        +requiresToken : true
-    }
-    class LocalHostAdapter {
-        +type : local
-        +requiresToken : false
-        -abs(repoPath) string
-    }
-    class createHostAdapter {
-        <<function>>
-    }
-
-    HostAdapter <|.. GitHubHostAdapter : implements
-    HostAdapter <|.. LocalHostAdapter : implements
-    HostAdapter ..> HostUrls : returns
-    Asset ..> RemoteImage : 上传后产出
-    SyncPlanItem --> Asset : asset
-    SyncPlanItem --> RemoteImage : remote
-    createHostAdapter ..> HostAdapter : creates
-    createHostAdapter ..> GitHubHostAdapter : 当 host.type 为 github
-    createHostAdapter ..> LocalHostAdapter : 当 host.type 为 local
-
-    note for GitHubHostAdapter "唯一需要 token 的实现：Bearer 头与 Accept 头在此封装"
-    note for LocalHostAdapter "abs 必须过 isUnderRoot，否则 E_LOCAL；全程不需要 token"
-    note for RemoteImage "字段里没有 token，故可安全进 manifest 与加密封响应"
-```
-
-由这张图得出的边界：
-
-1. **编排层只认两处**：`createHostAdapter` 工厂与 `HostAdapter` 接口。图里 `GitHubHostAdapter` / `LocalHostAdapter` 对上层是**不可见的实现细节**——`tests/layering.test.ts` 禁止 `app/*` 与呈现层深连 `host/github.ts` / `host/local.ts`。
-2. **token 只活在适配器内**：`GitHubHostAdapter.requiresToken = true` 是唯一要求 token 的地方，`RemoteImage` / `SyncPlanItem` 的字段里也没有 token——配合 §数据的 manifest 不变量与 `E_TOKEN` 前置校验，保证凭据不流入结果对象。
-3. **`entryType?` 是可选能力**：只有 GitHub 实现了目录项判定（Contents API），`local` 可不实现；图上的 `?` 就是调用方的判空义务，未实现时报 `E_CONFIG`（F20 远程目录浏览的 fallback 依据）。
-
-## 数据
-
-```
-SyncPlanItem { action: upload|skip-cache|skip-remote|rewrite-only|blocked,
-               asset?, remote?, reason? }
-RemoteImage  { publicUrl, rawUrl, cdnUrl?, repoPath, sha256 }
-```
+- `HostAdapter`：`type`、`requiresToken`、`exists`、`putFile`、`composeUrls`、`remotePath`；目录能力 `entryType?` 可选。
+- `createHostAdapter(cfg, token?)` 按 host 类型创建 github 或 local 实现；github 需 token，local 不需 token。
+- `composeUrls(repoPath)` 与 `remotePath(sha256, localPath, now?)` 由适配器提供，封装不同 host 的公开 URL 与远端路径规则。
+- `SyncPlanItem { action: upload|skip-cache|skip-remote|rewrite-only|blocked, asset?, remote?, reason?, code?, ref? }`。
+- `RemoteImage { publicUrl, rawUrl, cdnUrl?, repoPath, sha256 }`，不含凭据，可写入 manifest。
 
 ## F6 上传计划 plan
 
-分类规则：
-| 条件 | action |
-|------|--------|
-| manifest/cache 命中且策略允许复用 | `skip-cache` |
-| ref 已是 http(s) | `skip-remote` |
-| 本地 Asset 合法 | `upload` |
-| 解析失败/越界 | `blocked` |
-| 已远程、仅需替换（可选策略） | `rewrite-only` |
+一条引用按判定次序进入唯一状态：
 
-`plan` 与 `sync --dry-run` **不得**调用 `putFile`。
+- `skip-remote`：引用已是 `http(s)://`。
+- `blocked`：空引用、页内锚点、非图片 data URI、越界/缺失/非图片本地路径或其他解析失败。
+- `skip-cache`：本地资产合法且 manifest 按 `sha256` 命中；仍须 rewrite，只跳过 PUT。
+- `upload`：资产合法且缓存未命中；这是唯一触发上传的状态。
+- `rewrite-only`：策略要求仅替换链接、不上传时使用。
 
-上表是「条件 → action」的平铺；真正实现时判定有**先后顺序**（先看 raw 形态，再查缓存），一条 ref 只会落在叶子状态之一。决策顺序本身就是规则，故给出状态转移图：
-
-```mermaid
-flowchart TD
-    REF[extractRefs 产出 ImageRef] --> RAW{raw 形态判定}
-
-    RAW -->|空 / 页内锚点 / 非图片 data:| BL[blocked<br/>E_SKIP_REF]
-    RAW -->|图片 data: URI| UP
-    RAW -->|http 或 https 开头| SR[skip-remote<br/>已是公网 URL]
-    RAW -->|file:// 协议| FU[blocked<br/>E_FILE_URL]
-    RAW -->|其余视为本地路径| LOCAL{路径合格判定}
-
-    LOCAL -->|越界 / 不存在 / 非图片扩展名| BL
-    LOCAL -->|在根内且是图片| CACHE{manifest 查 sha256}
-
-    CACHE -->|命中相同摘要| SC[skip-cache<br/>仍要 rewrite 替换]
-    CACHE -->|未命中| UP[upload<br/>唯一触发 putFile 的分支]
-
-    BL --> OUT[输出 SyncPlanItem 带 reason]
-    SR --> OUT
-    SC --> OUT
-    UP --> OUT
-```
-
-由这张图得出的规则：
-
-1. **`upload` 是唯一触碰网络的分支**——`plan` / `sync --dry-run` 只要走到 Miss 之前就返回，因此"`plan` 不得调用 `putFile`"是**结构性保证**而非约定（`buildPlan` 不持有 adapter 实例）。
-2. **`skip-cache` 也要 rewrite**：命中缓存省的是 PUT，不是替换——否则文档仍指向本地路径。
-3. **`blocked` 不写任何东西**：既不上传也不替换，只在输出里带 `reason`，供 UI 打 FAIL 标签。
-4. **越界与 disciplines 判定先于 sha256**：`isUnderRoot` 与扩展名白名单在 `lib/paths.ts` / `lib/img.ts`（跨层单点），不在此重复实现。
+`plan` 与 `sync --dry-run` 不调用 `putFile`，不写文档、不上传。`buildPlan` 不持有 adapter；`blocked` 不写入也不替换，仅返回原因。
 
 ## F7 GitHub 图床上传
 
-- 远端路径模板：`{dir}/{yyyy}/{mm}/{sha12}-{safeName}`（可配置）。
-- API：`GET contents` 取现有 `sha` → `PUT contents` `{message, content: base64, branch, sha?}`；已存在时总是覆盖更新，不做「内容相同即跳过」。（`src/host/github.ts#putFile`）
-- URL（`url.style`）：
-  - `raw` → `https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{path}`
-  - `jsdelivr` → `https://cdn.jsdelivr.net/gh/{owner}/{repo}@{branch}/{path}`
-  - `custom` → 用户模板
-  - **`{path}` 必须逐段百分号编码（2026-10-26 修复）**：`dir` 含非 ASCII（如 `資源圖`）时未编码的 URL 会被 CDN/raw **直接返回 400**——上传与改写都成功，但生成的链接点不开。实现为 `lib/paths.ts` 的 `encodeRepoPath()`（按 `/` 分段 `encodeURIComponent`，分隔符保留），GitHub 与 Local 两种 host 的 `composeUrls` 共用；custom 模板的 `{path}` 同样传编码后的值。ASCII 路径编码后不变，故既有链接不受影响。
-- 上传串行执行；无重试/退避，远端 403/429 直接映射 `E_REMOTE`（退出码 5）。`upload.concurrency` 仅为配置项，当前未用于上传循环。
-- 单文件失败隔离；汇总 partial（退出码 6）。
+- GitHub 通过 Contents API：读取已有 sha 后 PUT 文件内容；远端已存在时覆盖更新，不以内容相同跳过。
+- 远端路径模板：`{dir}/{yyyy}/{mm}/{sha12}-{safeName}`。
+- URL 风格：`raw` → `https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{path}`；`jsdelivr` → `https://cdn.jsdelivr.net/gh/{owner}/{repo}@{branch}/{path}`；`custom` 使用用户模板。
+- `{path}` 按 `/` 分段百分号编码，分隔符保留；custom 模板同样使用编码后的路径。
+- 上传串行；无重试、无退避；远端 403/429 映射 `E_REMOTE`。单文件不得超过 50 MB。
 
 ## F11 单文件上传
 
-- `upload <file>`：resolve 单文件 → 与 F7 同一适配器与 UrlComposer → 输出 `publicUrl`。
-- 可选写入 manifest 以便后续 sync 复用。
+`upload <file>` 校验并解析单文件，使用与批量上传相同的 host 适配器、远端路径和 URL 生成逻辑，输出 `publicUrl`；可选写 manifest 供后续 sync 复用。
 
 ## F13 多图床适配器
 
-- `host.type = "github"`：Contents API（默认，需 token）。
-- `host.type = "local"`：本地目录图床（`local.root` + `local.public_base`），**无需 token**。
-- 新增后端：实现 `HostAdapter` 并在工厂注册即可；plan/rewrite/manifest 无需改动。
-- AC7（F7）语义保持：同 sha 幂等、URL 风格可配、失败映射退出码 5/6。
+- `host.type = "github"`：GitHub Contents API，需 token。
+- `host.type = "local"`：本地目录图床（`local.root` + `local.public_base`），无需 token。
+- 新后端实现 `HostAdapter` 并注册到工厂；plan、rewrite、manifest 不因后端增加而改动。
+- `composeUrls` / `remotePath` 由各 adapter 实现；`entryType?` 仅在后端支持时提供。
 
-## 实现落点（TS/Electron 适配）
+## 失败语义
 
-> 本模块在 TypeScript/Electron 实际源码中的落地；端口/类图/状态图见上文。签名与去重/缓存逻辑以真实源码为准（源码：`src/host/*`、`src/app/upload.ts`、`src/infra/gh-cli.ts`、`src/manifest.ts`、`src/plan.ts`、`src/app/sync.ts`）。
+单资产失败与其他资产隔离；有部分成功时汇总为 partial。远端 API 非 2xx（含 403/429）映射 `E_REMOTE`，退出码 5；单文件超限拒绝上传。host 配置无效或缺少必需目录能力报 `E_CONFIG`；GitHub 缺 token 报 `E_TOKEN`，本地路径越出 host root 报 `E_LOCAL`。
 
-### 实际文件夹结构
-
-```text
-src/
-├─ host/
-│  ├─ types.ts     # HostAdapter 端口 + HostUrls 值对象
-│  ├─ index.ts     # createHostAdapter / hostRequiresToken（工厂）
-│  ├─ github.ts    # GitHubHostAdapter + composeGithubUrls + probeGithubAccess + uploadAsset
-│  └─ local.ts     # LocalHostAdapter（文件系统后端）
-├─ infra/
-│  └─ gh-cli.ts    # 防腐层：GitHub CLI 封装（token 解析 / 登录态探测 / 交互登录）
-├─ app/
-│  └─ upload.ts    # uploadSingleAsset：单文件上传编排
-└─ manifest.ts     # findCachedUrl（缓存命中判定）
-```
-
-### 公开服务签名（TS）
-
-| 服务 | 签名 | 职责 |
-|------|------|------|
-| `createHostAdapter` | `createHostAdapter(cfg: ResolvedConfig, token?: string): HostAdapter` | 按 `host.type` 工厂创建适配器；缺 token 抛 `E_TOKEN`，未知 type 抛 `E_CONFIG` |
-| `hostRequiresToken` | `hostRequiresToken(cfg: ResolvedConfig): boolean` | `host.type !== 'local'` 即需要 token |
-| `uploadAsset` | `uploadAsset(host: HostAdapter, args: {asset, bytes, cfg, now?}): Promise<RemoteImage>` | 计算远端路径 → `putFile` → `composeUrls` → 返回 `RemoteImage` |
-| `uploadSingleAsset` | `uploadSingleAsset(opts: UploadOneOptions): Promise<UploadOneResult>` | CLI 单文件上传编排：存在性校验 → token 校验 → 读文件算 sha → 上传 |
-| `resolveToken` | `resolveToken(env?, execGhToken?, readStoredToken?): {token, source} \| undefined` | token 优先级：env → 本机凭据 → `gh auth token`（防腐层） |
-| `probeGhToken` | `probeGhToken(): {token?, reason?, message?}` | 区分「未安装 / 未登录 / 其它错误」 |
-| `spawnGhLogin` | `spawnGhLogin(onData): {process, promise}` | 启动 `gh auth login --web`，实时回调 |
-
-> 去重与缓存命中（跨域协作）：`runSync` 用 `Map<sha256, Asset>` 去重（同 sha 仅上传一次），`findCachedUrl(manifest, sha256)` 判定缓存命中——实现位于 `src/app/sync.ts` 与 `src/manifest.ts`，见 [`module-app.md`](module-app.md)。`LocalHostAdapter.putFile/deleteFile` 实际参数比 `HostAdapter` 契约少（`message/branch/sha`），是 TS 结构化类型容忍差异，非严格签名一致。
-
-### 复杂任务时序图（单次上传 + 批量去重/缓存命中）
-
-```mermaid
-sequenceDiagram
-    participant UP as uploadSingleAsset
-    participant TOK as getToken
-    participant FAC as createHostAdapter
-    participant UA as uploadAsset
-    participant AD as HostAdapter
-    participant GH as GitHub API
-    participant FS as fs
-
-    UP ->> FS: existsSync(abs)
-    alt 缺失
-        UP -->> UP: throw E_ASSET_MISSING
-    end
-    UP ->> TOK: 取 token
-    UP ->> FAC: hostRequiresToken(cfg)
-    alt 需要且无 token
-        UP -->> UP: throw E_TOKEN
-    end
-    UP ->> FS: readFileSync(abs)
-    UP ->> UP: sha256 = sha256Hex(bytes)
-    UP ->> FAC: createHostAdapter(cfg, token)
-    FAC -->> UP: HostAdapter
-    UP ->> UA: uploadAsset(host, {asset, bytes, cfg})
-    UA ->> AD: repoPath = remotePath(sha256, localPath, now)
-    UA ->> AD: putFile(repoPath, bytes, commitMessage, branch)
-    AD ->> GH: GET contents?ref=branch 取 sha
-    AD ->> GH: PUT contents {message, content(base64), branch, sha?}
-    alt 非 2xx
-        GH -->> AD: throw E_REMOTE
-    end
-    UA ->> AD: urls = composeUrls(repoPath)
-    AD -->> UA: HostUrls
-    UA -->> UP: RemoteImage
-    UP -->> UP: UploadOneResult{remotePath, publicUrl, rawUrl, cdnUrl, hostType, sha256, bytes}
-```
-
-```mermaid
-sequenceDiagram
-    participant SYNC as runSync
-    participant MF as manifest
-    participant UA as uploadAsset
-    participant AD as HostAdapter
-
-    SYNC ->> MF: loadManifest(cwd)
-    SYNC ->> SYNC: unique = Map~sha256,Asset~；同 sha 仅保留一条（去重）
-    loop 每个 unique Asset
-        SYNC ->> MF: findCachedUrl(manifest, sha256)
-        alt 缓存命中
-            MF -->> SYNC: 返回 publicUrl
-            SYNC ->> SYNC: 记 skip-cache（**不入 urlBySha**）；continue
-        else 未命中
-            SYNC ->> UA: uploadAsset(host, {asset, bytes, cfg})
-            UA ->> AD: putFile / composeUrls
-            UA -->> SYNC: RemoteImage.publicUrl
-            SYNC ->> SYNC: urlBySha.set(sha, url)；uploaded++
-            SYNC ->> MF: mergeManifest（写独立 entry）
-        end
-    end
-    SYNC ->> SYNC: 写文档：upload 取 urlBySha[sha]；skip-cache/skip-remote 取 item.remote.publicUrl（见 module-rewrite）
-    SYNC ->> MF: saveManifest（原子写）
-```
-
-### 错误映射（code → 退出码/HTTP）
-
-| code | 含义 | 退出码 | HTTP |
-|------|------|--------|------|
-| `E_TOKEN` | 缺 GitHub token | CONFIG(3) | 401 |
-| `E_CONFIG` | 未知 host.type 或 owner/repo 缺失 | CONFIG(3) | 400 |
-| `E_REMOTE` | GitHub API 失败（非 2xx） | REMOTE(5) | 502 |
-| `E_LOCAL` | Local 路径逃逸 host root | LOCAL(4) | 400 |
-| `E_ASSET_MISSING` | 文件不存在 | LOCAL(4) | 400 |
-| `E_MANIFEST_CORRUPT` | manifest 损坏 | LOCAL(4) | 400 |
-
-完整 code → 退出码/HTTP 映射见 [`module-app.md`](module-app.md) §错误映射。
+完整 code → 退出码 / HTTP 映射见 [`module-app.md`](module-app.md)。
 
 ## 功能点映射
 
