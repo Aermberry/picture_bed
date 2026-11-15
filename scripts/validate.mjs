@@ -45,7 +45,7 @@ if (profiles.includes('design')) {
     'docs/design/module-rewrite.md',
     'docs/design/module-cliops.md',
     'docs/design/module-webui.md',
-    'docs/design/module-webui-spa-split.md',
+    'docs/design/archive/module-webui-spa-split.md',
     'docs/design/module-desktop.md',
     'docs/design/module-app.md',
     'docs/design/cross-cutting.md',

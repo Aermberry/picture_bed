@@ -1,19 +1,15 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { execSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 /**
- * §2.5 是给人和 Agent 读的「实现地图」：目录树、文件数、行数全是手写字面量。
- * 字面量一旦落后于实现就只剩误导 —— 历史上漂过三次且无人察觉：
- * cli.ts 行数差 31 行、ui/index.ts 未入树、tests 少算 ui-panels 一个用例文件。
- * 本文件把这些字面量变成活断言：文档与实现不一致就红，失败信息直接给出应改成的值。
+ * §2.5 是实现地图：目录树、文件数、行数都需与仓库保持一致。
  *
  * 设计取舍：
- * - **计数用相等**：地图声称「src/ 60 文件」就该是 60；增删文件必须同步改地图，这正是本守卫的目的。
+ * - **目录集合与文件数精确相等**：增删 git 跟踪目录或文件必须同步改 §2.5.3。
  * - **行数用 ±15 容差**：行数随日常改动浮动，只有明显陈旧（如 cli.ts 差 31 行）才报错，避免每次编辑都红。
- * - **renderer/ 与 tests/ 不走树**：这两处用「一行注释汇总多个文件」的写法，树条目数天然少于真实文件数，
- *   改由「规模」行的计数断言兜把关（见 `规模行的目录文件数属实`）。
  */
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -21,19 +17,27 @@ const read = (rel: string): string => fs.readFileSync(path.join(repoRoot, rel), 
 /** 行数：去掉末尾换行再数，与 Get-Content 口径一致（即 §2.5 里记的那个数） */
 const linesOf = (rel: string): number => read(rel).replace(/\n$/, '').split('\n').length;
 
-function countFilesIn(abs: string): number {
-  return fs.readdirSync(abs, { withFileTypes: true }).reduce(
-    (n, ent) => (ent.isDirectory() ? n + countFilesIn(path.join(abs, ent.name)) : n + 1),
-    0,
-  );
+const trackedFiles = execSync('git ls-files', { cwd: repoRoot, encoding: 'utf8' })
+  .split(/\r?\n/)
+  .filter(Boolean)
+  .map((file) => file.replace(/\\/g, '/'));
+
+function trackedDirectoryCounts(): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const file of trackedFiles) {
+    const parts = file.split('/');
+    for (let i = 1; i < parts.length; i += 1) {
+      const dir = parts.slice(0, i).join('/');
+      counts.set(dir, (counts.get(dir) ?? 0) + 1);
+    }
+  }
+  return counts;
 }
-const countFiles = (rel: string): number => countFilesIn(path.join(repoRoot, rel));
 
 /**
- * 解析 §2.5.3 全仓目录树（首行 `picbed/` 的 ```text 块），返回每个顶层目录下的**文件条目数**。
- * 依赖树的不变量：每层缩进固定 3 字符，文件条目不以 `/` 结尾，汇总行以「（」开头。
+ * 解析 §2.5.3 全仓目录树，读取目录路径和其 git 跟踪文件数。
  */
-function treeFileCounts(md: string): Map<string, number> {
+function treeDirectoryCounts(md: string): Map<string, number> {
   const lines = md.split(/\r?\n/);
   let start = -1;
   for (let i = 0; i < lines.length; i += 1) {
@@ -44,20 +48,20 @@ function treeFileCounts(md: string): Map<string, number> {
   }
   if (start === -1) throw new Error('architecture.md: 找不到 §2.5.3 全仓目录树（```text + 首行 picbed/）');
 
-  const counts = new Map<string, number>();
-  let top = '';
+  const result = new Map<string, number>();
+  const parents: string[] = [];
   for (let i = start; i < lines.length; i += 1) {
     if (lines[i].trim() === '```') break;
-    const entry = /^([│\s]*)([├└]─+)\s*(\S+)/.exec(lines[i].split('//')[0]);
+    const entry = /^([│\s]*)([├└]─)\s+(.+?) · (\d+) 文件 · /.exec(lines[i]);
     if (!entry) continue;
-    const prefix = entry[1];
-    const name = entry[3];
-    if (prefix.length === 0) top = name.replace(/\/$/, ''); // 顶层目录：缩进为 0
-    if (name.endsWith('/')) continue; // 目录条目不计入文件数
-    if (/^[（【]/.test(name)) continue; // 「（其余 13 个用例文件：…）」这类汇总行
-    counts.set(top, (counts.get(top) ?? 0) + 1);
+    const depth = Math.floor(entry[1].length / 3);
+    const name = entry[3].replace(/\/+$/, '');
+    parents.length = depth;
+    const dir = [...parents, name].join('/');
+    result.set(dir, Number(entry[4]));
+    parents[depth] = name;
   }
-  return counts;
+  return result;
 }
 
 /** 从文档里抓一个数；抓不到直接失败（避免正则悄悄失效，让守卫变成摆设） */
@@ -69,19 +73,31 @@ function docNumber(md: string, re: RegExp, label: string): number {
 
 describe('§2.5 实现地图与磁盘对齐', () => {
   const md = read('docs/architecture.md');
-  const tree = treeFileCounts(md);
+  const tree = treeDirectoryCounts(md);
+  const trackedDirs = trackedDirectoryCounts();
+  const maxDepth = Math.max(...[...tree.keys()].map((dir) => dir.split('/').length));
+  const expectedDirs = new Set([...trackedDirs.keys()].filter((dir) => dir.split('/').length <= maxDepth));
 
-  it('逐文件列名的目录树条目数与磁盘一致（src / desktop / scripts）', () => {
-    for (const dir of ['src', 'desktop', 'scripts']) {
-      const real = countFiles(dir);
-      expect(tree.get(dir), `§2.5.3 树的 ${dir}/ 条目数`).toBe(real);
+  it('目录树中的目录均存在于 tracked files', () => {
+    for (const dir of tree.keys()) {
+      expect(trackedDirs.has(dir), `§2.5.3 树中的目录 ${dir}/ 应含 git 跟踪文件`).toBe(true);
     }
   });
 
-  it('规模行的目录文件数属实（含注释汇总的 renderer）', () => {
+  it('目录树与 git 跟踪目录集合双向相等', () => {
+    expect([...tree.keys()].sort(), '§2.5.3 树中目录集合').toEqual([...expectedDirs].sort());
+  });
+
+  it('目录树文件数与 git 跟踪文件数一致', () => {
+    for (const [dir, claimed] of tree) {
+      expect(claimed, `§2.5.3 树中 ${dir}/ 声明 ${claimed} 个文件`).toBe(trackedDirs.get(dir));
+    }
+  });
+
+  it('规模行的目录文件数属实', () => {
     for (const dir of ['src', 'renderer', 'desktop', 'scripts']) {
       const n = docNumber(md, new RegExp(`\`${dir}/\`\\s+(\\d+)\\s+文件`), `规模行 ${dir} 文件数`);
-      const real = countFiles(dir);
+      const real = trackedDirs.get(dir);
       expect(n, `§2.5.3 规模行写明 ${dir}/ ${n} 文件`).toBe(real);
     }
   });
@@ -105,7 +121,7 @@ describe('§2.5 实现地图与磁盘对齐', () => {
 
   it('文档写的用例总数与磁盘一致（静态 it( 口径）', () => {
     // 用例内部取不到 vitest 的运行总数，故用「静态 it( / test( 计数」作代理。
-    // 当前仓库无 it.each / 条件跳过，静态计数与运行总数严格相等（实测 148 = 148）。
+    // 静态 it( / test( 计数用于同步 §2.5.3 的用例总数。
     // 若将来引入 it.each，本断言会先红——届时把文档改成运行总数并放宽此断言。
     const cases = fs
       .readdirSync(path.join(repoRoot, 'tests'))
