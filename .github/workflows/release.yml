@@ -50,4 +50,6 @@ jobs:
           if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.ref }}" ]; then
             ref_name="${{ inputs.ref }}"
           fi
+          gh release view "$ref_name" >/dev/null 2>&1 || \
+            gh release create "$ref_name" --title "$ref_name" --generate-notes
           gh release upload "$ref_name" release/picbed-setup-*.exe release/picbed-setup.exe --clobber
