@@ -3,514 +3,109 @@
 > 归属功能点：F16 本地 Web 控制台服务、F17 目录/拖拽与计划工作台、F18 一键同步、F19 回滚面板、F20 配置与自检面板、F21 审计与报告、F22 监听控制台、F23 控制台壳层与视觉重设计、F25 使用统计视图。
 > 架构见 [`../architecture.md`](../architecture.md)；定义见 [`../features-index.md`](../features-index.md)；全局契约见 [`cross-cutting.md`](cross-cutting.md)。
 > 壳层布局与主题令牌见 [`wireframes/ui-shell.md`](wireframes/ui-shell.md)（F23 视格权威）。
-> **UI 渲染层单源 `renderer/`（electron-vite）**：目录与热更新见 [`module-desktop.md`](module-desktop.md#渲染层electron-vite当前权威)。历史「SPA 出模板串」见 [`module-webui-spa-split.md`](module-webui-spa-split.md)（已被 `renderer/` 取代）。
+> **UI 渲染层单源 `renderer/`（electron-vite）**：目录与热更新见 [`module-desktop.md`](module-desktop.md#渲染层electron-vite当前权威)。历史「SPA 出模板串」见 [`module-webui-spa-split.md`](archive/module-webui-spa-split.md)（已被 `renderer/` 取代）。
 > 栈无关；接口为意图伪码。
 
-## 目的
+## 目的与边界
 
-webui 是**本地 Web 控制台**限界上下文：在**仅本机**的 HTTP 界面上，把已有的 scan/plan/sync/revert/config/doctor/watch 能力暴露给人操作，降低 CLI 使用门槛。Agent 契约仍在 CLI（F10）；本模块是**第二呈现层**，不替代 CLI。
+webui 是本地控制台呈现层：在 Electron 生命周期内提供 scan/plan/sync/revert/config/doctor/watch 能力，不复制 ingest/transfer/rewrite 业务规则；通过 `src/app/` 共享服务与 CLI 共用应用逻辑和 `AppError`。默认仅绑定 `127.0.0.1`，不提供多用户、公网部署或反向代理鉴权；token 不进入 HTTP 响应、页面、run 记录或日志，写操作必须经过显式确认。
 
-边界原则：
-- **不重写**抽取/上传/回写/去重业务规则（属 ingest/transfer/rewrite/cliops）；只做会话编排、HTTP API、静态资源与确认门。
-- **编排委托 `src/app/` 共享层**（collect/plan/sync/revert/doctor/config/runs，见 [`module-app.md`](module-app.md)）：Web API 与 CLI 使用同一份应用服务实现与同一份 `AppError` 错误码表，不各自复制逻辑。
-- **Token 仅存在于服务进程内存**；HTTP 响应、页面、run 记录、日志一律掩码或省略。
-- **默认只绑 `127.0.0.1`**；不做多用户、不做公网部署、不做反向代理鉴权。
-- 写操作（sync / revert / config set / watch 自动同步）必须经**显式确认**（页面确认 + 服务端 `confirm`）。
-- 对外门面：`WebUiFacade`；对内复用既有应用服务/CLI 契约 DTO。
+实现落点：`src/ui/{server,context,root,watch,gh-login,inline-cache}.ts`、`src/ui/http/{body,errors,envelope,guard,static}.ts`、`src/ui/routes/{auth,branches,config,gallery,health,plan,preview,revert,runs,session,stats,sync,system,watch}.ts`、`renderer/{index.html,styles.css,main.js,src/**}`。
 
-## 模块文件夹结构（栈无关）
-
-```
-webui/
-├─ domain/
-│  ├─ cqe/           # ServeUiQuery、PlanViewQuery、SyncConfirmCommand、RevertConfirmCommand…
-│  ├─ entity/        # UiSession、PlanView、DoctorView、ManifestView（RunRecord 由 app 共享层提供）
-│  ├─ service/       # UiServer、ConfirmGate、ViewMapper（RunRecord 由 app 共享层 recordRun 写入）
-│  └─ facade/        # WebUiFacade
-├─ packages/
-│  ├─ http/          # 路由、静态资源、localhost 绑定、优雅退出
-│  └─ presenters/    # API JSON / 页面视图模型（不承载业务规则）
-├─ exceptions/       # PortInUseError、ConfirmRequiredError、UiHostError
-└─ (无 host / 无 rewrite 写盘实现——经应用服务调用)
-```
-
-### 实现落点（2026-10-02 补）：server 只做装配
-
-`src/ui/server.ts` 曾是一个 1119 行的单函数（30 条路由 + 静态下发 + 安检 + 编排混在一起）。
-现按「协议不常改 / 业务常改」切分，新增接口不再触碰安全代码：
-
-```
-src/ui/
-├─ server.ts            # 仅装配：安检 → 静态下发 → 路由表（<250 行，零 '/api/' 字面量）
-├─ context.ts           # UiRouteContext / UiRoute（命中返回 true 的路由契约）
-├─ gh-login.ts          # 登录会话状态（原闭包里的可变 let）
-├─ http/                # 协议与安检（不常改）
-│  ├─ guard.ts          #   Host 解析/绑定地址、/api 同源、POST 头、请求体上限
-│  ├─ body.ts           #   readBody（64 KiB 上限，超限仍 drain 以便送达 413）
-│  ├─ envelope.ts       #   统一 JSON 信封 / send / sendRaw / Host 归一化
-│  ├─ static.ts         #   index.html 注入、renderer/{main.js,src/**}、dev 模式探测
-│  └─ errors.ts         #   未捕获异常 → HTTP 状态码（由 app/errors.ts 派生）
-└─ routes/              # 业务路由（按资源分组，每个 <250 行）
-   ├─ health.ts session.ts preview.ts plan.ts sync.ts revert.ts
-   ├─ gallery.ts stats.ts branches.ts auth.ts config.ts system.ts runs.ts watch.ts
-```
-
-不变量：`http/` 不 import `routes/`，`routes/` 只经 `UiRouteContext` 拿依赖；
-由 `tests/layering.test.ts` 断言 server.ts 不含 `'/api/'` 且行数 <250。
-
-## 领域模型
+## 数据契约
 
 ```text
-UiSession   { rootDir, startedAt, watchActive }
-RunRecord   { id, command, startedAt, finishedAt, ok, counts, items?[], errors?[], warnings?[], errorCode? }   # app 共享层实体，CLI/Web 共用
-PlanView    { rootDir, generatedAt, groups: { upload[], skip-cache[], skip-remote[], blocked[] } }
-DoctorView  { ok, checks[], failures[] }
-ManifestView{ version, entries[] }   # 无 token
+UiSession { rootDir, startedAt, watchActive }
+RunRecord { id, command, startedAt, finishedAt, ok, counts, items?[], errors?[], warnings?[], errorCode? }
+PlanView { rootDir, generatedAt, groups: { upload[], skip-cache[], skip-remote[], blocked[] } }
+DoctorView { ok, checks[], failures[] }
+ManifestView { version, entries[] }   # 不含 token
+JsonEnvelope<T> { schemaVersion, ok, command: "api.*", data?, error?: { code, message, path?, hint? }, warnings?[] }
 ```
 
-## 模块接口（意图）
+HTTP 路由（请求写体均为 JSON；写操作按路由要求 `confirm: true`，dry-run 除外）：
 
-```
-WebUiFacade
-  startUi(opts: { host?, port?, open? }): UiServerHandle   # CLI 入口 `picbed ui`（已冻结命令名）
-  # HTTP 映射（信封同 cross-cutting JSON，command 为 api.*）
-  # GET  /api/health
-  # GET  /api/config          # token 掩码
-  # POST /api/config          # 非 secret 键；需 confirm
-  # POST /api/doctor
-  # POST /api/scan            { root }
-  # POST /api/plan            { root }
-  # POST /api/sync            { root, confirm: true, dryRun? }
-  # GET  /api/manifest
-  # POST /api/revert          { root, confirm: true, dryRun? }
-  # GET  /api/runs            # F21
-  # GET  /api/runs/:id
-  # POST /api/watch/start     { mode?, debounceMs?, confirm? }  # root 取自已绑定 root；auto 模式须 confirm: true
-  # POST /api/watch/stop
-  # GET  /api/events          # SSE/长轮询：watch 与 sync 进度（实现可选）
-  # GET  /api/gallery         # ?path= 列仓库目录/文件（图库视图 + 目录选择浮层共用）
-  # GET  /api/stats           # 使用统计聚合（F25 v2：runs 唯一计数源 + 365 日统一窗口 + 远端库存 context）
-  # GET  /api/branches        # 列仓库分支（F20 设置页 Branch 下拉）
-  # POST /api/repo/mkdir      # { path, confirm: true } 新建远程目录（.gitkeep 占位）· F20
-  # POST /api/auth/token      # { token?, clear? , confirm: true } 粘贴 PAT → 本机凭据（~/.picbed/credentials.json，不写 picbed.toml）
-  # POST /api/auth/gh-login/start    # 启动 gh auth login（**仅 POST**；GET → 404 no route）。已 gh auth login → 直接 {status:'done'}；否则 spawn `gh auth login --web` 并轮询
-  # GET  /api/auth/gh-login/status   # 登录会话状态：idle / running / done / error（前端 2s 轮询）
-  # POST /api/auth/gh-login/cancel   # 取消进行中的登录
+```text
+GET  /api/health, /api/config, /api/config/export, /api/manifest, /api/runs, /api/runs/:id
+GET  /api/session, /api/session/images, /api/watch, /api/gallery?path=, /api/stats, /api/branches
+POST /api/session/drop {name,relativePath,type,absPath?}; /api/session/bind-root {root}
+POST /api/session/reset; /api/session/remove {keys[]}
+POST /api/scan {root}; /api/plan {root}; /api/sync {root,confirm:true,dryRun?}
+POST /api/revert {root,confirm:true,dryRun?}; /api/doctor
+POST /api/config {key,value,confirm:true|dryRun:true}; /api/config/import {toml,confirm:true|dryRun:true}
+POST /api/watch/start {mode?,debounceMs?,confirm?}; /api/watch/stop
+POST /api/gallery/delete {items:[{path,sha,name?}]}; /api/repo/mkdir {path,confirm:true}
+POST /api/auth/token {token?,clear?,confirm:true}; /api/auth/gh-login/start; /api/auth/gh-login/cancel
+GET  /api/auth/gh-login/status; /api/preview?path=
 ```
 
-`ViewMapper` 把应用结果 DTO 映射为视图模型；**禁止**在 mapper 中改变 action 分类或退出码语义。
-
-### 上传页布局（2026-09-26 收窄 + 扫描预览）
-
-`#/upload` **仅保留 DropZone**。移除：扫描目录卡片、工作集表、scan/plan/sync 按钮组、计划分组表、结果 `<pre>`。
-
-状态流：
-
-```
-idle（拖放提示）
-  → drop → session/drop + plan/scan
-  → scanned（照片墙 +「上传」「重置」）
-       ├─ 再 drop → 累加进同一照片墙（去重）
-       ├─ 上传 → confirm → POST /api/sync → 完成回 idle
-       └─ 重置 → POST /api/session/reset → 回 idle
-```
-
-- 预览：`GET /api/preview?path=` 仅允许扫描根内图片扩展名；预览不上传。**`previewPath` 仅对图片文件返回**（文档拖入不得进入照片墙计数）。
-- **内嵌图预览必须走内存（2026-10-27 修）**：`data:image/*` 解码后的 `Asset.localPath` 是**合成占位名** `inline/<sha12>.<ext>`，磁盘上并无该文件——照片墙却统一按 `localPath` 取 `/api/preview`，于是内嵌图必然 404、图块被 `img.onerror` 移除，用户最后只看到「未扫描到本地图片」且**标题卡在「正在扫描…」**，表现为「拖进去毫无反馈」。现规则：`/api/plan` 与 `/api/scan` 在返回前按占位名登记内存字节（`src/ui/inline-cache.ts`，仅登记 `Asset.data` 存在的内存资产，真实文件仍读磁盘）；`/api/preview` 对 `inline/` 前缀的路径**先于根约束判定**直接下发内存字节，响应头与磁盘图片一致（沙箱 + nosniff，字节原样）。未登记时返回 404 `E_PATH_MISSING`（提示先跑 `/api/plan`）。
-- **标题必须离开「正在扫描…」（2026-10-27 修）**：`scanIntoPreview` 结束时无条件 `syncWallChrome()`。此前只有特定分支恢复标题，文档无可上墙图片时标题永久停在「正在扫描…」，用户无法判断是卡死还是扫完了。空态现在恢复为「将文件拖放到此处」，具体原因由 toast 说明（无本地图 / 已是远程链接）。
-- **图片格式提示必须与白名单同步（2026-10-27 修）**：拖放区提示曾写「支持 JPG / PNG / GIF / WebP」，漏掉 `svg`/`avif`/`bmp`/`ico`——SVG 早已在 `IMAGE_EXT` 白名单内，用户却看不到支持声明。现提示按 `IMAGE_EXT` 全量列出（PNG / JPG / JPEG / GIF / WebP / AVIF / BMP / ICO / SVG），并由 `tests/ui.test.ts` 守卫：提示文案必须覆盖 `IMAGE_EXT` 每个扩展名，缺一即失败。另：图库网格（`renderer/src/features/gallery.js`）曾内联第二份扩展名正则且漏掉 `ico`，现统一复用 `renderer/src/lib/files.js` 的 `isImageName()`，守卫断言其不得再内联枚举。
-- **SVG 预览安全（2026-10-26）**：`svg` 属图片白名单（`src/lib/img.ts` 的 `IMAGE_EXT`/`IMAGE_MIME`），扫描、本地解析、上传、拖拽与其它格式同路；**上传原字节不动**，去重键仍是文件 `sha256`。控制台以 `<img src="/api/preview?path=…">` 渲染预览（`renderer/src/features/photo-wall.js`），该上下文浏览器本身不执行 SVG 内脚本、不拉其外部资源；唯一风险面是用户直接在新标签页打开 `/api/preview` 顶层文档上下文，故 `/api/preview` 响应对**所有**图片统一加 `Content-Security-Policy: sandbox; default-src 'none'` 与 `X-Content-Type-Options: nosniff`，**不修改下发的字节**（不做消毒、不做格式转码）。
-- **扫描结果呈现（2026-09-27 · 照片墙 / 2026-09-28 对齐 Material Tailwind Masonry）**：扫描成功后拖放区进入 `has-photos` 态——隐藏空态英雄区，以 **CSS multi-column 瀑布流照片墙**展示图块（排列对齐 [Material Tailwind Gallery · Masonry Grid](https://www.material-tailwind.com/docs/v3/html/gallery)）：
-  - 布局：响应式列数 **2 / 3 / 4**（窄 / 中 / 宽），**JS 最短列优先瀑布流**（CSS multi-column 平衡分栏会在高度不一时留大洞，已弃用）；列间 `gap:6`，图块间距 `6px`，**满宽**。
-  - **错落排版（2026-09-28 · 密排）**：错落只来自**竖向微差**——
-    1. **列首错位**：第 2 列起 `margin-top` **0 / 6 / 12px**。
-    2. **底距微差**：图块间距 **4–8px**。
-    3. 图片保持自然宽高比、圆角 16；图片加载 / resize 后重分布到最短列。
-  - 图块：`width:100%; height:auto`（**自然宽高比**，不裁切）；圆角 **16**（对齐 MT `rounded-2xl`）；彩色柔影；hover 上浮 + 底部文件名浮层。
-  - **hover（2026-09-28 · 取消放大）**：**不做悬停放大/邻图让位**。悬停仅保留底部**文件名浮层**与轻微阴影（CSS）。图块始终 `scale(1)`、无平移。
-  - **点选批量删除（2026-09-28）**：点击图块切换**选中态**——**必须一眼可见且不得压到邻图**：**内嵌**主色三环描边（inset，不外扩）+ 图面主色半透明色罩 + 右上勾选角标（白边）+ 左下「已选」胶囊。禁止 `translateY`/外扩 box-shadow（会与邻图重叠）。有选中时操作条出现 **「删除 N」**。确认后：从 `wallItems` 与 DOM 移除，并 `POST /api/session/remove` 同步剔除会话工作集（**不上传、不改文档**）。再次点击取消选中；重置/上传成功后清空选中。
-  - 操作条与标题同排：**独立子栏 `.subbar`**（位于顶栏正下方、扫描区之上）：左「扫描到 N 张图片」+ 提示「点击图片可勾选，再次点击取消」；右「删除 N（有选中时）」「重置」「上传」。**操作条仅在照片墙实际有图块时显示**（`#wallSubbar`；空态隐藏）。子栏滚动时吸顶于顶栏之下。CSS 须保证 `[hidden]{display:none!important}`。
-  - **连续拖入累加**：后续 drop **不得清空**已有图块；新图按 `abs`/路径去重后并入；标题 = 墙上实际张数。单图加载失败移除该图块，不拖垮整墙。
-  - 不做灯箱/多选/排序（本期仅呈现）。
-- **扫描来源（2026-09-27 收窄）**：**本次拖入的图片文件** + **本次拖入文档**内图片引用（`/api/plan` 后按 `doc` 过滤到工作集文档）。**不**罗列扫描根下未拖入的其它图片（`GET /api/session/images` 不得再用于扩大预览）。
-- **「未扫描到图片」须区分原因（2026-10-27 补）**：本次拖入文档的 plan 项若全为 `skip-remote`（`action === 'skip-remote'`，引用已是 `http(s)` 图床链接），说明图片**早已上传并改写**，不是故障——提示改说「文档内图片已是远程链接，无需上传」。只有确实既无本地资产也无远程引用时，才维持「未扫描到本地图片」。注意 `skip-remote` 项没有 `localPath`，归属统计要按 `doc` 判断，不能靠 `localPath` 过滤（否则永远统计为 0）。
-- **拖入文档「有图但传不了」必须弹警告（2026-10-26）**：拖入的文档若含**无法上传本地资产**的引用，扫描后**自动弹出模态警告**（`confirmAsync`），不得静默。触发条件：本次拖入文档的 `/api/plan` 结果中存在 `action === 'blocked'` 的项。典型场景 = **无法解码为非图片的内嵌数据**（如 `data:text/plain,…`，`E_SKIP_REF`）——用户以为有图可传，实际没有对应图片资源。注意：`data:image/*` 自 2026-10-26 起由 `src/resolve.ts` 解码为内存 Asset 直接上传，不再进 blocked。模态内容：标题说明「N 处引用无法上传」，逐条列出**原因人话化**（`E_SKIP_REF` → 「内嵌数据图（data: URI），不是本地文件」、`E_EXT` → 「扩展名不在图片白名单」、`E_ASSET_MISSING` → 「图片文件不存在」、`E_PATH_ESCAPE`/`E_ABSOLUTE` → 「路径在扫描根之外」、其余回落到 `code: reason`）+ 涉及**文档名**。**只覆盖本次拖入的文档**（不扩大报全仓 blocked）。纯图片拖入（无文档）不触发。`/api/plan` 已输出 blocked 项的 `code`（`publicPlanItem` 直接投影），供前端分类；`raw` 截断显示（data: URI 可达数百 KB，禁止整串进 DOM）。
-- 「上传」= 原 sync（`confirm: true`），作用于**会话工作集**（累计拖入的文档及其图片引用；仅拖入图片时上传这些图片、不改写无关文档）；「重置」丢弃**全部**扫描结果，不写文档、不传图床。
-
-静态 SPA 视图（JS display 切换，无 hash 路由）：
-
-```
-upload     # 默认：文件放置 DropZone + 照片墙（scan/plan/sync 经 /api/plan、/api/sync）
-stats      # 使用统计（F25，2026-11-09 替换原管理视图）
-gallery    # 图库：浏览仓库文件夹与图片（2026-09-30 加入）
-settings   # 配置 + doctor + 偏好 Toggle
-doc        # 设计规范（令牌/Logo/图标；仅本地调试可见）
-```
-
-- 侧栏固定文案：**上传 / 统计 / 图库 / 设置 / 规范**（「规范」仅本地调试显示，安装版隐藏；缺一不可达；F25 起第二视图为「统计」）。
-- 主题「晨雾蓝 × 落日暖」令牌、组件、Logo 动效以 [`wireframes/ui-shell.md`](wireframes/ui-shell.md) + 用户《设计交付规范》为准。
-- 壳层组件只消费既有 `/api/*`；禁止为布局新造与信封冲突的私有字段。
-
-### 图库视图
-
-侧栏第三视图（2026-09-30 加入），以文件夹树 + 图片墙浏览仓库内容：`GET /api/gallery?path=` 列目录/文件（与目录选择浮层共用），`POST /api/gallery/delete` 批量删除图片。图片格式判定复用 `isImageName()`（`IMAGE_EXT` 白名单，不内联枚举）；仅浏览与删除仓库内容，不回写 manifest、不改统计口径。
-
-### 桌面原生桥（F24 渐进增强，不改 HTTP 契约）
-
-WebUI SPA **同时**服务浏览器（`picbed ui`）与 Electron 壳（[`module-desktop.md`](module-desktop.md)）：
-
-- 若 `window.picbedNative` 存在（preload 注入）：root/工作目录输入旁提供「浏览…」，调用 `picbedNative.selectDirectory()`；取消不改 root。
-- 若不存在：保持拖拽 + 手输路径，**禁止**因缺桥而报错或隐藏主流程。
-- 桥只返回路径字符串；解析、越界校验、策略 A 仍由服务端 RootBinder 负责。
-
-### 「规范」视图可见性（调试门，不改 HTTP 契约）
-
-侧栏第四项**「规范」**（设计令牌/Logo 页）**仅本地调试显示**：
-
-| 场景 | 显示？ | 判定 |
-|------|--------|------|
-| 源码树 `picbed ui` / `npm run desktop:dev` | 是 | 包根存在 `src/ui/static.ts`（兼容标记），或 Electron `!app.isPackaged` |
-| `PICBED_UI_DEV=1` | 是 | 环境变量强制开 |
-| `npm i -g picbed` / `picbed-setup.exe` | **否** | 无 `src/`；打包 `app.isPackaged` |
-| `PICBED_UI_DEV=0` | **否** | 环境变量强制关（优先于自动探测） |
-
-服务端在 HTML 注入 `window.__PICBED_UI_DEV__`；SPA **默认隐藏**该 nav，仅标志为 true 时移除 `hidden`。发包版不得通过 UI 进入规范页。
+- 所有响应使用统一信封；写操作缺 `confirm` 返回 `E_CONFIRM`，除显式 `dryRun`；`watch` 的 `auto` 模式也必须确认。token 仅由本地凭据层读取，配置读取、导入导出和错误信息都不得回显。
+- 静态 UI 仅从 `renderer/` 提供，`server.ts` 负责装配 HTTP 安检、静态资源和路由；不在服务端拼装第二份页面或暴露其他源码路径。dev 标记只控制本地「规范」入口可见性，不改变 API 契约。
 
 ## F16 本地 Web 控制台服务
 
-- 输入：`--host`（默认 `127.0.0.1`）、`--port`（默认可配，如 4780）、`--open`（可选打开浏览器）。
-- 规则：
-  - 默认拒绝绑定非回环地址；显式 `--host 0.0.0.0` 时打印安全告警并继续（文档层允许，实现须告警）。
-  - 端口占用 → 退出码 2，消息含端口。
-  - 健康检查 `GET /api/health` → `{ schemaVersion, ok:true, command:"api.health" }`。
-  - 退出：SIGINT/SIGTERM → 关闭 HTTP 与 watch → 进程 0。
-- 失败：无法绑定、静态资源缺失 → 退出码 2/1，不静默空页。
+- UI server 随 Electron 生命周期启动/关闭；默认 loopback 绑定，health 为 `GET /api/health` → `api.health` 信封。端口占用、绑定或静态资源缺失须显式失败，不得静默空页。
+- 服务退出时关闭 HTTP 并停止 watch；静态页面、GET 及 POST API 均遵循统一 JSON 信封和 HTTP 加固契约（见 [`module-webui-http-hardening.md`](module-webui-http-hardening.md)）。
 
 ## F17 目录/拖拽与计划工作台
 
-### 输入方式
-
-1. **拖拽导入**（主交互，2026-09-26 用户确认；2026-09-27 收窄类型）：用户**只需拖拽** **图片文件或文档文件**（md/html 等），**不要求**先手动「绑定 root / 策略 A」。
-   - **允许类型**：图片文件（`isImagePath`）或文档文件（`scan.extensions`，如 md/html）。**文件夹拖入拒绝**（客户端过滤 + 服务端 `type:'dir'` 返回用法错误），文案提示「仅支持图片或文档」。
-   - **拖入图片** → 仅进工作集并参与预览/上传；不触发根下其它图片枚举。
-   - **拖入文档** → 自动推断 root（文件所在目录，或沿用已推断根），加入工作集；解析失败 → `blocked` + reason。预览/上传只取该文档引用的本地图片。
-   - **根外投放必须重绑根（2026-10-27 修）**：`plan`/`sync` 一律只扫 `binder.root`，旧实现仅在 `binder.root` 为空时推断根，因此**一旦某次投放绑定了目录 A，再拖入目录 B 的文件仍返回 `ok`+`in-root`，但 plan 扫的是 A、`includeDocs` 过滤后 plan 为空——点「上传」什么都不做且无报错（静默空转）**。现规则：投放文件不在当前根内（`isUnderRoot` 为假）时，把根**重绑到该文件所在目录**，并清空工作集（跨根条目已无归属）；响应带 `rebind:{from,to,cleared:true}`，前端据此清空旧照片墙再重建，避免残留不属于新根的图块。仍落在根内的投放不重绑、不清空（保持连续投放累加语义）。
-   - **混合拖入**：图片与文档可同时拖入；root 取首个文件所在目录（或沿用已推断根）；落在当前根内的文件直接入工作集；触发重绑时以重绑后的根为准。
-   - **路径来源**：桌面端（`picbedNative.getPathForFile`）取**绝对路径**；浏览器无绝对路径时退化为「文件名 + 相对线索」，仅当能在服务端解析时成功。
-   - 拖拽区文案不出现「策略 A / 强制绑根」；界面展示推断后的 root 状态即可。
-2. **路径指定**（次要/兜底）：root 表单；桌面端可「浏览…」。浏览器拖不到真实路径时才需要。
-3. **不提供**：「选择文件」按钮、「粘贴剪贴板」按钮。
-4. **无暂存预览**：不得仅用浏览器文件字节做 plan；sync/revert 仍要求服务端可解析真实路径。
-
-### 路径落地（本地 Web 的安全模型）
-
-浏览器拖拽通常**不能**直接给出绝对路径。设计约定：
-
-- **服务端始终持有真实 FS 路径**；页面只提交相对线索（`name` / `webkitRelativePath` / 句柄元数据）。
-- **默认且唯一策略 A（根绑定 + 相对路径解析，已冻结）**：用户必须先绑定 `root`（路径表单或服务端目录浏览 API）；拖拽项在 `root` 下按相对路径解析。解析失败/越界/不在根内 → `blocked` + reason（不可静默忽略）。**策略 B（暂存预览）不纳入本期**。
-- 图片资产可作为拖入对象直接进工作集（预览/上传）；文档拖入则经 plan 解析其引用图片。工作台拖拽对象是**文档/图片**，**不含目录**。
-
-### 规则与失败
-
-- `scan`/`plan` 只读；视图分组与 F6 分类一一对应；`blocked` 展示 reason 与 path。
-- 工作集变更（拖入/移出）只影响本次会话视图，不写配置文件。
-- 失败：root 不存在/越界 → 退出码 4 语义的 API 错误；单文档问题进 warnings。
+- 上传页仅接受图片或扫描扩展名文档，不接受文件夹；桌面绝对路径可自动绑定/重绑 root，浏览器相对路径只能在已绑定 root 内解析，越界或无法解析须显示 blocked 原因。
+- 工作集仅包含本次拖入项：图片直接预览/上传，文档经 plan 解析本地引用；不枚举根目录里的其它图片。连续拖入累加去重，重绑根时清空旧工作集；选择删除只移除墙面与会话工作集。
+- 预览经 `/api/preview` 且仅限根内图片；内嵌 `data:image/*` 从内存缓存读取。SVG 字节不改写，预览响应使用 CSP sandbox 与 `nosniff`。
+- 上传后照片墙展示本次图片；重置清空会话，不写文档、不上传。扫描/计划只读，blocked 项必须说明原因。
 
 ## F18 一键同步
 
-- 输入：`root`、`confirm: true`（缺省 → `ConfirmRequiredError`，HTTP 409 或信封 error，对齐退出码 7）、可选 `dryRun`。
-- 规则：
-  - `dryRun` 等价 `plan`/`sync --dry-run`：不 `putFile`、不改文档。
-  - 非 dry-run：经 app 共享层 `runSync`；进度经事件通道推送（若启用）。
-  - **工作集作用域（2026-09-27）**：上传页触发的 sync **仅处理本次拖入**——工作集内文档及其图片引用；仅拖入图片时上传这些图片且不改写无关文档。CLI `sync` 仍按 root 全量扫描（语义不变）。
-  - 结果 counts：`uploaded/rewritten/skipped/blocked/failed`；partial → `ok:false` 或 `ok:true`+`data.partial`（与 CLI 退出码 6 对齐，信封 error.code 保持稳定）。
-- 失败：单文件失败隔离；汇总 partial；远端 429/403 退避后失败映射退出码 5 语义。
+- 照片墙「上传」调用 `POST /api/sync`，显式确认后仅处理当前会话工作集；仅投放图片时不改写无关文档。dry-run 不上传、不改文档。
+- 复用 app 层 `runSync`；结果保留 uploaded/rewritten/skipped/blocked/failed 计数，单项失败隔离并显式呈现 partial。
 
 ## F19 回滚面板
 
-- 输入：`root`、`confirm`、`dryRun`。
-- 规则：列表读 manifest；dry-run 只报告将还原 entry；confirm 后 revert（写文档走 rewrite 门面）。
-- 失败：`ManifestCorruptError` → 界面错误；不自动重建 manifest。
+> 已移除（2026-09-30，commit `2aa016f` 删除 UI 面板）；API 存活：`POST /api/revert`（`src/ui/routes/revert.ts`）；设计细节见 [features-index 墓碑](../features-index.md#f19-回滚面板)。
 
 ## F20 配置与自检面板
 
-- 读：`ResolvedConfig` 序列化视图，**token 键显示为掩码**（如 `****`），不提供「显示原文」。
-- 写：仅非 secret 键；枚举校验同 F1；`confirm` 才落盘。
-- doctor：调用 DoctorService；视图展示 `checks[]/failures[]`；缺 token 时 hint 展开 PAT / `gh auth` 说明（同 F15）。
-- 失败：非法键/枚举 → 退出码 2 语义；鉴权类失败 → 退出码 3 语义。
-
-### F20.2 gh 一键登录（画布上的 spawn + 轮询）
-
-登录不引入 OAuth App，而是**代用户在服务端 spawn `gh auth login --web`**，前端每 2s 轮询状态。难点全在"进程生命周期 × HTTP 无状态"的接缝处，故给出时序：
-
-```mermaid
-sequenceDiagram
-    actor U as 用户
-    participant FE as 浏览器
-    participant SVR as UI 服务端
-    participant SPAWN as spawnGhLogin
-    participant GH as gh 命令行
-    participant WEB as GitHub 设备流
-    participant FILE as 凭据文件
-
-    U ->> FE: 点击 GitHub 一键登录
-    FE ->> SVR: POST 登录开始
-
-    SVR ->> SVR: 探测本机是否已有 token
-    alt 未安装 gh
-        SVR -->> FE: 400 E_GH_NOT_FOUND
-    else 已有 token
-        SVR ->> FILE: 写入本机凭据
-        SVR -->> FE: 直接完成并返回掩码
-    else 需要浏览器授权
-        SVR ->> SPAWN: 启动登录子进程
-        SPAWN ->> GH: 执行 gh auth login 网页模式
-        SVR -->> FE: 进行中
-
-        GH ->> WEB: 打开设备登录页
-        U ->> WEB: 输入一次性码并授权
-        WEB -->> GH: 授权完成
-        GH -->> SPAWN: 输出累积到会话
-    Note right of SPAWN: gh 会弹协议与主机菜单，<br/>按定时器多次回车自动推进
-
-        loop 每 2 秒轮询
-            FE ->> SVR: 查询登录状态
-            SVR -->> FE: 进行中并带上累积输出
-        end
-
-        GH -->> SPAWN: 进程退出
-        SVR ->> SVR: 重新读取新 token
-        SVR ->> FILE: 以 0600 权限落盘
-        SVR -->> FE: 完成
-        FE ->> FE: 刷新配置表单显示掩码
-    end
-
-    alt 退出码非 0 或用户取消
-        SVR -->> FE: 错误态
-    end
-```
-
-由这张图得出的规则：
-
-1. **会话是单例**：`GhLoginStore` 同时只允许一个登录流程（`src/ui/server.ts` 只实例化一次并经 context 传给所有路由），第二个 `/start` 直接复用既有状态。
-2. **轮询只暴露 `output` 累积文本**：HTTP 拿不到进程句柄，状态机只能有三个终值 `done` / `error` / `running`；上层不得依据输出文本做分支判断。
-3. **token 不过 HTML**：颁证直接落盘 `~/.picbed/credentials.json`（0600），响应体只有掩码——与 F20「不提供显示原文」同源。
-4. **Windows spawn 分叉藏在 `infra/gh-cli.ts`**：`gh.exe`/`gh` 用 `shell=false`，`gh.cmd` 必须 `shell=true`（避开 CVE-2024-27980），ENOENT 则换下一个候选；UI 层不知道这些细节。
-
-### F20.1 目录选择（2026-10-01 · 远程目录浏览 + 新建）
-
-设置页 `github.dir` 行提供目录选择器；呈现规格见 [`wireframes/ui-shell.md`](wireframes/ui-shell.md) §1.3。
-
-- **载体**：底部居中**可停留浮层**（`#dirPicker`，toast 视觉语言但**不自动消失**）；触发 = 聚焦/点击目录输入框或点「选择目录」；收起 = 关闭按钮 / 点外部 / `Esc`。默认 `hidden`，DOM 常驻。
-- **列目录**：复用 `GET /api/gallery?path=`（Contents API 单次请求），客户端取 `items[].type==='dir'` 渲染；**不新增列目录端点**。进入子目录时才请求（无预取）。
-- **种子路径不存在时的回退（2026-10-01 补）**：`github.dir` 指向的远端目录可能尚未创建（404 `E_NOT_FOUND`）——浮层**不得死在报错上**：自动回退到**最近存在的祖先目录**列出其子文件夹，同时以**引导性提示**（非红色错误）说明「目录 X 不存在，已定位到其上级」；将缺失的末段**预填**到「新建文件夹」输入框，用户点「新建并选用」即可创建并选中该目录。仅仓库根也不可达（网络/权限/配置错）时才显示错误。
-- **新建目录**：`POST /api/repo/mkdir { path, confirm: true }`；编排在 **app 层** `src/app/repo-dir.ts`，经 `GitHubHostAdapter.putFile('<path>/.gitkeep', 空内容)` 提交占位文件（GitHub 无空目录 API）。**响应与日志无 token。**
-- **路径校验**（前后端各一次）：去首尾 `/`；拒绝空段 / `..` / 前导 `/` / 盘符与反斜杠；段字符限 `A-Za-z0-9._\-` 与中文；总长 ≤ 200。
-
-### F20.3 分支选择（2026-10-03 · 远端分支下拉）
-
-设置页 `github.branch` 行提供分支下拉，交互与 F20.1 目录选择同构但更轻：
-
-- **载体**：输入框下方锚定的**小下拉**（`#branchPicker`，DOM 常驻默认 `hidden`）；触发 = 点击/聚焦 Branch 输入框；收起 = 点外部 / `Esc`。
-- **列分支**：`GET /api/branches`（Branches API `per_page=100`，**只读**，无写操作）；当前 `github.branch` 高亮；owner/repo 不齐 → `E_CONFIG`·400，缺 token → `E_TOKEN`·401，仓库不可达 → `E_NOT_FOUND`·404，GitHub 非 2xx → `E_REMOTE` 转发其状态码——错误在下拉内联提示并附引导文案，不弹 toast 报错。
-- **选用**：点选分支即 `POST /api/config { key: 'github.branch', value: '<分支名>', confirm: true }` 立即保存（`value` 由前端必带；服务端不作非空校验，缺省按 `''` 处理）；成功后回填输入框、toast「分支已切换为 xxx」并刷新表单，**不再要求点「保存设置」**。Branch 输入框为**只读展示态**（同 `github.dir`），值唯一来源是下拉点选；呈现规格见 [`wireframes/ui-shell.md`](wireframes/ui-shell.md) §1.3。
-- **失败语义**（对齐 [`module-app.md`](module-app.md) §错误映射与 `src/ui/routes/branches.ts` 实际返回）：
-  | 情况 | code / HTTP |
-  |------|-------------|
-  | 缺 owner/repo | `E_CONFIG` · 400（引导先配置仓库信息） |
-  | 缺 token | `E_TOKEN` · 401（引导粘贴 PAT 或本机 `gh auth login`） |
-  | 仓库不存在/无权访问 | `E_NOT_FOUND` · 404 |
-  | GitHub 返回非 2xx（含限流 403、5xx） | `E_REMOTE` · **原样转发 GitHub 状态码**（如限流即 403），message 带 `GitHub API <status>` |
-  | fetch 抛错（网络不可达/DNS） | `E_REMOTE` · 502 |
-  - 失败一律**内联提示**在下拉内（`branch-picker-empty` 弱文本，附 hint），不关闭下拉、不弹 toast 报错。分支接口**只读**（无写操作、无 `.gitkeep` 幂等、无 `E_CONFLICT`/`E_BAD_REQUEST`）。
+- 设置读取 `ResolvedConfig`；token 只显示掩码/配置状态，不提供明文显示。可写配置键为 `github.owner`、`github.repo`、`github.branch`、`github.dir`、`url.style`；保存须确认，`url.style` 限 `raw|jsdelivr|custom`。目录/分支从远端选择；目录新建以 `.gitkeep` 占位。
+- 配置 schema 默认值：`host.type=github`；`github.owner/repo=""`、`branch=main`、`dir=img`；`local.root=.picbed/host-root`、`public_base=https://cdn.example.com`、`dir=img`；`url.style=jsdelivr`、`url.custom_template` 可选；`scan.extensions=md,html,htm`、`ignore=**/node_modules/**,**/.git/**,**/.picbed/**`、`inline_images=true`；`upload.concurrency=3`、`commit_message=chore(picbed): upload images`；`rewrite.backup=true`。凭据保存在本机凭据文件，不写入 `picbed.toml`。
+- 非法/缺省 `host.type` 降级为 `github`，非法 `url.style` 降级为 `jsdelivr`；缺 token 时 doctor 给出 PAT / `gh auth` 指引，不回显凭据。导入校验 host/style/concurrency，失败显式返回错误；远端目录不存在时定位最近存在的祖先并预填待建目录，分支/目录读取失败在选择器内提示。
+- Doctor 展示 checks/failures；错误保持配置/鉴权语义。设置支持导入导出，导出文本不含 token。
 
 ## F21 审计与报告
 
-- RunRecord 由 app 共享层的 `recordRun(cwd, record)`（`src/app/run-store.ts`，函数式）在各写/批命令成功或结束后追加（存储建议 `./.picbed/runs/`，路径进 `.gitignore` 建议）；CLI 的 `sync`/`revert` 也写同一份记录（Web 命令名为 `api.*`）。
-- 报告字段对齐 JSON 信封 `data`；**无 token**。
-- 导出：`GET /api/runs/:id` 或导出按钮得到单一 JSON。
+> 已移除（2026-09-30，commit `2aa016f` 删除 UI 面板）；API 存活：`GET /api/runs`、`GET /api/runs/:id`（`src/ui/routes/runs.ts`；`tests/ui-panels.test.ts:130` 守卫）；设计细节见 [features-index 墓碑](../features-index.md#f21-审计与报告)。
 
 ## F22 监听控制台
 
-- 启停映射 F12：`fs.watch` + debounce；忽略 `node_modules`/`.git`/`.picbed`。
-- 模式：`preview`（**默认，已冻结**：只记录批次并推送事件，**不**触发 plan / sync）| `confirm-each`（每批确认后 sync）| `auto`（**须显式打开**；仍写 RunRecord）。
-- 停止：`watch/stop` 或 `ui` 服务退出时级联停止。
-- 失败：监听失败 → 错误可见；不引入系统服务/提权。
+> 已移除（2026-09-30，commit `2aa016f` 删除 UI 面板）；API 存活：`GET /api/watch`、`POST /api/watch/start`、`POST /api/watch/stop`（`src/ui/routes/watch.ts`；`tests/ui-panels.test.ts:155` 守卫）；设计细节见 [features-index 墓碑](../features-index.md#f22-监听控制台)。
 
 ## F25 使用统计视图
 
-- **范围**：呈现层新增第二视图「统计」，**替换**原「管理」视图（manifest 网格 / 搜索 / 排序 / 批量复制外链 / 旧四统计卡移除）；JSON 信封（`schemaVersion` 1）、confirm 门、token 纪律不变，v2 演进只发生在 `data` 内（`contractVersion: 2`）。内嵌 HTTP 后端保留 `/api/manifest`、`/api/runs` 两个端点（CLI 形态已随单宿主收敛移除）。
-- **端点**：`GET /api/stats` → 信封 `command: 'api.stats'`，data 为 `StatsView`（无 token 出现；远端失败不 500）。**契约版本 `contractVersion: 2` 位于 `data` 内；外层信封 `schemaVersion` 仍为 1**（演进只发生在 data 内）：
-
-```json
-{
-  "contractVersion": 2,
-  "generatedAt": "ISO",
-  "period": {
-    "kind": "rolling-days",
-    "days": 365,
-    "startDate": "YYYY-MM-DD",
-    "endDate": "YYYY-MM-DD",
-    "timeZone": "IANA 名或 unknown",
-    "scope": "local-run-store"
-  },
-  "measurement": {
-    "unit": "successful-image-upload",
-    "source": "runs",
-    "state": "available | partial | unavailable",
-    "countAccuracy": "recorded | unknown",
-    "timeAccuracy": "run-start-estimate | unknown",
-    "coverage": "retained-local-runs"
-  },
-  "totals": { "count": 0 },
-  "today": { "date": "YYYY-MM-DD", "count": 0 },
-  "last7": { "count": 0, "prev": 0, "delta": 0, "deltaPct": null },
-  "streak": { "current": 0, "longest": 0 },
-  "busiestDay": { "date": null, "count": 0 },
-  "days":  [ { "date": "YYYY-MM-DD", "count": 0 } ],
-  "hours": [ { "hour": 0, "count": 0 } ],
-  "sources": {
-    "runs": { "state": "available | partial | unavailable" },
-    "manifest": { "use": "not-counted", "reason": "mapping-snapshot" },
-    "remoteCommits": { "use": "not-counted", "reason": "not-upload-events" },
-    "remoteInventory": { "count": null, "state": "complete | partial | unavailable" }
-  },
-  "warnings": []
-}
-```
-
-字段语义（字段名/枚举值为精确契约，不得改名）：`period` 恒定 `rolling-days` 365 日窗口（`startDate`=本地今天减 364 个日历日，`endDate`=本地今天；`timeZone` 为本次聚合 IANA 名，无有效名则显式 `'unknown'`；`scope` 固定 `'local-run-store'`）；`measurement.unit='successful-image-upload'`（单位=一次成功上传动作）、`source='runs'`、`coverage='retained-local-runs'`（仅覆盖本地保留的运行记录）；`sources.manifest`/`sources.remoteCommits` 恒为 `use:'not-counted'`（manifest 是映射快照、远端提交不是上传事件，均不参与计数与时间线）；`remoteInventory` 仅上下文（`count` 可 `null`；Trees 截断 → `state:'partial'`）。**v1 的 `sources.remote`（数字）与 `sources.remoteAvailable` 已移除，不保留永远 false 的旧别名。**
-
-`days` 恒为 365 条（旧→今）、`hours` 恒为 24 条（固定长度，前端免判长度渲染空网格）；`totals.count = sum(days.count) = sum(hours.count)`（恒 365 日窗口，窗口外的 run 不计入但记录仍在，不判 unavailable）；`last7.deltaPct` 在 `prev===0`（无对比基线）或 `measurement.state='partial'`（记录不完整，暂不比较）时为 `null`。
-
-- **数据源映射（聚合在 app 层 `src/app/stats.ts` `buildStatsView({cwd, cfg, getToken})`，不直连凭据存储——route 经 app 层取 `currentToken`）**：
-  1. **runs 是唯一计数源**：经 `scanAllRuns(cwd)`（`src/app/run-store.ts`）全量读取 `.picbed/runs/*.json`，不按文件名截断；接受非负安全整数 `counts.uploaded` + 合法 `startedAt` 的记录，每条 run 的 `uploaded` 权重按其 `startedAt` 归入本地日/时桶（partial run 已成功部分照计，不要求 `ok=true`；`uploaded` 缺失按 0，存在但非法按无效记录）。窗口外（早于 `period.startDate`）的 run 不计入。每图无独立时间戳，时间精度即 `timeAccuracy='run-start-estimate'`。
-  2. **manifest = 映射快照，not-counted**：条目是「文档+引用→URL」的映射（1 图多引用会多计），不是上传事件日志，声明 `sources.manifest = { use: 'not-counted', reason: 'mapping-snapshot' }`；`stats.ts` 不再读 `loadManifest`，manifest 不参与任何计数或时间线填充。
-  3. **远端提交 = not-counted**：提交不是上传事件（commit 数 ≠ 图片数，且同图可多次提交），声明 `sources.remoteCommits = { use: 'not-counted', reason: 'not-upload-events' }`；`stats.ts` 不再调 Commits API。
-  4. **远端库存 = 仅上下文**（owner/repo/token 齐备时尝试；仿 `routes/gallery.ts` fetch 头）：`GET /git/trees/{branch}?recursive=1` 过滤 `github.dir` 下图片扩展名 → `sources.remoteInventory{count, state}`（`complete` / `partial`——Trees `truncated=true` 时列表不完整、计数可能偏小 / `unavailable`——失败或未配置，`count=null`）。任何失败降级为 warning，绝不抛出；独立库存失败不抹本地统计（本地计数照常返回）。
-- **状态三态（`measurement.state` / `sources.runs.state` 的唯一判定来源）**：
-
-  | 场景 | state | count | 说明 |
-  |---|---|---|---|
-  | runs 目录不存在 / 空 | `unavailable` | 0 | 「无可用上传历史」≠ 从未上传 |
-  | 有可解析记录且 uploaded 全 0 | `available` | 0 | 真 0（保存记录内为 0） |
-  | 有可解析记录、部分坏记录 | `partial` | 坏记录外的已读计数 | warning 说明丢了多少 |
-  | 全部可读无坏记录 | `available` | 实际 | `countAccuracy='recorded'` |
-  | 读取抛错 | `unavailable` | 0 | warning 带原因 |
-
-  `partial` 时 `countAccuracy` 仍可为 `recorded`（已读部分是记录值），但 renderer 必须显示「记录不完整」且 `last7.deltaPct` 置 `null`。
-- **聚合规则**：日期桶用**本地时区** `YYYY-MM-DD`（有意区别于旧 manage.js 的 UTC 月计数——用户感知统计）；`last7` = [-6..0] 求和、prev = [-13..-7]；`streak.current` 从今天回溯连续 count>0（今天为 0 则从昨天起算）；`streak.longest` 为窗口内最长；`busiestDay` 并列取最早。
-- **UI 块（v2，`renderer/src/features/stats.js` + `stats-charts.js`，零依赖 SVG/DOM；2026-11-11 重设计，2026-11-12 v2 契约同步）**：
-  - **契约门（先于一切数字渲染）**：`d.contractVersion !== 2` → 显示「统计契约不匹配」（hero `—` + 副行说明「数据版本过旧或过新，请刷新或升级应用」、hint「统计契约不匹配」），其余块不渲染；**禁止 `?? 0` 静默渲染**。
-  - toolbar：来源 hint（首条 warning 原文，其余进 `title` tooltip，全部 `textContent` 防注入）+ 刷新；面包屑标题「过去 365 天上传 N 次」。
-  - **hero 卡**：48px 大数字 + 副行「已保存记录中成功上传 N 次图像 · 上传时间按运行开始估算」；`measurement.state='partial'` 时副行追加「 · 记录不完整」；`state='unavailable'` → 大数字 `—` + 副行「暂无可用上传记录」（占位 0 **不得**说成从未上传）。
-  - 4 KPI 卡（今天 / 过去7天+环比 ▲绿▼红 / 连续天数（副行「窗口内最长 N 天」）/ 最忙的一天（副行「N 次 · 按现存记录」））；`deltaPct=null` 两态文案：`partial` → 「记录不完整，暂不比较」，否则 → 「无对比基线」。
-  - 年历热力图卡（53 周列 × 7 行 SVG，**宽度自适应**——cell 在 9–15px 间随容器伸缩、窄容器横向滚动，`heat-lv0..4` 5 档顺序色阶 lv0=`--c-bg-2`，lv1–4=`--c-primary` @ .25/.45/.7/1 随三套主题令牌联动；固定阈值 0 / 1 / 2–3 / 4–7 / 8+；卡头带「少 → 多」5 色块比例尺图例；月标签防挤压——与上一标签视距 <22px 丢弃；左侧行标签 + `<title>` tooltip「M月D日: 成功上传 N 次图像（按运行时间）」）；时段卡（24 柱 SVG，y 轴刻度在**左**（0 省略）、柱顶 4px 圆角、基线直角，柱窄于 24px 时叠加整槽透明热区保命中区 ≥24px，峰桶标注「HH:00–HH+1:00 最忙」，x 刻度 0/6/12/18，hover 提亮 + tooltip，单系列无图例）。
-  - **库存独立卡「当前远端库存」**：数值来自 `sources.remoteInventory.count`（`state='unavailable'` → `—` +「未连接远端」；`state='partial'` → 副注「列表不完整，数值可能偏小」）；上下文参考，**不称上传、不参与 count**。
-- **降级态（v2）**：`unavailable`（无可用历史）≠ 真 0——hero 显示「— / 暂无可用上传记录」，热力图卡头追加「（无可用上传记录）」；`partial` → hero 副行「记录不完整」+ 环比「记录不完整，暂不比较」；真 0（`available`）→ 如实显示 0；远端库存失败 → 库存卡「— / 未连接远端」+ warning，本地统计照常返回；`/api/stats` 聚合异常兜底为 200 + `emptyStatsView`（`measurement.state='unavailable'`）+ warning（**无 500 路径**）。
+- `GET /api/stats` → `api.stats` 信封；外层 `schemaVersion=1`，`data.contractVersion=2`。数据包含 `generatedAt`、`period`、`measurement`、`totals`、`today`、`last7`、`streak`、`busiestDay`、`days`、`hours`、`sources`、`warnings`；无 token。契约不匹配必须显式显示错误态，不得静默填 0。
+- `period` 固定 `rolling-days` / 365 日、本地日历窗口，含 `startDate`、`endDate`、`timeZone`（无有效 IANA 时为 `unknown`）及 `scope=local-run-store`。本地时区是用户感知日期/小时桶的决策；`days` 恒 365 条、`hours` 恒 24 条，`totals.count` 为窗口内两者总和。
+- `measurement`：`unit=successful-image-upload`、`source=runs`、`coverage=retained-local-runs`，含 `state=available|partial|unavailable`、`countAccuracy`、`timeAccuracy=run-start-estimate|unknown`。`scanAllRuns` 全量读取 `.picbed/runs/*.json`，以合法 `counts.uploaded` 按 `startedAt` 本地日期/小时归桶；partial run 已成功上传量照计，窗口外记录不计数。runs 目录不存在/为空或读取失败为 `unavailable`（不是零次上传），坏记录部分可读为 `partial`；可读且值全零才是 `available` 真零。
+- `last7` 含本周 `count`、前 7 日 `prev`、`delta`、`deltaPct`；无基线或记录不完整时百分比为 `null`。`streak` 含 current/longest，`busiestDay` 并列取最早日期。
+- `sources.manifest={use:not-counted,reason:mapping-snapshot}`、`sources.remoteCommits={use:not-counted,reason:not-upload-events}`；二者不参与计数。`sources.remoteInventory={count,state}` 仅为仓库当前库存上下文，Trees 截断为 `partial`，失败/未配置为 `unavailable` 且 `count=null`，不得影响本地统计。库存失败降级为 warning。
+- 聚合异常仍返回完整形状的 200 空视图和 warning；`partial` 显示记录不完整，`unavailable` 显示「暂无可用上传记录」，远端库存不可用单独显示「未连接远端」。界面包含总计、今天、近 7 日、连续天数、最忙日、365 日热力图、24 小时时段图和独立远端库存卡。
 
 ## F23 Web 控制台壳层与视觉重设计
 
-- **范围**：仅呈现层（布局、导航、主题、文案层级）；**不改** API、JSON 信封、`confirm` 门、token 纪律、拖拽策略 A。
-- **壳层**：72px 侧栏 + 56px 顶栏 + 可滚动 Content；桌面 >720px，≤720px 窄屏降级（侧栏 56px、表单单列）——详见 [`wireframes/ui-shell.md`](wireframes/ui-shell.md) §6。
-- **导航**：五视图「上传 / 统计 / 图库 / 设置 / 规范（仅调试）」。默认上传/文件放置。（2026-11-09 F25：第二视图「管理」改为「统计」；2026-09-30 图库视图加入。）
-- **信息重排**：F17/F18 上传视图；F25 统计视图；F20 设置视图；规范页只读设计系统。
-- **主题**：晨雾蓝 × 落日暖（`#4E86AD` / `#E39A6B` / `#F3F7FA`…）；禁止各面板私自改色；Toggle 36×20 且 `flex-shrink:0`。
-- **Logo**：44×44 squircle，idle/scanning/uploading 三态；规范页可切 V1–V3。
-- **失败**：壳层加载 API 失败时主区可见错误条，不白屏；静态资源缺失仍走 F16 失败语义。
+- 仅调整布局、导航、主题与文案层级，不改变 API、信封、confirm 门、token 纪律或 F17 拖拽策略。
+- 导航为五视图：上传、统计、图库、设置、规范（仅本地调试可见）。72px 侧栏、56px 顶栏和可滚动内容区，窄屏按 [`wireframes/ui-shell.md`](wireframes/ui-shell.md) 降级。
+- 主题令牌、Logo 动效、组件细节以 [`wireframes/ui-shell.md`](wireframes/ui-shell.md) 为准；API 失败须在主区可见，不白屏。
+
+## F26 图库视图
+
+图库视图是 F19–F22 面板于 2026-09-30 删除后 `manage` 视图的演进结果：历史 manage 以 manifest / `GET /api/runs` 为数据源；当前 `renderer/index.html` 存在 `gallery` 视图，由 `src/ui/routes/gallery.ts` 的 `GET /api/gallery?path=` 驱动，页面复用 `.file-grid` 样式。图像判定复用 `isImageName()`，图库删除只影响仓库当前文件，不回写 manifest 或 F25 历史统计。
 
 ## 失败语义
 
 | 情况 | 行为 |
-|------|------|
-| 未带 `confirm` 的写操作 | 拒绝；error.code 对齐需确认（7） |
-| token 缺失 | 读接口可展示 doctor 失败；写/上传类失败（3） |
-| root 越界/绝对路径拒绝 | 本地文件错误（4） |
-| 远端 API/限流 | 远端错误（5）；批量 partial（6） |
-| 目录选择：缺凭据 / 路径非法 / 同名是文件 | `E_CONFIG`·400 / `E_BAD_REQUEST`·400 / `E_CONFLICT`·409；浮层内联提示，不关浮层 |
-| 端口占用 | 用法/环境（2） |
-| manifest 损坏 | 显式错误；不静默重建 |
-
-## 实现落点（TS/Electron 适配）
-
-> 本模块在 TypeScript/Electron 实际源码中的落地；领域意图、server 装配（实现落点）、接口意图与 F 章节见上文。类图与签名以真实源码为准（源码：`src/ui/*`）。
-
-### 领域层类图（呈现层实体/契约）
-
-```mermaid
-classDiagram
-    class JsonEnvelope~T~ { +number schemaVersion +boolean ok +string command +T data? +string[] warnings? +JsonError error? }
-    class JsonError { +string code +string message +string path? +string hint? }
-    class UiRouteContext { +req +res +URL url +string method +string pathname +send(status, body) void +readBody() Promise~string~ +string cwd +RootBinder binder +WatchController watch +WorksetItem[] workset +GhLoginStore ghLogin +loadCfg() ResolvedConfig }
-    class UiRoute { <<type alias>> (ctx: UiRouteContext) => Promise~boolean~|boolean }
-    class RootBinder { +string root~null~ +bind(rootInput, cwd) string +requireRoot() string +resolveUnderRoot(rel) {ok,path}|{ok,reason,code} }
-    class WatchController { +WatchState state +start(opts) WatchState +stop() WatchState -pushEvent(message, changed?) void }
-    class WatchMode { <<union type>> preview confirm-each auto }
-    class WatchState { +boolean active +WatchMode mode +string root? +number debounceMs? +string[] lastBatch? +{at,message,changed?}[] events }
-    class GhLoginStore { -GhLoginState state~null~ +get() object +set(s) void +get isRunning() boolean +append(chunk) void +scheduleClearIfTerminal(delayMs?) boolean +cancel() void }
-    class UiServerHandle { +string url +number port +string host +close() Promise~void~ }
-    class AppError { +string code +ExitCode exitCode +string hint? }
-
-    UiRouteContext --> RootBinder : binder
-    UiRouteContext --> WatchController : watch
-    UiRouteContext --> GhLoginStore : ghLogin
-    UiRoute ..> UiRouteContext : 接收
-    WatchController --> WatchState : 持有
-    GhLoginStore --> GhLoginState : 持有
-    AppError ..> JsonError : 经 sendAppError 转换
-    JsonEnvelope ..> JsonError : error?
-```
-
-### 公开服务签名（TS）
-
-| 服务 | 签名 | 职责 |
-|------|------|------|
-| `createUiServer` | `createUiServer(opts: UiServerOptions): { server, binder, listen }` | 创建 `http.Server`，闭包持有 bindHost/workset/watchCtl/ghLogin/loadCfg |
-| `listen` | `listen(port, host): Promise<UiServerHandle>` | `server.listen`，返回 `{url, port, host, close}`；`close` 先 `watchCtl.stop()` |
-| `RootBinder.root` | `root: string \| null`（未绑定时为 `null`） | 当前扫描根 |
-| `RootBinder.bind` | `bind(rootInput: string, cwd: string): string` | 绑定扫描根（绝对化 + 校验） |
-| `RootBinder.requireRoot` | `requireRoot(): string` | 未绑定抛 `E_NO_ROOT` |
-| `RootBinder.resolveUnderRoot` | `resolveUnderRoot(rel): {ok:true;path}\|{ok:false;reason;code}` | 路径越界判定（`E_PATH_ESCAPE` 等） |
-| `WatchController.start/stop` | `(opts) WatchState` / `() WatchState` | 启停文件监听 |
-| `envelope` | `envelope<T>(ok, command, data?, error?, warnings?): JsonEnvelope<T>` | **WebUI 专用**信封构造器；CLI/MCP 只共用同一 `JsonEnvelope` 形状（CLI 内联构造，MCP 转调 CLI） |
-| `sendAppError` | `sendAppError(send, err, command = 'api.error'): void` | 未捕获异常 → `httpStatusForCode` + 信封（`api.error`） |
-| `checkApiRequest` | `checkApiRequest(req, pathname, hostUrl): GuardRejection \| null` | `/api` 同源 + POST 头 `X-Picbed-UI` + Content-Type + Body 上限（DNS-rebinding 由前置的 `checkHost` 负责） |
-
-路由表（均 `UiRoute` 签名，命中返回 `true`）：`healthRoute`(GET /api/health)、`sessionRoutes`、`authRoutes`(token + gh-login)、`systemRoutes`(doctor/manifest/repo mkdir)、`configRoutes`、`branchRoutes`、`galleryRoutes`、`statsRoutes`(GET /api/stats)、`planRoutes`(scan/plan)、`previewRoute`、`syncRoute`、`revertRoute`、`runsRoutes`、`watchRoutes`。
-
-### 复杂任务时序图（HTTP `/api/sync` 全链路）
-
-```mermaid
-sequenceDiagram
-    participant B as Browser/SPA
-    participant S as http.Server(server.ts)
-    participant G as guard.checkApiRequest
-    participant R as syncRoute
-    participant C as RootBinder/loadCfg
-    participant A as app: runSync/runPlan
-    participant E as envelope+makeSend
-
-    B->>S: POST /api/sync（X-Picbed-UI:1, JSON）
-    S->>S: parseHost(Host) → checkHost(hostUrl, bindHost)  // 阻断 DNS-rebinding，违例 403 E_HOST
-    S->>G: checkApiRequest(req, pathname, hostUrl)
-    G-->>S: null（放行）/ GuardRejection
-    S->>R: route(ctx)（遍历 ROUTES）
-    R->>C: binder.requireRoot() + loadCfg()
-    alt dryRun
-        R->>A: runPlan(root,cfg,cwd,includeDocs)
-        A-->>R: {plan, summary, collected}
-        R->>E: 200 envelope(api.sync, dryRun)
-    else confirm !== true
-        R->>E: 409 envelope(E_CONFIRM)
-    else confirm=true
-        R->>A: runSync({root,cfg,cwd,getToken,command})
-        A-->>R: {ok, uploaded, rewrittenDocs, items, errors}
-        R->>E: 200 / httpStatusForCode(errorCode)
-    end
-    E-->>B: JSON 信封
-```
-
-> `server.ts` 安检与静态在前；`syncRoute` 的 ConfirmGate 在 `:52`（409），dryRun 走 `runPlan`（`:34`），写操作走 `runSync`（`:60`）。code → HTTP 映射见 [`module-app.md`](module-app.md) §错误映射（如 `E_TOKEN`→401、`E_CONFIRM`→409、`E_PARTIAL`→207、`E_REMOTE`→502）。
+|---|---|
+| 缺少确认 | 拒绝写操作，`E_CONFIRM` |
+| 缺 token / root 越界 | 显式鉴权 / 路径错误，不静默降级 |
+| 远端或单文件失败 | 返回错误或可见 partial，保留失败项 |
+| manifest 损坏 | 显式错误，不自动重建 |
+| 静态资源缺失 / 端口占用 | 服务启动失败，不返回空白成功态 |
 
 ## 功能点映射
 
@@ -525,5 +120,6 @@ sequenceDiagram
 | [F22](../features-index.md#f22-监听控制台) | §F22 |
 | [F23](../features-index.md#f23-web-控制台壳层与视觉重设计) | §F23 · [`wireframes/ui-shell.md`](wireframes/ui-shell.md) |
 | [F25](../features-index.md#f25-使用统计视图) | §F25 |
+| [F26](../features-index.md#f26-图库视图) | §F26 |
 
 *规则与数据以本模块为准；验收契约以 features-index AC 为准；视觉与布局以 wireframes/ui-shell.md 为准；业务不变量以 ingest/transfer/rewrite/cliops 为准。*

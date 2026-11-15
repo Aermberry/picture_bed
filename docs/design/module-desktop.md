@@ -2,192 +2,75 @@
 
 > 归属功能点：F24 桌面应用壳与安装包。
 > 架构见 [`../architecture.md`](../architecture.md)；定义见 [`../features-index.md`](../features-index.md)；Web 控制台契约见 [`module-webui.md`](module-webui.md)；全局契约见 [`cross-cutting.md`](cross-cutting.md)。
-> 栈相关（Electron + electron-vite），但**业务规则零复制**：只做壳层宿主、原生桥、开发工具链与安装包。
-> **UI 单源**：`renderer/`（Vite root）。见下文「渲染层」。
+> Electron 仅提供壳层宿主、原生桥、开发工具链与安装包；业务规则复用核心及 WebUI 服务。UI 单源为 `renderer/`。
 
 ## 目的
 
-desktop 是**桌面应用壳**限界上下文：为终端用户提供**下载安装即用**的原生窗口应用，并提供接近 Flutter Hot Reload 的本地调试体验。（2026-11-10：npm CLI / MCP / `picbed ui` 通道已移除，desktop 为唯一宿主。）
+desktop 是桌面应用壳限界上下文：为终端用户提供下载安装即用的原生窗口应用及本地调试体验。
 
-边界原则：
+- 不复制 scan/plan/sync/revert/config/doctor/watch 业务规则；复用 `dist/` 核心与 `createUiServer`。
+- Electron 加载 Web 控制台，辅以系统对话框和安装包；仅保留桌面宿主形态。
+- UI 服务只绑定 `127.0.0.1`；token 不进入渲染进程或页面，写操作仍经过 `confirm` 门。
+- Electron / electron-builder / electron-vite / Vite 仅为 devDependencies。
+- 首发为 Windows NSIS `.exe`；macOS/Linux 可按同一构建矩阵扩展。
 
-- **不重写** scan/plan/sync/revert/config/doctor/watch 业务规则；桌面端复用同一 `dist/` 核心与 WebUI 服务（`createUiServer`）。
-- **单形态**（2026-11-10 收敛，原「双形态并存」的 npm 侧已移除）：Electron 壳加载 Web 控制台，配系统对话框与安装包；开发调试走 `npm run desktop:dev`。
-- **安全模型继承 WebUI**：服务仍只绑 `127.0.0.1`；token 不进渲染进程、不进页面；写操作仍走 `confirm` 门。
-- **Electron 依赖不进发布面**：`electron` / `electron-builder` / `electron-vite` / `vite` 仅 devDependencies。
-- 首发平台：**Windows（NSIS `.exe` 安装包）**；macOS/Linux 后续按同一构建矩阵扩展。
-
-## 目录结构（与实现一致）
-
-```text
-renderer/                 # UI 单源（Vite root）
-  index.html
-  styles.css
-  main.js                 # 仅引导：import { bootstrap } from './src/app.js'
-  src/                    # 渲染器 ESM 模块（浏览器原生，不经打包也可直发）
-    app.js                # 装配：导航 / 视图切换 / 各 feature init
-    lib/                  # dom、api（唯一 fetch 出口 + X-Picbed-UI）、files、titles
-    components/           # toast、modal（confirm / 外链详情）、selectable-grid
-    features/             # theme、logo、health、drop、photo-wall、gallery、stats、
-                          # settings、dir-picker、gh-login（各 <330 行）
-desktop/                  # Electron 壳
-  main.mjs                # 主进程：createUiServer + 窗口 + IPC + 生命周期
-  preload.cjs             # contextBridge：picbedNative.*
-  icon.png
-electron.vite.config.mjs  # main / preload / renderer 三段
-out/                      # electron-vite build 产物（gitignore）
-src/                      # app 核心 + ui 服务器 → dist/
-scripts/
-  desktop-dev.mjs         # 开发 supervisor（tsc -w + electron-vite dev）
-  build-desktop.mjs       # NSIS 打包（electron-builder API）
-  validate.mjs            # 仓库校验（design/bootstrap/scripts 三个 profile，跨平台）
-electron-builder.yml
-```
-
-`src/ui/spa/*` 仅保留**薄适配**（从 `renderer/` 读文件 re-export），供测试与 `createUiServer` 兼容；**禁止**再往模板串回灌 UI。
+实现文件：`desktop/icon.png`、`desktop/main.mjs`、`desktop/make-icon.py`、`desktop/preload.cjs`（`src/desktop` 无跟踪文件）。
 
 ## 渲染层（electron-vite，当前权威）
 
-| 形态 | 渲染层来源 | API | 热更新 |
-|------|------------|-----|--------|
-| `npm run desktop:dev` | Vite dev server（`ELECTRON_RENDERER_URL`） | 主进程 `createUiServer`；Vite `proxy /api` → `127.0.0.1:4780` | **Vite HMR** |
-| 桌面安装包 | `renderer/`（打包进 asar，由 `createUiServer` 静态下发） | 同上，同源 | 无 |
+| 形态 | 渲染层 / API | 热更新 |
+|------|--------------|--------|
+| `npm run desktop:dev` | Vite dev server（`ELECTRON_RENDERER_URL`）；主进程 `createUiServer`，Vite `/api` 代理至 `127.0.0.1:4780` | Vite HMR |
+| 安装包 | `renderer/` 打包进 asar，由 `createUiServer` 同源静态下发 | 无 |
 
-契约：
-
-1. `/api/*` 路径、信封、confirm 门、token 掩码 **零变更**。
-2. `window.picbedNative` preload 桥不变；无桥时 SPA 不报错（渐进增强）。
-3. 打包版不得加载 Vite dev URL（`app.isPackaged` 时强制 `uiHandle.url`）。
-4. UI 单源是 `renderer/`；`src/ui/spa` 只读文件转发，不是设计源。
+- `/api/*`、信封、`confirm` 门及 token 掩码契约不变；`window.picbedNative` 为可选渐进增强桥。
+- 打包态强制加载 `uiHandle.url`，不得加载 Vite dev URL。
+- `renderer/` 是唯一 UI 源；`src/ui/spa` 仅作兼容转发，不回灌模板串。
 
 ## 领域模型（壳层）
 
 ```text
-DesktopSession {
-  ui: UiServerHandle          # host=127.0.0.1；dev 固定 4780 供 Vite proxy，prod 随机
-  window: BrowserWindow
-  cwd: string
-  lastRoot?: string
-}
-NativeBridge {
-  selectDirectory(): string | null
-  selectFiles(filters?): string[]
-}
+DesktopSession { ui: UiServerHandle, window: BrowserWindow, cwd: string, lastRoot?: string }
+NativeBridge { selectDirectory(): string | null, selectFiles(): string[] }
 ```
+
+`UiServerHandle` 绑定 `127.0.0.1`：开发态默认端口 `4780`，生产态随机端口；`close()` 随窗口退出释放服务。
 
 ## 模块接口（意图）
 
-### Electron 主进程 `desktop/main.mjs`
-
-```
-// electron API 必须 createRequire 加载（ESM import 'electron' 在 Electron 33 / Node 20
-// 会踩 cjsPreparseModuleExports）；若 ELECTRON_RUN_AS_NODE 泄漏（require 返回路径字符串）则 re-exec。
-
-app.whenReady
-  → createUiServer({ cwd }) → listen(port, '127.0.0.1')
-       dev (PICBED_DESKTOP_DEV=1): port=4780；否则 port=0
-  → 若存在 ELECTRON_RENDERER_URL 且未打包 → loadURL(Vite)
-  → 否则 loadURL(uiHandle.url)
-  → 注册 IPC：dialog:selectDirectory | dialog:selectFiles | app:info
-
-app.on('window-all-closed') → app.quit()
-app.on('before-quit') → uiHandle.close()
-```
-
-### Preload 桥 `desktop/preload.cjs`
-
-```
-window.picbedNative = {
-  selectDirectory(): Promise<string | null>
-  selectFiles(opts?: { multi?: boolean, filters?: string[] }): Promise<string[]>
-  platform: 'win32' | 'darwin' | 'linux'
-}
-```
-
-渲染进程约定：有 `picbedNative` 则显示「浏览…」；无则保持拖拽/手输，不报错。
+- `desktop/main.mjs`：`app.whenReady()` 后启动 `createUiServer({ cwd })`、创建窗口并注册 `dialog:selectDirectory`、`dialog:selectFiles`、`app:info` IPC；退出前关闭 UI 服务。
+- Preload 通过 `contextBridge` 暴露 `window.picbedNative`：目录/文件选择、平台信息；取消返回 `null` 或空数组。
+- Electron API 使用 `createRequire`；若 `ELECTRON_RUN_AS_NODE` 泄漏导致 `require('electron')` 返回路径字符串，清除变量并 re-exec。
+- 有原生桥时显示「浏览…」；无桥时保留拖拽/手输，不报错。
 
 ## 本地开发热更新（desktop:dev）
 
-```text
-scripts/desktop-dev.mjs（supervisor）
-  ├─ tsc -w（CLI/app 核心 → dist/）
-  ├─ electron-vite dev --entry desktop/main.mjs
-  │     ├─ renderer/*  → Vite HMR
-  │     └─ main/preload 变更 → electron-vite 重启 Electron
-  └─ 子进程退出 → 退避 respawn（≤5 次）；禁止误杀 tsc/supervisor
-```
+命令：`npm run desktop:dev`；supervisor 运行 `tsc -w` 与 `electron-vite dev --entry desktop/main.mjs`。全量编译仅在启动前执行一次。
 
-| 变更 | 行为 | 状态 |
-|------|------|------|
-| `renderer/*` | Vite HMR | 页面内状态可保留 |
-| `desktop/*` | Electron 进程重启 | 丢弃 |
-| `src/**` → `dist/` | `tsc -w` 产出；API 热更需重进/重启服务 | 视改动而定 |
-
-### Supervisor 契约（`scripts/desktop-dev.mjs`）
-
-1. 设置 `PICBED_DESKTOP_SUPERVISED=1`、`PICBED_DESKTOP_DEV=1`、`ELECTRON_ENTRY=desktop/main.mjs`。
-2. **删除 `ELECTRON_RUN_AS_NODE`**（泄漏会导致 `require('electron')` 变成路径字符串）。
-3. 子进程快速失败 → 退避 respawn（300ms×n，上限 2s，最多 5 次）后退出；**禁止**因退出杀掉 `tsc -w`。
-4. `SIGINT`/`SIGTERM` → 杀子进程与 tsc → 退出 0。
-
-### 主进程与 Vite HMR（禁止抢窗口）
-
-1. 窗口 URL 优先 `ELECTRON_RENDERER_URL`（Vite）；否则 `uiHandle.url`。
-2. **Vite 会话中禁止 `loadURL(uiHandle.url)`**——那会离开 HMR 页，热更新表现为「改了没反应」。
-3. `fs.watch` 在 Vite 会话下：`dist/` 变更触发**进程级重启**（`processExitForReload('dist')`，窗口会随之重建）；`desktop/` 交给 electron-vite 重启，不由本进程另行 relaunch。旧「只重启 API 服务、窗口不动」的方案已于 2026-10-27 废弃（原因见下文 §`dist/` 变更为何必须进程级重启）。
-4. 启动日志打印当前 renderer 来源（Vite / 本地 UI 服务），便于排查。
-
-### Electron 入口契约（`desktop/main.mjs`）
-
-1. **入口文件**：`desktop/main.mjs`（dev 由 `desktop-dev.mjs` 传 `ELECTRON_ENTRY`；打包后由 `electron-builder.yml` 的 `extraMetadata.main` 注入。`package.json` 本身**没有** `main` 字段）。不用 rollup 打包后的 `out/main`（Electron 33 ESM/CJS 互操作不稳）。
-2. **`electron` 模块**：`createRequire` 加载；若返回字符串（`ELECTRON_RUN_AS_NODE`）→ 清 env 后 re-exec 真 Electron。
-3. 打包版（`app.isPackaged`）**不**注册任何开发热更新监听、**不**加载 Vite URL。
+- 环境开关：`PICBED_DESKTOP_SUPERVISED=1`、`PICBED_DESKTOP_DEV=1`、`ELECTRON_ENTRY=desktop/main.mjs`；清除泄漏的 `ELECTRON_RUN_AS_NODE`。
+- Renderer 由 Vite HMR 更新；main/preload 变更由 electron-vite 重启 Electron；`dist/` 变更触发进程级重启，清空 Node ESM 模块缓存。
+- 默认 UI 端口 `4780`；端口占用报错退出，可用 `PICBED_UI_PORT` 调整。打包态不安装热更新监听。
+- 子进程快速失败时按 300ms×n（上限 2s）退避，最多重启 5 次；不得误杀 `tsc -w`。SIGINT/SIGTERM 清理子进程并退出。
+- `out/` 为 electron-vite 构建产物；不使用打包后的 `out/main` 作为 Electron 入口。
 
 ## 打包与分发
 
-| 通道 | 产物 | 命令 | 消费者 |
-|------|------|------|--------|
-| 桌面安装包 | `picbed-setup-<ver>.exe` + 稳定名 `picbed-setup.exe` | `npm run desktop:dist` | 终端用户 |
+| 命令 | 用途 | 产物 |
+|------|------|------|
+| `npm run desktop:bundle` | `tsc` + `electron-vite build` | `dist/`、`out/` |
+| `npm run desktop:dist` | 构建并由 electron-builder 制作 NSIS 安装包 | `release/picbed-setup-<version>.exe` 及稳定名 `release/picbed-setup.exe` |
 
-> npm / Release tarball 通道已随 CLI/MCP 移除（2026-11-10）；`npm pack` 仅作为包面审计（`validate:pack`）保留。
+electron-builder 要点：`appId=com.aermberry.picbed`、`productName=picbed`、入口 `desktop/main.mjs`、输出目录 `release/`；打包包含 `dist/**`、`desktop/**`、`renderer/**`、`out/**`、`package.json`，不含 `src/`、`tests/`、`docs/`。Windows 使用 NSIS、单击安装、用户级（`oneClick: true`、`perMachine: false`）；无签名证书时允许未签名，SmartScreen 提示属预期。
 
-`desktop:dist` = `tsc` + `electron-vite build` + electron-builder；`desktop:bundle` = 只做前两步（不出安装包，命名据此澄清）。`desktop:dev` = `tsc` 一次 + supervisor（`tsc -w` + `electron-vite dev`），supervisor 内**不再**重复全量编译。
-
-electron-builder 要点：
-
-- `appId`: `com.aermberry.picbed` · `productName`: `picbed`
-- `extraMetadata.main`: `desktop/main.mjs`
-- `directories.output`: `release/`
-- `files`: `dist/**`、`desktop/**`、`renderer/**`、`out/**`、`package.json`（**不含** `src/`、`tests/`、`docs/`）
-- `win.target`: `nsis`；`artifactName`: `picbed-setup-${version}.${ext}`
-- NSIS：`oneClick: true`，`perMachine: false`（用户级，免管理员）
-- 无签名证书阶段：允许未签名；SmartScreen 提示属预期
-
-### 发布面（npm 发布已移除，守卫保留）
-
-npm 发布已随 CLI/MCP 移除（2026-11-10）；`package.json` 的 `files` / `exports` 仅作为包面审计约束保留：
-
-- **无 `main` / `module` / `types`**：Electron 入口只经 `extraMetadata.main` 注入**打包后的桌面应用**，
-  dev 由 `desktop-dev.mjs` 显式传 `--entry`。声明 `"main"` 会让 npm 把该文件硬塞进 tarball。
-- **`exports`: 仅 `{ "./package.json": "./package.json" }`**：没有库入口，`picbed/dist/**` 深导入一律
-  `ERR_PACKAGE_PATH_NOT_EXPORTED`。
-- `files`: `dist`、`README.md`（`bin` 已随 CLI 移除）。
-- 守卫：`tests/package-surface.test.ts`（manifest 级：files / 入口 / exports 不得越界、禁通配）+ `scripts/validate.mjs --profile=pack`（真实 `npm pack --dry-run --json` 审计 tarball，需先 `npm run build`）。
+npm 发布已移除；`package.json` 的 `files` / `exports` 和 `validate:pack` 仅作为包面审计守卫保留，不构成发布通道。
 
 ## F24 桌面应用壳与安装包
 
-- 输入：桌面应用启动（开始菜单 / 快捷方式 / `.exe`）。
-- 规则：
-  1. 启动后进入**完整 Web 控制台**（F16–F25 视图），无需打开系统浏览器。
-  2. UI 服务绑定 `127.0.0.1`；关闭窗口时释放端口并退出 watch。
-  3. **原生目录选择**：提供「浏览…」调用系统对话框（策略 A 不变）。
-  4. **窗口状态记忆**：尺寸/位置写 `app.getPath('userData')`。
-  5. **Token 纪律不变**：渲染进程无法读取 token 明文。
-  6. 安装包可在无 Node.js 的 Windows 上运行。
-- 失败：
-  - UI 服务起不来 → 窗口错误态（端口/依赖），不白屏。
-  - 对话框取消 → 返回 `null`/空数组，不改变当前 root。
-  - `desktop:dist` 前置构建失败即中止。
+- 输入：从开始菜单、快捷方式或 `.exe` 启动桌面应用。
+- 启动进入完整 Web 控制台（F16–F25），无需另开浏览器；关闭窗口时释放端口并退出。
+- 原生目录选择调用系统对话框；窗口尺寸/位置写入 `app.getPath('userData')`。
+- 渲染进程不可读 token 明文；安装包可在无 Node.js 的 Windows 上运行。
+- UI 服务启动失败进入可见错误态，不得白屏；对话框取消不改变当前 root；`desktop:dist` 前置构建失败即中止。
 
 ## 与 webui 的协作
 
@@ -216,76 +99,10 @@ npm 发布已随 CLI/MCP 移除（2026-11-10）；`package.json` 的 `files` / `
 |------|------|------|
 | 2026-09-26 | F24：Electron + NSIS + 原生对话框 | 仍有效 |
 | 2026-09-27 | 分层 `fs.watch` 热更新（reload / 重启 UI / relaunch） | **已被 electron-vite 取代**；仅作无 Vite 回退思路 |
-| 2026-09-27 | SPA 出模板串 → `src/ui/spa/` TS 模块（见 [`module-webui-spa-split.md`](module-webui-spa-split.md)） | **已被 `renderer/` 单源取代** |
+| 2026-09-27 | SPA 出模板串 → `src/ui/spa/` TS 模块（见 [`module-webui-spa-split.md`](archive/module-webui-spa-split.md)） | **已被 `renderer/` 单源取代** |
 | 2026-09-27 | 迁移 electron-vite；入口 `desktop/main.mjs`；`createRequire` + `RUN_AS_NODE` re-exec | **当前权威** |
 
-## 实现落点（TS/Electron 适配）
-
-> 本模块在 TypeScript/Electron 实际源码中的落地；领域意图、目录结构、接口意图与 F24 见上文。签名与类图以真实源码为准（源码：`desktop/main.mjs`、`desktop/preload.cjs`、`electron.vite.config.mjs`、编译产物 `dist/ui/index.js`）。
-
-### 领域层类图（壳结构 + 桥）
-
-```mermaid
-classDiagram
-    class ElectronApp { <<external>> +whenReady() Promise +quit() void +on(event, cb) void }
-    class BrowserWindow { <<external>> +loadURL(url) void +webContents }
-    class IpcMain { <<external>> +handle(channel, cb) void }
-    class Dialog { <<external>> +selectDirectory() Promise~string|null~ +selectFiles(opts) Promise~string[]~ }
-    class PicbedNative { <<bridge/preload>> +selectDirectory() Promise +selectFiles(opts) Promise +appInfo() object +getPathForFile(file) string +platform string }
-    class PreloadScript { <<module: desktop/preload.cjs>> }
-    class UiServerHandle { +string url +number port +string host +close() Promise~void~ }
-
-    ElectronApp --> BrowserWindow : 创建窗口
-    ElectronApp --> IpcMain : 注册 IPC
-    ElectronApp --> Dialog : 调用对话框
-    PicbedNative ..> Dialog : 经 preload 桥接
-    PreloadScript --> PicbedNative : contextBridge.exposeInMainWorld
-    UiServerHandle ..> BrowserWindow : loadURL(uiHandle.url)
-```
-
-> `desktop/main.mjs` 中的 Electron 类型（`BrowserWindow`/`Dialog`/`IpcMain`）经 `createRequire` 动态加载，源码中为 `any`，上图以 `<<external>>` 标注；`globals.d.ts` 仅声明 `getPathForFile` 子集（浏览器降级用）。
-
-### 关键函数签名（语义）
-
-| 服务 | 签名（语义） | 职责 |
-|------|------|------|
-| `startApp` | `startApp({ app, BrowserWindow, dialog, ipcMain, shell })` | 注册 IPC → 创建窗口 → 启动 UI 服务（`whenReady().then(async () => { registerIpc(); await createWindow(); … })`） |
-| `registerIpc` | 注册 `dialog:selectDirectory` / `dialog:selectFiles` / `app:info` | 把主进程能力暴露给渲染进程 |
-| `createWindow` | `createWindow()` | `new BrowserWindow({preload})` + `loadURL(uiHandle.url)`；`uiHandle` 为模块级变量；失败回退 `data:` 错误页 |
-| `startUiServer` | `startUiServer(): Promise<UiServerHandle>` | 动态 `import('../dist/ui/index.js')` → `createUiServer({cwd})` → `listen(port,'127.0.0.1')` |
-| `installDevHotReload` | 监听 `dist/` 与 `desktop/` | **`dist/` 变更一律触发进程级重启**（`processExitForReload('dist')`），不做进程内模块重载；`desktop/*` 在 Vite 会话下只打日志、交给 electron-vite 重建，非 Vite 会话才 `processExitForReload('desktop')` |
-| `processExitForReload` | `processExitForReload(reason)` | `PICBED_DESKTOP_SUPERVISED=1` 时 `app.exit(0)` 交监督进程重拉，否则 `app.relaunch()` |
-| `preload.exposeInMainWorld` | `contextBridge.exposeInMainWorld('picbedNative', {...})` | 暴露 `PicbedNative` 桥 |
-
-**`dist/` 变更为何必须进程级重启（2026-10-27 修）**：旧实现给 `dist/ui/index.js` 加 `?t=<时间戳>` 后重新 `import`，意图热更新后端。但 cache-bust 只让**入口本体**重新求值——它 import 的子模块（`app/*`、`lib/*` 等）URL 未变，仍命中 Node ESM 模块缓存。实测：先 `import('./entry.mjs?t=1')` 取值 `v1`，改写其 import 的 `sub.mjs` 为 `v2`，再 `import('./entry.mjs?t=2')` 仍返回 `v1`。后果是「改了后端逻辑、看起来热更新成功、实际跑的是旧代码」——比不热更新更危险，故改为进程重启；进程内模块缓存随进程结束清空，结果确定。旧的 `restartUiServer()` 已删除（`tests/desktop.test.ts` 断言其不得回归）。
-
-### 复杂任务时序图（F24 复用 Web 服务）
-
-```mermaid
-sequenceDiagram
-    participant OS as Electron app
-    participant M as main.mjs startApp
-    participant I as startUiServer()
-    participant U as dist/ui createUiServer
-    participant W as BrowserWindow
-    participant P as preload.cjs
-    participant SPA as renderer main.js
-
-    OS->>M: app.whenReady()
-    M->>M: registerIpc()（dialog:*, app:info）
-    M->>I: createWindow()
-    I->>U: import dist/ui/index.js → createUiServer({cwd})
-    U-->>I: {server, listen}
-    I->>U: listen(port, '127.0.0.1')
-    U-->>I: uiHandle {url, close}
-    I->>W: new BrowserWindow({preload})
-    W->>P: expose picbedNative（selectDirectory/selectFiles/appInfo）
-    I->>W: loadURL(uiHandle.url)
-    W->>SPA: 加载 WebUI（与 picbed ui 同源）
-    Note over M,OS: before-quit → uiHandle.close() → app.quit()
-```
-
-> `desktop/main.mjs:76-91` 动态 import 编译后的 `dist/ui/index.js`；`createWindow`（`desktop/main.mjs:93-150`）失败时回退 `data:` 错误页（`:129`）。桌面端投放文件携带绝对路径 → `sessionRoutes` 的 `drop` 分支（`src/ui/routes/session.ts:106` 起；绝对路径子分支 `:130-195`）在**无根或不在根内**时重绑 `ctx.binder.bind(rebindTo, rebindTo)`（`:143`），并清空先前工作集（`:153`）、在响应里回报 `rebind{from,to,cleared}`（`:189`）。业务错误由复用的 `app`/`webui` 经 `AppError` 处理，见 [`module-app.md`](module-app.md)；桥 `picbedNative` 为渐进增强（无 preload 时 SPA 仍可用）。
+实现落点（TS/Electron 适配）：`desktop/main.mjs`、`desktop/preload.cjs`、`electron.vite.config.mjs`、`src/ui/server.ts`；业务服务与路由见 `src/ui/**`。
 
 ## 功能点映射
 

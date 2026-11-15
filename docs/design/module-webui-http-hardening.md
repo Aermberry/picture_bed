@@ -1,206 +1,38 @@
-# webui HTTP 加固设计（评审 ③：本地写接口加固）
+# webui HTTP 加固设计（本地写接口）
 
 > 归属：F16–F23 本地 Web 控制台宿主（`src/ui/server.ts`）；F24 桌面壳共用。
-> 背景：2026-09-27 架构评审发现 4（见 `.agents/memory/review-findings.md`）。
-> 宿主模块见 [`module-webui.md`](module-webui.md）；错误码契约见 [`module-app.md`](module-app.md)。
+> 宿主模块见 [`module-webui.md`](module-webui.md)；错误码契约见 [`module-app.md`](module-app.md)。
 
 ## 背景与问题
 
-`picbed ui` 是本地控制台：读接口无需鉴权（本地只读数据），写接口仅靠
-`body.confirm === true` 一道门。问题：
-
-- **无 Origin/Host 校验**：任意恶意网页可向 loopback 端口发 `text/plain {"confirm":true}`
-  简单请求（无需 CORS 预检）触发 sync/revert/config/watch 写操作（CSRF）；
-  DNS-rebinding（攻击域名解析到 127.0.0.1）同样绕过同源直觉。
-- **`readBody` 无上限**：`req.on('data')` 全量缓冲 → 内存 DoS。
-- **不看 Content-Type 直接 `JSON.parse`**：契约松弛，错误信息对调用方不友好。
-- 错误码默认落 500（评审发现 6 的语义模糊点）在新代码上继续复制。
+本地控制台的读接口无需鉴权，写接口保留 `confirm: true` 语义门。仅靠确认门无法阻止恶意网页构造 `text/plain` 简单请求；无请求体上限会使全量缓冲导致内存耗尽；不校验 Content-Type 会放宽 JSON 契约并产生含糊错误。
 
 ## 威胁模型与非目标
 
-**在范围**：用户浏览器中打开的任意网页试图触发本机控制台的写操作或耗尽其内存；
-SPA 自身的合法请求必须全形态通过（浏览器 `picbed ui`、Electron 壳、LAN 显式绑定）。
+保护用户打开本机控制台时，任意网页对本机 API 发起跨源写请求或大请求体；合法 SPA 请求须在 Electron、浏览器及显式 LAN 绑定模式下工作。
 
-**不在范围**：
-
-- 已有本地 shell/文件系统权限的进程（它们可直接读写工作区，网络层挡不住，也不该挡）；
-- 服务发现/权限系统、鉴权登录、HTTPS（loopback 明文可接受）；
-- LAN 暴露：`--host` 非 loopback 绑定是带警告的显式用户选择（cli.ts），不禁止，但
-  Origin 规则必须让 LAN 模式下 SPA 自身请求合法通过。
+- 不防已有本地 shell/文件系统权限的进程；它们可直接操作工作区。
+- 不提供服务发现、登录鉴权或 HTTPS；loopback 明文可接受。
+- LAN 绑定是带警告的显式选择；Origin / Host 规则仍须允许合法 SPA 同源请求。
 
 ## 方案：同源 Origin + 自定义头 + 请求体三件套
 
-### 决策表
+| 防线 | 当前规则 | 拒绝语义 |
+|---|---|---|
+| Origin + Host | 所有 `/api/*` 的 Origin 若存在，必须是 http/https 且 host:port 与 Host 相等；`Origin: null` 拒绝，缺 Origin 的非浏览器客户端放行。Host 必须可解析且指向绑定地址或 localhost；通配绑定例外。 | `E_ORIGIN` / `E_HOST` → 403；非法 Host → 400 |
+| POST 自定义头 | 所有 `POST /api/*` 必须带 `X-Picbed-UI: 1`。服务器不返回 CORS 许可头，跨源预检失败后浏览器不会发送实际请求。 | `E_HEADER` → 403 |
+| JSON 请求体 | 所有 POST 必须为 `application/json`（可带 charset）；`Content-Length` 预检与 `readBody` 累计均限制 64 KiB，超限 drain 剩余流以送达响应。 | `E_CONTENT_TYPE` → 415；`E_BODY_TOO_LARGE` → 413 |
 
-| # | 决策 | 规则 | 违例响应 |
-|---|------|------|----------|
-| 1 | **同源 Origin 校验**（全部 `/api/*`） | 请求带 `Origin` 头时，其 host:port 必须等于 `Host` 头的 host:port（scheme 仅允许 http/https）；`Origin: null` 视为违例。Origin 缺失（curl 等非浏览器客户端）放行 | 403 `E_ORIGIN` |
-| 2 | **POST 必需自定义头**（全部 POST `/api/*`） | 必须带 `X-Picbed-UI: 1`。跨源网页无法发送自定义头：触发 CORS 预检，而服务器从不返回 `Access-Control-Allow-*`，预检失败，浏览器不发实际请求 | 403 `E_HEADER` |
-| 3 | **Content-Type 校验**（全部 POST `/api/*`） | 必须为 `application/json`（允许 `; charset=` 参数）；不解析 body 的路由（如 session/reset）同规则，保持均匀 | 415 `E_CONTENT_TYPE` |
-| 4 | **请求体大小上限（两道）** | ① 守卫在路由前预检 `Content-Length` > 64 KiB → 直接 413（覆盖 session/reset 等不读体的路由）；② `readBody` 累计超限 → 413，剩余数据 `resume()` 丢弃保证响应可送达 | 413 `E_BODY_TOO_LARGE` |
-| 5 | **Host 头必须存在、可解析且须指名绑定地址** | 缺失/不可解析 → 400；hostname 必须 ∈ {绑定地址, localhost}（IPv6 归一去括号）；`0.0.0.0`/`::` 通配绑定为例外：不限制（显式全网暴露，LAN 场景，已在 cli 警告） | 400 `E_USAGE` / 403 `E_HOST` |
-| 6 | **新错误码显式映射 HTTP 状态** | `E_ORIGIN`/`E_HEADER`/`E_HOST` → 403，`E_CONTENT_TYPE` → 415，`E_BODY_TOO_LARGE` → 413，在 `src/app/errors.ts` 的 `httpStatusForCode` 显式分支（先于 exitCode 派生）；`exitCodeForCode` 归入 `EXIT.USAGE` | — |
-| 7 | **服务器永不输出 CORS 头** | 不返回 `Access-Control-Allow-Origin/Headers`；预检 OPTIONS 无特殊处理：跨源预检先被 Origin 守卫 403，同源 OPTIONS 落到 404 未知路由 | — |
+Origin 与 Host 相等覆盖 Electron、本机浏览器和 LAN 页面；Host 必须匹配绑定地址，阻断 DNS rebinding 使用攻击域名作为 Host。规则对所有 POST 一致执行，包括不读 body 的路由；ConfirmGate 仍作为独立语义防线。服务器不发 `Access-Control-Allow-*`，不单独放行 OPTIONS。
 
-**均匀性优先**：规则对全部 POST 路由一刀切（session/reset、bind-root、drop、scan、plan、
-sync、config、doctor、revert、watch/start、watch/stop），不按"是否写盘"分层——分层是
-漂移温床（评审发现 1/2 的教训），且 scan/plan/doctor 本身也可能被滥用为资源消耗入口。
+### 客户端与错误映射
 
-### 为什么"同源相等"而不是 loopback 白名单
-
-- Electron 壳（`desktop/main.mjs`）经 `loadURL(http://127.0.0.1:<ephemeral>)` 加载，
-  浏览器 dev 用 `--port`（默认 4780），LAN 模式是 `<主机IP>:<port>` —— 三者唯一共同的
-  合法形态是"**页面与服务器同源**"，即 Origin host:port == Host host:port。相等比较
-  一次覆盖全部绑定形态，也天然免疫 DNS-rebinding（rebind 后 Origin host ≠ Host host）。
-- 用户此前标注的拍板点（Origin allowlist 与 Electron 壳交互）：**以同源相等替代固定
-  白名单**，不需要维护端口/IP 清单，Electron 与 LAN 行为无需特判。
-- 单独的同源相等挡不住 DNS-rebinding：攻击页origin与Host同为 `attacker.com:<port>` 时
-  相等比较会放行。因此叠加 Host 规则（决策 5）：浏览器可达的前提是 Host 必须指名绑定
-  地址，rebind 后的 `attacker.com` Host 直接被 403，无需维护"合法域名"清单。
-
-### SPA 与测试适配
-
-- **桌面 dev 代理的 Origin 改写（2026-10-01 补）**：`desktop:dev` 下窗口加载 Vite
-  （`http://localhost:5173`），`/api` 经本地代理转发到 UI 服务器。`changeOrigin` 只改写
-  Host，而 Chromium 对**同源 POST 也会附带 Origin**（Vite 源），原样转发命中决策 1 的
-  同源相等检查 → 403 `E_ORIGIN`（GET 无 Origin 头不受影响，故此前只挂 POST）。处理：
-  **受信本地代理**（`electron.vite.config.mjs` 的 `configure → proxyReq`）把 Origin 改写为
-  API 目标源，使代理后的请求恢复"同源"形态；服务端契约不变。安全边界不受影响——外部
-  攻击者的请求不经过此代理，浏览器直连仍受决策 1/5 约束。生产/浏览器模式（页面直接
-  加载 `uiHandle.url`）天然同源，无需此改写。
-
-- `renderer/src/lib/api.js` 的 `api()` 是唯一 fetch 出口：加 `X-Picbed-UI: 1` 头（一处修改，
-  全部 20+ 调用点生效）。`renderer/main.js` 只有 6 行引导（`import { bootstrap }` + 调用），
-  不含 fetch。Electron 内 Chromium fetch 同源发 Origin 与自定义头无额外限制。
-- `tests/ui.test.ts` / `tests/ui-panels.test.ts` 的 POST 调用统一过测试侧 helper 补头；
-  新增负例：跨源 Origin 403、缺头 403、错 Content-Type 415、超限体 413、畸形 Host 400、
-  静态资源与 GET 路由不受自定义头影响。
-- `tests/desktop.test.ts` 无 POST 调用面时不改（实现期核实）。
-
-### 不变量
-
-- loopback 默认绑定不变；`--host`/`--port` 语义不变；`desktop/main.mjs` 零改动；
-- CLI / MCP 不走 HTTP，完全不受影响；
-- ConfirmGate（`confirm: true`）保留：本设计是网络层防线，确认门是语义层防线，二者正交；
-- JSON envelope 契约（`schemaVersion`/`ok`/`error.code`）不变，新错误码沿用同一 envelope。
+- `renderer/src/lib/api.js` 的统一 `api()` 出口添加 `X-Picbed-UI: 1`。生产页面直连 UI 服务，Origin 与 Host 同源；桌面开发代理将 Origin 改写为 API 目标源，保持服务端规则不变。
+- 所有 guard 错误仍使用 `api.*` JSON 信封；`httpStatusForCode` 显式映射 `E_ORIGIN` / `E_HEADER` / `E_HOST` → 403、`E_CONTENT_TYPE` → 415、`E_BODY_TOO_LARGE` → 413；这些错误归入 usage 退出码语义。
+- 新路由一律经过 `server.ts` 的统一 guard，不得按是否写盘拆分 POST 规则；读接口和静态资源不要求自定义头。
 
 ## 验证
 
-- 新增负例测试全部失败→实现后转绿（先红后绿，含 413 断连用例）；
-- `npm test` 全绿、`npm run lint` 干净、`npm run build` 通过；
-- 浏览器实测：页面功能（扫描/计划/同步 dry-run）正常，且从 Console 伪造跨源 POST
-  被 403 拒绝。
-
-## 实现落点（TS/Electron 适配）
-
-> 本设计在 TypeScript/Electron 实际源码中的落地；决策与威胁模型见上文。签名与类图以真实源码为准（源码：`src/ui/http/guard.ts`、`src/ui/http/body.ts`、`src/ui/http/envelope.ts`、`src/ui/http/errors.ts`、`src/ui/server.ts`、`src/app/errors.ts`）。
-
-### 实际文件夹结构（涉及的协议/安全层）
-
-```text
-src/ui/
-├─ server.ts            # 请求主流程：安检 → 静态下发 → 路由表（guard 在路由前调用）
-├─ http/
-│  ├─ guard.ts          # parseHost / checkHost / checkApiRequest / rejectionEnvelope（决策 1/2/3/4/5/7）
-│  ├─ body.ts           # readBody + API_BODY_LIMIT（决策 4 第二道）
-│  ├─ envelope.ts        # envelope / makeSend / sendRaw / normalizeHostname
-│  └─ errors.ts          # sendAppError（未捕获异常 → httpStatusForCode + 信封）
-└─ routes/              # 业务路由（命中返回 true，均经 guard 后仍走同源规则）
-```
-
-### 领域层类图（安检契约）
-
-```mermaid
-classDiagram
-    class GuardRejection {
-        <<interface>>
-        +number status
-        +string command
-        +string code
-        +string message
-    }
-    class HttpGuard {
-        <<module: src/ui/http/guard.ts>>
-        +parseHost(hostHeader) {ok,hostUrl} | {ok,rejection}
-        +checkHost(hostUrl, bindHost) GuardRejection | null
-        +checkApiRequest(req, pathname, hostUrl) GuardRejection | null
-        +rejectionEnvelope(r) JsonEnvelope
-    }
-    class BodyReader {
-        <<module: src/ui/http/body.ts>>
-        +API_BODY_LIMIT = 65536
-        +readBody(req, limit?) Promise~string~
-    }
-    class AppError {
-        +string code
-        +ExitCode exitCode
-        +string hint?
-    }
-    class SendAppError {
-        <<module: src/ui/http/errors.ts>>
-        +sendAppError(send, err, command?) void
-    }
-    HttpGuard ..> GuardRejection : 返回（status 为硬编码字面量，不经 AppError）
-    note for BodyReader "抛带 code 的普通 Error，不是 AppError 实例"
-    SendAppError ..> AppError : 经 httpStatusForCode 派生状态码（非唯一调用点）
-```
-
-### 公开服务签名（TS）
-
-| 服务 | 签名 | 职责（对应决策） |
-|------|------|------|
-| `parseHost` | `parseHost(hostHeader: string): {ok:true; hostUrl:URL} \| {ok:false; rejection:GuardRejection}` | Host 必须存在且可解析；非法 → 400 `E_USAGE`（决策 5 前置） |
-| `checkHost` | `checkHost(hostUrl: URL, bindHost: string): GuardRejection \| null` | Host 须指名绑定地址，阻断 DNS-rebinding；违例 403 `E_HOST`；通配/LAN 放行（决策 5） |
-| `checkApiRequest` | `checkApiRequest(req: http.IncomingMessage, pathname: string, hostUrl: URL): GuardRejection \| null` | `/api` 同源（决策 1）+ POST 头 `X-Picbed-UI:1`（决策 2）+ Content-Type（决策 3）+ Content-Length 上限（决策 4 第一道） |
-| `rejectionEnvelope` | `rejectionEnvelope(r: GuardRejection): JsonEnvelope` | 把 `GuardRejection` 包成 `api.*` 信封 |
-| `readBody` | `readBody(req: http.IncomingMessage, limit?: number): Promise<string>` | 累计超限 → reject `E_BODY_TOO_LARGE`；超后仍 `resume()` drain，保证 413 可达（决策 4 第二道） |
-| `API_BODY_LIMIT` | `const API_BODY_LIMIT = 64 * 1024` | 决策 4 请求体上限 64 KiB |
-| `sendAppError` | `sendAppError(send: (status, body) => void, err: unknown, command?: string): void` | 未捕获异常 → `httpStatusForCode` + 统一信封；路由层另有直接调用（`http/errors.ts:12`、`routes/config.ts:77`、`revert.ts:39`、`session.ts:147/201`、`sync.ts:71`、`system.ts:53`） |
-| `envelope` | `envelope<T>(ok, command, data?, error?, warnings?): JsonEnvelope<T>` | 统一 JSON 信封构造器（`src/ui/http/envelope.ts`） |
-| `normalizeHostname` | `normalizeHostname(hostname: string): string` | 归一 hostname（IPv6 去括号等），配合 `checkHost` |
-
-> `httpStatusForCode`（`src/app/errors.ts`）对 `E_ORIGIN`/`E_HEADER`/`E_HOST` → 403、`E_CONTENT_TYPE` → 415、`E_BODY_TOO_LARGE` → 413 有显式分支（决策 6），先于 exitCode 派生；`exitCodeForCode` 将以上归入 `EXIT.USAGE`。
-
-### 复杂任务时序图（一次 `/api/sync` POST 的安检链）
-
-```mermaid
-sequenceDiagram
-    participant B as Browser/SPA
-    participant S as http.Server(server.ts)
-    participant G as guard.checkApiRequest
-    participant BODY as readBody
-    participant R as syncRoute（业务）
-    participant E as envelope / rejectionEnvelope
-
-    B->>S: POST /api/sync（Origin, X-Picbed-UI:1, Content-Type:json, JSON 体）
-    S->>G: checkApiRequest(req, '/api/sync', hostUrl)
-    alt Origin 非同源
-        G-->>S: GuardRejection 403 E_ORIGIN
-        S->>E: rejectionEnvelope → 403（不返回任何 CORS 头）
-    else 缺 X-Picbed-UI
-        G-->>S: 403 E_HEADER
-    else Content-Type 非 application/json
-        G-->>S: 415 E_CONTENT_TYPE
-    else Content-Length > 64 KiB
-        G-->>S: 413 E_BODY_TOO_LARGE（req.resume 丢弃余流）
-    else 全部通过
-        S->>BODY: readBody(req)
-        alt 累计超限
-            BODY-->>S: reject E_BODY_TOO_LARGE
-            S->>E: 413
-        else OK
-            BODY-->>S: JSON 文本
-            S->>R: route(ctx) 业务处理（再经 ConfirmGate / runSync）
-        end
-    end
-```
-
-> 安检在路由前统一执行（server.ts 装配）；`X-Picbed-UI:1` 由 `renderer/src/lib/api.js` 的 `api()` 单一 fetch 出口添加（一处生效，覆盖 20+ 调用点）。桌面 dev 代理经受信本地代理把 Origin 改写为 API 目标源以恢复同源形态，服务端契约不变（见上文「SPA 与测试适配」）。
-
-## 实现期修订记录
-
-- 决策 4 改为两道上限（`Content-Length` 路由前预检 + `readBody` 累计）：原单道方案在
-  `session/reset`（不读请求体）上失效——超限体不触发任何读取。预检覆盖全部 POST 路由。
-- 新增决策 5 的 Host 指名绑定地址规则（403 `E_HOST`）：先写实现时发现同源相等单独
-  存在 DNS-rebinding 缺口（攻击者同时控制 Host 与 Origin），按"实现前必须先改设计"
-  回补设计，错误码随之增加 `E_HOST`。
+- `npm test`：跨源 Origin、缺自定义头、错 Content-Type、超限体、畸形 Host 拒绝；静态资源与 GET 不受 POST 头限制。
+- `npm run lint`、`npm run build`：静态检查与构建。
+- 浏览器实测：SPA 扫描 / 计划 / dry-run 正常；伪造跨源 POST 被拒绝。
